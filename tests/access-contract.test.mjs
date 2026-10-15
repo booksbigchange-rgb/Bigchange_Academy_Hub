@@ -1,0 +1,34 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const policy = readFileSync(new URL('../supabase/policies/academy_profile_access.sql', import.meta.url),'utf8');
+const schema = readFileSync(new URL('../supabase/migrations/20261015_0001_locked_schema.sql',import.meta.url),'utf8');
+test('initial schema remains locked and denies client writes', () => {
+  const tables = [...schema.matchAll(/create table if not exists public\.(academy_[a-z_]+)\(/g)].map(x=>x[1]);
+  assert.equal(tables.length,14);
+  for (const table of tables) {
+    assert.ok(schema.includes('alter table public.'+table+' enable row level security;'),table);
+    assert.ok(schema.includes('alter table public.'+table+' force row level security;'),table);
+    assert.ok(policy.includes('public.'+table), table);
+  }
+  assert.match(policy,/revoke all on table[\s\S]*from anon, authenticated;/i);
+});
+test('only own member identities are readable; no broad grants', () => {
+  const grants=[...policy.matchAll(/grant\s+(select|insert|update|delete)[\s\S]*?to authenticated;/gi)];
+  assert.equal(grants.length,1);
+  assert.match(grants[0][0],/^grant select/i);
+  assert.equal((policy.match(/create policy academy_\w+_self_select/g)||[]).length,3);
+  assert.equal((policy.match(/using \(auth_user_id = \(select auth\.uid\(\)\)\)/g)||[]).length,3);
+  assert.doesNotMatch(policy,/create policy[\s\S]*?for\s+(all|insert|update|delete)/i);
+  assert.doesNotMatch(policy,/using\s*\(\s*true\s*\)/i);
+  assert.doesNotMatch(policy,/raw_user_meta_data|user_metadata/i);
+});
+test('sign-in gate never falls through into demo after configuration',()=>{
+  const main=readFileSync(new URL('../src/main.tsx',import.meta.url),'utf8');
+  const auth=readFileSync(new URL('../src/SecureApp.tsx',import.meta.url),'utf8');
+  assert.match(main,/config\s*\?\s*<Suspense/);
+  assert.match(auth,/auth\.getUser\(\)/);
+  assert.match(auth,/\.eq\('auth_user_id', userId\)/);
+  assert.doesNotMatch(auth,/\.auth\.signUp\(/);
+});

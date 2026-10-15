@@ -13,7 +13,7 @@
 ## Deployment and database state
 - This feature has not been configured with any live Supabase credentials. It has not been tested against a Supabase Auth server or PostgreSQL. No data migrated.
 - Existing Supabase project belongs to an unidentified app. Do not modify it for the Academy.
-- Dedicated project creation must be explicitly confirmed with the user after checking organization choice and cost.
+- The user supplied a distinct Supabase project URL: https://nwpaqjzwqwkqxibwvusr.supabase.co (different account). This is an intended target only; the connected Supabase tool does not see the project, so no schema or authentication configuration has been applied to it. A publishable key and authorized project connection are still needed. The existing connected Supabase account remains untouched.
 - The demo Pages build has **no** `VITE_ACADEMY_*` settings, so it continues to show only fictional records.
 
 ## Remaining release gates (not complete)

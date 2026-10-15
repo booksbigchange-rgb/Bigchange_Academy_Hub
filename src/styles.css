@@ -727,3 +727,18 @@ footer {
   .brand-logo { width: 125px; }
 }
 @media(max-width:520px) { .brand-logo { width: 110px; } }
+
+/* Optional private Academy Auth Gate. The public fictional demo does not use it. */
+.auth-shell { min-height:100vh;display:grid;place-items:center;padding:28px 18px;background:linear-gradient(145deg,#151d27 0%,#24313a 50%,#e8d2aa 50%,#efe3d1 100%); }
+.auth-card { width:min(100%,490px); padding:32px; border-radius:20px; border:1px solid #ddc391; background:#f8f0e5;box-shadow:0 22px 70px rgba(24,25,28,.25); }
+.auth-logo { width:150px; height:126px; object-fit:contain;display:block;margin:0 auto 22px;padding:10px;border-radius:12px;background:#18232c; }
+.auth-card h1 { font-size:clamp(22px,4vw,30px);line-height:1.2;letter-spacing:-.7px;margin:10px 0; }
+.auth-card p { color:#645a4d;font-size:13px;line-height:1.7; }
+.auth-form { display:grid;gap:17px;margin-top:23px; }
+.auth-form label { font-size:12px;font-weight:750;display:grid;gap:8px;color:#493c2c; }
+.auth-form input { min-height:46px;border:1px solid #cbb18b;border-radius:9px;padding:12px;background:#fbf4e9;color:#30291f; }
+.auth-form .primary-btn {margin-top:2px;min-height:45px;width:100%;}
+.auth-feedback {min-height:17px;color:#855212!important;}
+.auth-role { background:#ebd3a3;border:1px solid #d1aa60;border-radius:20px;padding:4px 11px;color:#69460f;font-weight:800;text-transform:capitalize; }
+.auth-restricted { padding:13px;border-radius:10px;background:#f0e1c5;border-left:3px solid #bc8633; }
+.auth-footer {border-top:1px solid #dfc7a5;padding-top:18px;margin-top:24px;font-size:11px!important;}

@@ -18,10 +18,11 @@ jobs:
         with:
           node-version: '22'
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Type-check
         run: npm run typecheck
-      - name: Finance utility tests
+      - name: Security, finance and branding tests
         run: npm test
       - name: Build
         run: npm run build
+

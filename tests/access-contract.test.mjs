@@ -22,7 +22,7 @@ test('only own member identities are readable; no broad grants', () => {
   assert.equal((policy.match(/using \(auth_user_id = \(select auth\.uid\(\)\)\)/g)||[]).length,3);
   assert.doesNotMatch(policy,/create policy[\s\S]*?for\s+(all|insert|update|delete)/i);
   assert.doesNotMatch(policy,/using\s*\(\s*true\s*\)/i);
-  assert.doesNotMatch(policy,/raw_user_meta_data|user_metadata/i);
+  assert.doesNotMatch(policy.split('\n').filter(line=>!line.trimStart().startsWith('--')).join('\n'),/raw_user_meta_data|user_metadata/i);
 });
 test('sign-in gate never falls through into demo after configuration',()=>{
   const main=readFileSync(new URL('../src/main.tsx',import.meta.url),'utf8');

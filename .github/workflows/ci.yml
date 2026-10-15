@@ -31,3 +31,32 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  lockfile-once:
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/secure-foundation'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout trusted development branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/secure-foundation
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit dependency lockfile if missing
+        run: |
+          if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1 && git diff --quiet -- package-lock.json; then
+            echo "Lockfile already tracked and unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "build: lock verified Academy dependency versions"
+          git push origin HEAD:feature/secure-foundation

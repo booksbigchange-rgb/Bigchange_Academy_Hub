@@ -1,4 +1,5 @@
 name: Temporary web preview (GitHub Pages)
+# Preview runs from the dedicated development branch; main is unchanged.
 
 on:
   push:

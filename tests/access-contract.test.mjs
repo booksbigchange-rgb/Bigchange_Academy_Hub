@@ -32,3 +32,24 @@ test('sign-in gate never falls through into demo after configuration',()=>{
   assert.match(auth,/\.eq\('auth_user_id', userId\)/);
   assert.doesNotMatch(auth,/\.auth\.signUp\(/);
 });
+
+test('adult-only pilot does not use public user self-registration or service keys', () => {
+  const source=readFileSync(new URL('../src/pilot-main.tsx',import.meta.url),'utf8');
+  const auth=readFileSync(new URL('../src/SecureApp.tsx',import.meta.url),'utf8');
+  const vite=readFileSync(new URL('../vite.config.ts',import.meta.url),'utf8');
+  assert.match(source,/sb_publishable_/);
+  assert.match(source,/nwpaqjzwqwkqxibwvusr/);
+  assert.doesNotMatch(source,/signUp\(/);
+  assert.match(auth,/detectSessionInUrl: true/);
+  assert.match(auth,/auth\.updateUser\(\{ password \}\)/);
+  assert.match(vite,/pilot\.html/);
+});
+test('test-admin provisioning refuses a missing email and other role reassignments',()=>{
+  const sql=readFileSync(new URL('../supabase/manual/provision_test_admin.sql',import.meta.url),'utf8');
+  assert.match(sql,/target_email = 'REPLACE_WITH_CONFIRMED_ADULT_TEST_EMAIL@example.com'/);
+  assert.match(sql,/email_confirmed_at IS NOT NULL/);
+  assert.match(sql,/ON CONFLICT \(auth_user_id\) DO NOTHING/);
+  assert.match(sql,/academy_guardians/);
+  assert.match(sql,/academy_learners/);
+  assert.doesNotMatch(sql,/service_role|auth\.admin\.createUser/i);
+});

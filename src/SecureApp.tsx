@@ -2,16 +2,21 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 type AcademyRole = 'admin' | 'teacher' | 'finance' | 'learner' | 'guardian';
-type GateState = 'checking' | 'signed-out' | 'verified' | 'not-enrolled' | 'error';
+type GateState = 'checking' | 'signed-out' | 'set-password' | 'verified' | 'not-enrolled' | 'error';
 
 export default function SecureApp({ url, publishableKey }: { url: string; publishableKey: string }) {
+  // Read the invitation marker before the SDK processes the URL hash.
+  const [inviteFlow, setInviteFlow] = useState(() =>
+    new URLSearchParams(window.location.hash.slice(1)).get('type') === 'invite'
+    || new URLSearchParams(window.location.search).get('invite') === '1');
   const client = useMemo(() => createClient(url, publishableKey, {
-    auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
+    auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
   }), [url, publishableKey]);
   const [state, setState] = useState<GateState>('checking');
   const [role, setRole] = useState<AcademyRole | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [message, setMessage] = useState('');
   const [working, setWorking] = useState(false);
@@ -22,6 +27,7 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
       const { data, error } = await client.auth.getUser(); // verified by Auth API, not client metadata
       if (!active) return;
       if (error || !data.user) { setRole(null); setState('signed-out'); setUserEmail(''); return; }
+      if (inviteFlow) { setUserEmail(data.user.email ?? 'Invited account'); setState('set-password'); return; }
       setState('checking');
       const userId = data.user.id;
       const checks = [
@@ -61,7 +67,7 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
       queueMicrotask(() => { if (active) void checkIdentity(); });
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
-  }, [client]);
+  }, [client, inviteFlow]);
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -71,17 +77,39 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
     try {
       const { error } = await client.auth.signInWithPassword({ email: email.trim(), password });
       if (error) { setMessage('Sign-in unsuccessful. Check your details or contact your Academy administrator.'); }
+    } catch {
+      setMessage('Connection error. Please try again.');
     } finally {
       setPassword('');
       setWorking(false);
     }
   }
 
+  async function finishInvite(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (working) return;
+    if (password.length < 12 || password !== confirmPassword) {
+      setMessage('Use at least 12 characters and make sure both passwords match.');
+      return;
+    }
+    setWorking(true); setMessage('');
+    try {
+      const { error } = await client.auth.updateUser({ password });
+      if (error) { setMessage('Could not set password. Your link may be expired or additional verification may be required.'); return; }
+      setPassword(''); setConfirmPassword('');
+      // Never grant a role here. A trusted SQL-admin workflow provisions profiles.
+      setInviteFlow(false);
+      setState('checking');
+    } catch {
+      setMessage('Could not reach the authentication service. Please try again.');
+    } finally { setWorking(false); }
+  }
+
   async function signOut() {
     setWorking(true);
     const { error } = await client.auth.signOut();
     if (error) setMessage('Unable to sign out. Please try again.');
-    else { setState('signed-out'); setRole(null); setMessage(''); }
+    else { setInviteFlow(false); setState('signed-out'); setRole(null); setMessage(''); }
     setWorking(false);
   }
 
@@ -90,6 +118,17 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
       <img className="auth-logo" src={`${import.meta.env.BASE_URL}bigchange-academy-logo.svg`} alt="BigChange Academy" />
       <span className="eyebrow">PRIVATE ACCOUNT AREA</span>
       {state === 'checking' ? <><h1>Verifying your account</h1><p>Checking your identity and approved Academy membership.</p></> :
+        state === 'set-password' ? <>
+          <h1>Complete your invitation</h1>
+          <p>Set a password for the verified invitation account. This is a test-only setup.</p>
+          <form className="auth-form" onSubmit={finishInvite}>
+            <label>New password (12+ characters)<input type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)} /></label>
+            <label>Confirm password<input type="password" autoComplete="new-password" minLength={12} required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></label>
+            <button className="primary-btn" type="submit" disabled={working}>{working ? 'Saving…' : 'Set test password'}</button>
+          </form>
+          <p role="status" aria-live="polite" className="auth-feedback">{message}</p>
+          <button className="text-btn" type="button" onClick={() => void signOut()} disabled={working}>Sign out</button>
+        </> :
         state === 'signed-out' ? <>
           <h1>Academy sign in</h1>
           <p>Staff and invited Academy members only. There is no public registration.</p>

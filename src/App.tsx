@@ -53,10 +53,10 @@ function App() {
   function chooseRole(next: Role) { setRole(next); setSection('Overview'); }
   return <div className="shell">
     <aside className="sidebar">
-      <div className="identity"><span className="mark">B<span>✦</span></span><div><strong>BigChange</strong><small>ACADEMY HUB</small></div></div>
+      <div className="identity"><img className="brand-logo" src={`${import.meta.env.BASE_URL}bigchange-academy-logo.svg`} width="220" height="177" alt="BigChange Academy" /></div>
       <div className="side-label">WORKSPACE</div>
       <nav aria-label="Dashboard sections">
-        {sections.map((item, index) => <button key={item} className={section === item ? 'navitem active' : 'navitem'} onClick={() => setSection(item)}><span className="navicon">{['▦','▤','☷','◷','◇'][nav.indexOf(item)]}</span>{item}</button>)}
+        {sections.map((item, index) => <button key={item} className={section === item ? 'navitem active' : 'navitem'} aria-current={section === item ? 'page' : undefined} onClick={() => setSection(item)}><span className="navicon">{['▦','▤','☷','◷','◇'][nav.indexOf(item)]}</span>{item}</button>)}
       </nav>
       <div className="sidebar-bottom"><div className="sidebar-help"><strong>Build together, learn together.</strong><span>A better space for every learner.</span></div><div className="sidebar-note">Prototype · sample data only</div></div>
     </aside>

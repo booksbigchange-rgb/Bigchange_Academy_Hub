@@ -1,5 +1,7 @@
 name: Temporary web preview (GitHub Pages)
 # Preview runs from the dedicated development branch; main is unchanged.
+# Published contents use a pinned, CI-tested secure-foundation snapshot.
+# Index stays a fictional demo; pilot.html is adult TEST accounts only.
 
 on:
   push:
@@ -28,19 +30,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout source
+      - name: Checkout pinned preview source
         uses: actions/checkout@v4
+        with:
+          ref: b6915ee74985a0709163934fa3fa9419cb5adf61
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
       - name: Install packages
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Test and type-check
         run: |
           npm run typecheck
           npm test
-      - name: Build demo for GitHub Pages subpath
+      - name: Ensure no configured live credentials are embedded
+        run: |
+          test -z "${VITE_ACADEMY_SUPABASE_URL:-}"
+          test -z "${VITE_ACADEMY_SUPABASE_PUBLISHABLE_KEY:-}"
+          test -f pilot.html
+      - name: Build demo and isolated adult test pilot for GitHub Pages subpath
         run: npm run build -- --base=/Bigchange_Academy_Hub/
       - name: Retain built preview as downloadable artifact
         uses: actions/upload-artifact@v4

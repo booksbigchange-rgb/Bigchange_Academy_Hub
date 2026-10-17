@@ -868,3 +868,28 @@ footer {
 @media(max-width:1100px){.family-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.family-metrics{gap:11px}.family-metrics .metric{min-height:164px;padding:15px}
   .family-child{width:100%}.family-channel-choices label{width:100%}}
+
+/* M5: low-bandwidth school oversight reports */
+.reports-workspace{display:grid;gap:20px}
+.report-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:20px 0 0}
+.report-filters label{display:grid;gap:8px;color:var(--text-secondary);font-size:12px;font-weight:750}
+.report-filters select{width:100%;min-width:0;min-height:42px;padding:10px 11px;border:1px solid var(--stroke-strong);border-radius:10px;background:var(--bg-raised);color:var(--text);font-size:12px}
+.report-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.report-kpis .metric{min-height:174px}
+.report-tabs{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:15px;margin-bottom:25px;border-bottom:1px solid var(--stroke)}
+.report-tab{min-height:41px;min-width:90px;border:1px solid var(--stroke);border-radius:10px;padding:10px 14px;background:var(--bg-card-alt);color:var(--text);font-size:12px;font-weight:750}
+.report-tab.selected{border-color:var(--gold-deep);background:#ebd6b0;box-shadow:inset 0 -3px 0 var(--gold-deep)}
+.report-bars{display:grid;gap:20px;margin:24px 0}
+.report-bar-label{display:flex;gap:10px;justify-content:space-between;margin-bottom:8px;font-size:12px}
+.report-bar-label span{color:var(--text-secondary);white-space:nowrap;font-size:11px}
+.report-bar-track{height:12px;background:#e4d2b6;border-radius:20px;overflow:hidden}
+.report-bar-track span{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#a87421,#e3b45b)}
+.reports-workspace .table-wrap{margin:18px 0}
+.report-strips{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:11px;margin:20px 0}
+.report-strips>div{display:grid;gap:6px;border:1px solid var(--stroke);border-radius:11px;padding:14px;background:var(--bg-card-alt)}
+.report-strips strong{font-size:22px}
+.report-strips small{font-size:11px;color:var(--text-secondary)}
+.report-warning{padding:14px!important;border-left:4px solid #b18b42;border-radius:8px;background:#f4e3bf;color:#684510!important}
+.report-history{padding-left:23px;font-size:12px;line-height:1.9;color:var(--text)}
+@media(max-width:1120px){.report-filters,.report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.report-filters{grid-template-columns:1fr}.report-kpis{gap:11px}.report-kpis .metric{padding:14px;min-height:162px}.report-bar-label{flex-wrap:wrap}.report-tab{flex:1}}

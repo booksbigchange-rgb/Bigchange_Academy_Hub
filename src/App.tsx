@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { paymentStatus } from './lib/finance.mjs';
+import { outstandingBalance, paymentStatus } from './lib/finance.mjs';
 import { summarizeDemoAcademy } from './lib/reporting.mjs';
 import AcademyReports from './components/AcademyReports';
 import { recordDemoPayment } from './lib/learning.mjs';

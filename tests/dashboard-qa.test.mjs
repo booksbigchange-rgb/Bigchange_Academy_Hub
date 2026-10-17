@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {INITIAL_DEMO_CLASSES,enrollDemoLearner} from '../src/lib/operations.mjs';
+import {DEMO_TEACHERS,DEMO_LEARNERS,INITIAL_DEMO_CLASSES,enrollDemoLearner} from '../src/lib/operations.mjs';
 import {INITIAL_DEMO_ACADEMICS,markDemoSessionAttendance} from '../src/lib/academics.mjs';
 import {INITIAL_DEMO_ASSESSMENTS,submitDemoProject,submitDemoQuiz,gradeDemoProject} from '../src/lib/assessments.mjs';
 import {demoFamilyReport} from '../src/lib/family.mjs';
@@ -51,8 +51,8 @@ test('role dashboard numbers use current records instead of hardcoded attendance
  assert.deepEqual([metric(teacher,'My teaching groups'),metric(teacher,'Unique learners'),metric(teacher,'To review'),metric(teacher,'Register marks')],
   ['2','5','0','3 / 9']);
  const admin=demoOverviewCards('Administrator',f);
- assert.deepEqual([metric(admin,'Unique learners'),metric(admin,'Active courses'),metric(admin,'Instructors'),metric(admin,'Balances due')],
-  ['8','4','3','ETB 4,000']);
+ assert.deepEqual([metric(admin,'Registered students'),metric(admin,'Teachers'),metric(admin,'Class groups'),metric(admin,'Balances due')],
+  ['16','3','4','ETB 4,000']);
  assert.ok(!JSON.stringify(student).includes('92%')&&!JSON.stringify(teacher).includes('94%'));
  assert.deepEqual(demoOverviewCards('Guardian',f),[]);
 });
@@ -102,4 +102,16 @@ test('guardian section navigation retains component identity; mobile nav has foc
  assert.doesNotMatch(app,/<AcademyFamily key=\{section\}/);
  assert.match(css,/\.navitem:focus-visible/);
  assert.match(css,/overscroll-behavior-x:contain/);
+});
+
+test('new people immediately update registered counts, while classroom utilization remains separate',()=>{
+ const f=seed();
+ f.teachers=[...DEMO_TEACHERS,{id:'teacher-demo-1',name:'Sample Teacher Delta'}];
+ f.students=[...DEMO_LEARNERS,{id:'learner-demo-1',name:'Sample Learner Indigo'}];
+ const cards=demoOverviewCards('Administrator',f);
+ assert.equal(metric(cards,'Registered students'),'17');
+ assert.equal(metric(cards,'Teachers'),'4');
+ assert.equal(metric(cards,'Class groups'),'4');
+ assert.equal(cards.find(x=>x.title==='Registered students').subtitle,'8 enrolled in a class');
+ assert.equal(cards.find(x=>x.title==='Teachers').subtitle,'3 assigned to class groups');
 });

@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { DEMO_COURSES, DEMO_LEARNERS, visibleDemoClasses } from '../lib/operations.mjs';
+import { DEMO_COURSES, visibleDemoClasses } from '../lib/operations.mjs';
 import {
   ATTENDANCE_STATUSES, availableSyllabus, createDemoSession,
   createDemoTerm, markDemoSessionAttendance, reviseDemoSession, sessionSummary
 } from '../lib/academics.mjs';
-import type { ClassRoom } from './AcademyOperations';
+import type { ClassRoom, Person } from './AcademyOperations';
 
 type Role = 'Student'|'Teacher'|'Administrator';
 export type Term = {id:string;label:string;start:string;end:string};
@@ -12,9 +12,8 @@ export type Lesson = {id:string;classId:string;termId:string;date:string;topic:s
 export type AttendanceRecord = {sessionId:string;learnerId:string;status:string};
 export type AttendanceChange = {sequence:number;sessionId:string;learnerId:string;before:string;after:string};
 export type AcademicState = {terms:Term[];sessions:Lesson[];attendance:AttendanceRecord[];history:AttendanceChange[]};
-type Props = {view:'Lessons'|'Attendance';role:Role;classes:ClassRoom[];academic:AcademicState;onUpdate:(next:AcademicState)=>void};
+type Props = {view:'Lessons'|'Attendance';role:Role;classes:ClassRoom[];learners:Person[];academic:AcademicState;onUpdate:(next:AcademicState)=>void};
 const courseName=(id:string)=>DEMO_COURSES.find(x=>x.id===id)?.name??'Sample subject';
-const learnerName=(id:string)=>DEMO_LEARNERS.find(x=>x.id===id)?.name??'Fictional learner';
 function formatDate(iso:string){
   return new Date(iso+'T12:00:00.000Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
 }
@@ -27,7 +26,8 @@ function LessonEditor({lesson,canEdit,onSave}:{lesson:Lesson;canEdit:boolean;onS
     {canEdit&&<button type="submit" className="small-btn">Save sample lesson changes</button>}
   </form>;
 }
-export default function AcademyAcademics({view,role,classes,academic,onUpdate}:Props){
+export default function AcademyAcademics({view,role,classes,learners,academic,onUpdate}:Props){
+  const learnerName=(id:string)=>learners.find(x=>x.id===id)?.name??'Fictional learner';
   const visible=visibleDemoClasses(classes,role);
   const [classChoice,setClassChoice]=useState('');
   const [termChoice,setTermChoice]=useState('term-autumn-2026');

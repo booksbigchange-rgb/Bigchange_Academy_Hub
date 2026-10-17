@@ -1,16 +1,15 @@
 import {useState} from 'react';
-import { DEMO_COURSES, DEMO_LEARNERS } from '../lib/operations.mjs';
+import { DEMO_COURSES } from '../lib/operations.mjs';
 import { demoGuardianProfile, demoFamilyReport } from '../lib/family.mjs';
-import type { ClassRoom } from './AcademyOperations';
+import type { ClassRoom, Person } from './AcademyOperations';
 import type { AcademicState } from './AcademyAcademics';
 import type { AssessmentState } from './AcademyAssessments';
 
 type LedgerRow={student:string;learnerId:string;guardian:string;guardianId:string;
   due:number;recorded:number;period:string};
-type Props={view:'overview'|'family';classes:ClassRoom[];academic:AcademicState;
+type Props={view:'overview'|'family';classes:ClassRoom[];learners:Person[];academic:AcademicState;
   assessments:AssessmentState;ledger:LedgerRow[];onOpenFamily:()=>void};
 
-const nameOf=(id:string)=>DEMO_LEARNERS.find(x=>x.id===id)?.name??'Fictional learner';
 const courseOf=(id:string)=>DEMO_COURSES.find(x=>x.id===id)?.name??'Course';
 const money=(amount:number)=>'ETB '+amount.toLocaleString('en-US');
 function statusTag(status:string){
@@ -18,7 +17,8 @@ function statusTag(status:string){
   if(status==='Absent'||status==='Unpaid'||status==='not submitted')return 'amber';
   return '';
 }
-export default function AcademyFamily({view,classes,academic,assessments,ledger,onOpenFamily}:Props){
+export default function AcademyFamily({view,classes,learners,academic,assessments,ledger,onOpenFamily}:Props){
+  const nameOf=(id:string)=>learners.find(x=>x.id===id)?.name??'Fictional learner';
   // Exactly one synthetic family is displayed. This is not a logged-in guardian identity.
   const guardian=demoGuardianProfile('guardian-a');
   const [childId,setChildId]=useState('learner-a');

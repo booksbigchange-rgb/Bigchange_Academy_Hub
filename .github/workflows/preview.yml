@@ -1,6 +1,6 @@
 name: Temporary web preview (GitHub Pages)
 # Preview runs from the dedicated development branch; main is unchanged.
-# Published contents use a pinned, CI-tested Academy guardian M4 snapshot.
+# Published contents use a pinned, CI-tested Academy reporting M5 snapshot.
 # Index stays a fictional demo; pilot.html is adult TEST accounts only.
 
 on:
@@ -33,7 +33,7 @@ jobs:
       - name: Checkout pinned preview source
         uses: actions/checkout@v4
         with:
-          ref: 54b13f4a0c0dbf9e304de7f34893e99d28263ad3
+          ref: 86e1ba5949057f69e51c297186ce584d35020cd0
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:

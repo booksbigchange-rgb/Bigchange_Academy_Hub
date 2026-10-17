@@ -54,7 +54,8 @@ test('full roster has no spare seats; removals and role views are immutable',()=
 });
 test('teacher reassignment validates conflicts without mutating source',()=>{
   const initial=clone();
-  assert.throws(()=>assignDemoTeacher(initial,'class-2','teacher-a'),/already teaches/);
+  const overlapping=createDemoClass(initial,{courseId:'automation',teacherId:'teacher-b',slot:'Mon + Wed · 16:00',capacity:10});
+  assert.throws(()=>assignDemoTeacher(overlapping,overlapping.at(-1).id,'teacher-a'),/already teaches/);
   const updated=assignDemoTeacher(initial,'class-2','teacher-c');
   assert.equal(updated[1].teacherId,'teacher-c');
   assert.equal(initial[1].teacherId,'teacher-b');

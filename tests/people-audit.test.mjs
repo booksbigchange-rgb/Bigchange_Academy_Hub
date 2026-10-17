@@ -47,7 +47,7 @@ test('new teacher assignment and new student enrollment update dependent reports
  const report=summarizeDemoAcademy(f);
  assert.equal(report.summary.uniqueLearners,9);
  assert.equal(report.summary.enrollments,11);
- assert.equal(report.attendance.opportunities,14);
+ assert.equal(report.attendance.opportunities,15); // one new learner attends two scheduled sessions
  assert.equal(report.grades.assigned,10);
  assert.equal(report.teacherRows.find(x=>x.id===teacherId).groups,1);
  assert.equal(report.teacherRows.find(x=>x.id==='teacher-a').groups,1);

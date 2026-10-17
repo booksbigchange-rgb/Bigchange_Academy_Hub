@@ -1,0 +1,46 @@
+# Academy Hub — product parity and milestones
+
+Updated: 2026-10-17. Evidence: current independent BigChange feature branch and the reference repository's public module list documented in [FEATURE_MAPPING.md](FEATURE_MAPPING.md).
+**Reference is not a source of code.** We are developing original implementation of relevant workflows, not importing AGPL components or copying visuals.
+
+## Target and scale
+- 100 teachers, about three groups each = **300 groups**; 10 learners per group = **3,000 class enrollments**, not necessarily 3,000 unique students.
+- Up to several thousand adults/guardians accounts separately; estimate real MAU, uploads, database storage and transfer before a live rollout.
+- Chromebook-first, small-screen accessible UI; low-bandwidth operation; 2 sessions/week example; Ethiopian birr offline-payment tracking.
+- For minors, **no actual data** until reviewed permission policies, documented guardian authorization, verified identities, information security, legal privacy review and operational safeguards.
+
+## Gap comparison and staged delivery
+
+| Milestone | Workflow | Current state | Acceptance gate |
+|---|---|---|---|
+| M0 | Design baseline, course exercises, sample assignments/attendance, offline ledger, fictional role previews | **Done** (existing branches) | CI; no real records |
+| M1 | Admin groups, teacher assignment, enrollment, group rosters, basic timetable, directory | **Implemented in feature/academy-operations-m1** (demo only) | Reject schedule clashes, capacity overflows, duplicate course enrollments; test role-based views; CI |
+| M2 | Academic planning: terms, editable course syllabus, lesson plans, class-specific sessions/attendance | Next | Term/date rules; teacher can edit only assigned groups at backend; auditable corrections |
+| M3 | Assignments and assessments: publish, submit, review, quizzes, rubrics, progress / grades | Next | Class ownership, versioned assessment, offline safe uploads when backend available |
+| M4 | Guardian view, notifications preference, student progress summary | Next | Server-verified guardian-child relation; privacy review; no contact details in demo |
+| M5 | Administration reports: enrollment, attendance, course outcomes, teachers, offline finance ledger/reconciliation | Next | No cross-tenant leaks; CSV export sanitized; audit log for adjustments |
+| M6 | Backend persistence and authorization integration | **On hold per owner request** | Auth, actual server RLS read/write isolation, backups, audit, private storage; no direct client trust |
+| M7 | Real school readiness / scale, family consent, disaster recovery, accessibility/performance/load test | Later | Real-world pilot with adult test accounts first, security/legal review completed, backups tested |
+
+## Feature classes deliberately excluded from scope
+The reference includes modules for hostel, transport, payroll, library and other administrative operations. Those are outside BigChange's 3-month learning program and offer little value compared with teacher/student workflows. Prioritizing relevant functionality matters more than matching its module count.
+
+## M1 demonstrated functionality (no backend)
+- Administrator can add a group with fixed course, teacher, twice-weekly time and seat limit; inspect or remove enrollments, reassign teacher when schedule permits.
+- Administrator can enroll only fictional learners, preventing duplicate course enrollment and class overcapacity.
+- Teacher view shows Instructor A's sample groups and roster; student view shows Learner A's sample groups.
+- Directory shows fictional teacher assignments and grouped learner counts; timetable derives from active groups.
+- The entire operation uses React local in-memory state. **Browser refresh resets.** Preview role controls are not authorization. Never input names or money from real people.
+- Tests run on pure immutable helpers; existing secure Auth pilot remains untouched. Public Pages deployment is not changed by this feature branch.
+
+## Practical follow-on delivery
+1. Implement M2 term/session schedule and class-specific attendance with reliable validation.
+2. Implement M3 assignment-per-group state and grading rubric using fictional IDs.
+3. Implement M4 permission-safe *prototype* guardian reporting with synthetic family relationships.
+4. Implement M5 management overview: attendance summary, teacher load, class utilization, offline payment reconciliation — no live payment collection.
+5. Separate live permissions/backend milestone only when the owner resumes Supabase, before real school use.
+
+## Operational controls
+- Keep working `main` and `feature/initial-student-hub` untouched; PR targets `feature/secure-foundation` for review.
+- Deploy no real Auth or student records to the public demo; keep GitHub Pages as fictional preview.
+- Use branch CI and check before merge; document migration of UI from synthetic state to server-owned records later.

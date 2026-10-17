@@ -742,3 +742,32 @@ footer {
 .auth-role { background:#ebd3a3;border:1px solid #d1aa60;border-radius:20px;padding:4px 11px;color:#69460f;font-weight:800;text-transform:capitalize; }
 .auth-restricted { padding:13px;border-radius:10px;background:#f0e1c5;border-left:3px solid #bc8633; }
 .auth-footer {border-top:1px solid #dfc7a5;padding-top:18px;margin-top:24px;font-size:11px!important;}
+
+/* Academy operations milestone M1 — fictional class management on Chromium/Chromebooks. */
+.ops-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.ops-metrics .metric { min-height:155px; }
+.operations-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:20px; }
+.ops-form { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px; }
+.ops-form label,.ops-filter { display:flex; flex-direction:column; gap:7px; color:var(--text-secondary);font-size:12px;font-weight:750; }
+.ops-form select,.ops-filter select,.ops-inline-select { min-height:41px;min-width:0;max-width:100%;padding:8px 10px;border:1px solid var(--stroke-strong);border-radius:9px;background:var(--bg-raised);color:var(--text);font-size:12px; }
+.ops-inline-select { min-height:35px; }
+.ops-form .primary-btn { grid-column:1/-1;margin:0;justify-self:start; }
+.ops-filter select { min-width:160px; }
+.ops-feedback {min-height:24px;margin-top:15px;color:#745016;font-size:13px;font-weight:650;}
+.roster-detail {margin:14px 0;border:1px solid var(--stroke);padding:17px;border-radius:12px;background:var(--bg-card-alt);}
+.roster-detail h3 {margin:0 0 12px!important;}
+.roster-chips {display:flex;flex-wrap:wrap;gap:8px;}
+.roster-chip {display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--stroke-strong);border-radius:30px;background:var(--bg-raised);font-size:12px;}
+.roster-chip button {display:grid;place-items:center;width:20px;height:20px;border:0;border-radius:50%;background:#eddab8;color:#6b4314;font-size:16px;line-height:1;}
+.people-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:20px 0;}
+.person-tile {display:flex;align-items:center;gap:12px;min-width:0;padding:14px;border:1px solid var(--stroke);border-radius:12px;background:var(--bg-card-alt);}
+.person-tile strong,.person-tile small {display:block;font-size:12px;}
+.person-tile small {margin-top:4px;color:var(--text-secondary);font-size:11px;}
+.schedule-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:24px;}
+.schedule-tile {min-height:155px;padding:18px;border:1px solid var(--stroke);border-radius:14px;background:var(--bg-card-alt);}
+.schedule-tile>strong {display:block;margin-bottom:12px;color:var(--text);font-size:13px;}
+.schedule-entry {display:grid;gap:4px;margin-top:8px;padding:10px 12px;border-left:3px solid var(--gold-muted);border-radius:8px;background:var(--bg-raised);font-size:12px;}
+.schedule-entry small {color:var(--text-muted);line-height:1.5;}
+.operations .table-wrap { margin-top:12px; }
+@media(max-width:1000px){.operations-grid{grid-template-columns:1fr}.people-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:600px){.ops-metrics,.schedule-grid,.ops-form,.people-grid{grid-template-columns:1fr}.ops-metrics .metric{min-height:115px}.operations .panel-head{align-items:flex-start;flex-direction:column}.ops-filter{width:100%}.ops-filter select{width:100%}}

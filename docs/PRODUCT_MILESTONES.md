@@ -17,7 +17,7 @@ Updated: 2026-10-17. Evidence: current independent BigChange feature branch and 
 | M1 | Admin groups, teacher assignment, enrollment, group rosters, basic timetable, directory | **Implemented in feature/academy-operations-m1** (demo only) | Reject schedule clashes, capacity overflows, duplicate course enrollments; test role-based views; CI |
 | M2 | Academic planning: terms, course modules, lesson plans, class-specific sessions/attendance | **Implemented in feature/academy-academics-m2** (demo only) | Term/date validation, schedule-day enforcement, per-session marks, visible corrections; backend authorization still pending |
 | M3 | Assignments and assessments: publish, submit, review, quizzes, rubrics, progress / grades | **Implemented in feature/academy-assessments-m3** (demo only) | Per-class task/term scoping, quiz scoring, rubric checks, student progress tested; backend permissions still missing |
-| M4 | Guardian view, notifications preference, student progress summary | Next | Server-verified guardian-child relation; privacy review; no contact details in demo |
+| M4 | Guardian view, notification preference, child progress, attendance and fee snapshots | **Implemented in feature/academy-guardian-m4** (fictional demo only) | Synthetic links, child-scope reports, no messages or contacts; real guardian verification remains blocked |
 | M5 | Administration reports: enrollment, attendance, course outcomes, teachers, offline finance ledger/reconciliation | Next | No cross-tenant leaks; CSV export sanitized; audit log for adjustments |
 | M6 | Backend persistence and authorization integration | **On hold per owner request** | Auth, actual server RLS read/write isolation, backups, audit, private storage; no direct client trust |
 | M7 | Real school readiness / scale, family consent, disaster recovery, accessibility/performance/load test | Later | Real-world pilot with adult test accounts first, security/legal review completed, backups tested |
@@ -36,7 +36,7 @@ The reference includes modules for hostel, transport, payroll, library and other
 ## Practical follow-on delivery
 1. Review M2: create a fictional term, plan/edit lessons, mark/correct attendance for the right class/session; all state resets on refresh.
 2. Review M3: test assignments, quiz auto-scoring, rubric reviews, gradebook and regrade corrections using fictional classroom identities.
-3. Implement M4 permission-safe *prototype* guardian reporting with synthetic family relationships.
+3. Review M4 synthetic family reports, child linking, progress, attendance and offline-fee snapshots; no real guardian access exists.
 4. Implement M5 management overview: attendance summary, teacher load, class utilization, offline payment reconciliation — no live payment collection.
 5. Separate live permissions/backend milestone only when the owner resumes Supabase, before real school use.
 

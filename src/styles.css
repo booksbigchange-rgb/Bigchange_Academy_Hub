@@ -842,3 +842,29 @@ footer {
 .assessment-workspace .table-wrap{margin-top:20px;}
 @media(max-width:800px){.assessment-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.assessment-rubric{grid-template-columns:1fr}}
 @media(max-width:520px){.assessment-header{display:grid;gap:10px}.assessment-header label{min-width:0}.assessment-form-row{grid-template-columns:1fr}.assessment-task-list,.assessment-sub-list{grid-template-columns:1fr}}
+
+/* M4 family guardian experience (fictional data and non-persistent preferences). */
+.family-dashboard{display:grid;gap:19px;}
+.family-welcome{background:linear-gradient(110deg,var(--bg-card),#efe0c4);}
+.family-child-picker{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;}
+.family-child{display:flex;align-items:center;gap:10px;border:1px solid var(--stroke-strong);border-radius:13px;
+  padding:11px 15px;background:var(--bg-raised);color:var(--text);font-weight:750;font-size:13px;}
+.family-child.selected{border-color:var(--gold-deep);background:#ecd6ad;box-shadow:inset 3px 0 0 var(--gold-deep);}
+.family-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;}
+.family-metrics .metric{min-height:172px;}
+.family-course{display:grid;gap:6px;padding:13px 0;border-bottom:1px solid var(--stroke);}
+.family-course strong{font-size:13px;}
+.family-course small{color:var(--text-secondary);font-size:11px;}
+.family-progress{margin-top:14px;}
+.family-progress strong{font-size:29px;}
+.family-progress small{display:block;margin-top:9px;color:var(--text-secondary);font-size:11px;}
+.family-feedback{margin-top:14px;padding:13px;border-left:3px solid #c0944e;background:var(--bg-card-alt);border-radius:9px;}
+.family-feedback strong{font-size:12px;}
+.family-feedback p{margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere;}
+.family-channel-choices{display:flex;flex-wrap:wrap;gap:15px;margin-top:20px;}
+.family-channel-choices label{display:flex;align-items:center;gap:9px;border:1px solid var(--stroke);border-radius:11px;
+  padding:14px;background:var(--bg-card-alt);font-size:12px;font-weight:700;cursor:pointer;}
+.family-channel-choices input{width:18px;height:18px;accent-color:var(--gold-deep);}
+@media(max-width:1100px){.family-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.family-metrics{gap:11px}.family-metrics .metric{min-height:164px;padding:15px}
+  .family-child{width:100%}.family-channel-choices label{width:100%}}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { outstandingBalance, paymentStatus } from './lib/finance.mjs';
-import { summarizeDemoAcademy } from './lib/reporting.mjs';
+import {demoOverviewCards,demoSidebarSections,demoVisibleCourses} from './lib/dashboard.mjs';
 import AcademyReports from './components/AcademyReports';
 import { recordDemoPayment } from './lib/learning.mjs';
 import { INITIAL_DEMO_ASSESSMENTS } from './lib/assessments.mjs';
@@ -13,42 +13,13 @@ import AcademyOperations, { type ClassRoom } from './components/AcademyOperation
 
 type Role = 'Student' | 'Teacher' | 'Administrator' | 'Guardian';
 type Section = 'Overview' | 'Courses' | 'Classes' | 'Directory' | 'Timetable' | 'Lessons' | 'Assignments' | 'Quizzes' | 'Grades' | 'Attendance' | 'Finance' | 'Family' | 'Reports';
-type Feature = { title: string; subtitle: string; icon: string; value: string };
-const courses = [
-  { title: 'Computer Foundations', topic: 'Hardware, files & basic troubleshooting', progress: 76, lessons: '9 of 12 lessons', icon: '◈' },
-  { title: 'Creative Design', topic: 'Canva, layout & visual storytelling', progress: 45, lessons: '5 of 11 lessons', icon: '✳' },
-  { title: 'Introduction to AI', topic: 'Prompt engineering & responsible AI', progress: 22, lessons: '2 of 9 lessons', icon: '✦' },
-];
 const sampleLedger = [
   { student: 'Student A', learnerId: 'learner-a', guardian: 'Guardian A', guardianId: 'guardian-a', due: 2500, recorded: 2500, period: 'October 2026' },
   { student: 'Student B', learnerId: 'learner-b', guardian: 'Guardian B', guardianId: 'guardian-b', due: 2500, recorded: 1000, period: 'October 2026' },
   { student: 'Student C', learnerId: 'learner-c', guardian: 'Guardian A', guardianId: 'guardian-a', due: 2500, recorded: 0, period: 'October 2026' },
 ];
-const learners = [{id:'a',name:'Learner A'},{id:'b',name:'Learner B'},{id:'c',name:'Learner C'},{id:'d',name:'Learner D'}];
-const exercises: Record<string,string>={'Computer Foundations':'Identify the CPU, RAM and SSD in a computer diagram.','Creative Design':'Design a poster with three colors and one clear headline.','Introduction to AI':'Improve a vague prompt by adding the role, task and audience.'};
 const currency = (value: number) => 'ETB ' + value.toLocaleString('en-US');
-const cardsByRole: Record<Role, Feature[]> = {
-  Student: [
-    { title: 'My courses', value: '03', subtitle: 'Active learning paths', icon: '▣' },
-    { title: 'Assignments', value: '02', subtitle: 'Need your attention', icon: '◫' },
-    { title: 'Attendance', value: '92%', subtitle: 'This term · sample', icon: '◷' },
-    { title: 'Learning streak', value: '06', subtitle: 'Sessions completed', icon: '✳' },
-  ],
-  Teacher: [
-    { title: 'My classes', value: '04', subtitle: 'Scheduled groups', icon: '▣' },
-    { title: 'Students', value: '24', subtitle: 'Illustrative only', icon: '♧' },
-    { title: 'To review', value: '07', subtitle: 'Sample submissions', icon: '◫' },
-    { title: 'Attendance', value: '94%', subtitle: 'Illustrative only', icon: '◷' },
-  ],
-  Guardian: [],
-  Administrator: [
-    { title: 'Students', value: '—', subtitle: 'Distinct fictional learners', icon: '♧' },
-    { title: 'Courses', value: '—', subtitle: 'Courses with groups', icon: '▣' },
-    { title: 'Instructors', value: '—', subtitle: 'Assigned sample teachers', icon: '✳' },
-    { title: 'Balances due', value: '—', subtitle: 'External payments only', icon: '◈' },
-  ],
-};
-const nav: Section[] = ['Overview', 'Courses', 'Classes', 'Directory', 'Timetable', 'Lessons', 'Assignments', 'Quizzes', 'Grades', 'Attendance', 'Finance', 'Reports', 'Family'];
+const navIcons: Record<Section,string> = {Overview:'▦',Courses:'▤',Classes:'▣',Directory:'♧',Timetable:'◷',Lessons:'✎',Assignments:'☷',Quizzes:'❖',Grades:'▥',Attendance:'◷',Finance:'◇',Reports:'▥',Family:'♧'};
 function App() {
   const [role, setRole] = useState<Role>('Student');
   const [classrooms,setClassrooms] = useState<ClassRoom[]>(() => structuredClone(INITIAL_DEMO_CLASSES));
@@ -61,17 +32,16 @@ function App() {
   const [invoice,setInvoice] = useState(1);
   const [financeFeedback,setFinanceFeedback] = useState('');
   const [expandedCourse,setExpandedCourse] = useState<string|null>(null);
-  const sections: Section[] = role === 'Guardian' ? ['Overview','Family']
-    : role === 'Administrator' ? nav.filter(s=>s!=='Family')
-    : nav.filter(s=>s!=='Family'&&s!=='Finance'&&s!=='Reports'&&(role==='Teacher'||s!=='Directory'));
-  const adminMetrics=summarizeDemoAcademy({classes:classrooms,academic,assessments,ledger});
+  const sections = demoSidebarSections(role) as Section[];
+  const cards = demoOverviewCards(role,{classes:classrooms,academic,assessments,ledger});
+  const visibleCourses = demoVisibleCourses(role,classrooms);
   function chooseRole(next: Role) { setRole(next); setSection('Overview'); }
   return <div className="shell">
     <aside className="sidebar">
       <div className="identity"><img className="brand-logo" src={`${import.meta.env.BASE_URL}bigchange-academy-logo.svg`} width="220" height="177" alt="BigChange Academy" /></div>
       <div className="side-label">WORKSPACE</div>
       <nav aria-label="Dashboard sections">
-        {sections.map((item, index) => <button key={item} className={section === item ? 'navitem active' : 'navitem'} aria-current={section === item ? 'page' : undefined} onClick={() => setSection(item)}><span className="navicon">{['▦','▤','▣','♧','◷','✎','☷','❖','▥','◷','◇','▥','♧'][nav.indexOf(item)]}</span>{item}</button>)}
+        {sections.map(item => <button key={item} className={section === item ? 'navitem active' : 'navitem'} aria-current={section === item ? 'page' : undefined} onClick={() => setSection(item)}><span className="navicon">{navIcons[item]}</span>{item}</button>)}
       </nav>
       <div className="sidebar-bottom"><div className="sidebar-help"><strong>Build together, learn together.</strong><span>A better space for every learner.</span></div><div className="sidebar-note">Prototype · sample data only</div></div>
     </aside>
@@ -81,13 +51,13 @@ function App() {
         <div className="heading"><div><div className="eyebrow">YOUR LEARNING COMMUNITY</div><h1>{section === 'Overview' ? (role==='Guardian' ? 'Welcome, Guardian A.' : 'Welcome to BigChange.') : section}</h1><p>{section === 'Overview' ? 'A home for curiosity, creativity, and progress.' : subtitle(section)}</p></div><label className="role-select">Preview role (not login) <select aria-label="Preview role (not authentication)" value={role} onChange={e => chooseRole(e.target.value as Role)}><option>Student</option><option>Teacher</option><option>Administrator</option><option>Guardian</option></select></label></div>
         <div role="note" className="notice"><strong>Demo environment</strong> — All names, balances and attendance are fictional. Interactions are temporary browser simulations and role-switching is not authentication. No real financial records or messages are stored or sent.</div>
         {section === 'Overview' && role !== 'Guardian' && <>
-          <div className="metric-grid">{cardsByRole[role].map(c => <div className="metric" key={c.title}><span className="metric-icon">{c.icon}</span><div className="metric-value">{role==='Administrator'? (c.title==='Balances due'?currency(adminMetrics.fees.outstanding):c.title==='Students'?String(adminMetrics.summary.uniqueLearners):c.title==='Courses'?String(adminMetrics.summary.activeCourses):c.title==='Instructors'?String(adminMetrics.summary.activeTeachers):c.value) : c.value}</div><div className="metric-title">{c.title}</div><div className="metric-subtitle">{c.subtitle}</div></div>)}</div>
-          <div className="two-col"><section className="panel"><div className="panel-head"><div><span className="eyebrow">KEEP EXPLORING</span><h2>Learning journeys</h2></div><button className="text-btn" onClick={() => setSection('Courses')}>View all courses →</button></div>{courses.map(course => <CourseRow course={course} key={course.title}/>)}</section><section className="panel calm"><span className="eyebrow">WHAT'S NEXT</span><h2>Make this week count.</h2><p>Practice makes progress. Check your assignments, celebrate milestones, and keep learning.</p><div className="next-steps"><span>◷</span><div><strong>Next class</strong><small>Computer Foundations · sample schedule</small></div></div><div className="next-steps"><span>✳</span><div><strong>Mini project</strong><small>Create your first digital poster</small></div></div><button className="primary-btn" onClick={() => setSection(role==='Administrator'?'Reports':'Assignments')}>{role==='Administrator'?'View academy reports →':'Explore assignments →'}</button></section></div>
+          <div className="metric-grid">{cards.map(c => <div className="metric" key={c.title}><span className="metric-icon">{c.icon}</span><div className="metric-value">{c.value}</div><div className="metric-title">{c.title}</div><div className="metric-subtitle">{c.subtitle}</div></div>)}</div>
+          <div className="two-col"><section className="panel"><div className="panel-head"><div><span className="eyebrow">KEEP EXPLORING</span><h2>Learning journeys</h2></div><button className="text-btn" onClick={() => setSection('Courses')}>View all courses →</button></div>{visibleCourses.slice(0,3).map(course => <CourseRow course={course} key={course.id}/>)}</section><section className="panel calm"><span className="eyebrow">WHAT'S NEXT</span><h2>Make this week count.</h2><p>Practice makes progress. Check your assignments, celebrate milestones, and keep learning.</p><div className="next-steps"><span>◷</span><div><strong>Next class</strong><small>Computer Foundations · sample schedule</small></div></div><div className="next-steps"><span>✳</span><div><strong>Mini project</strong><small>Create your first digital poster</small></div></div><button className="primary-btn" onClick={() => setSection(role==='Administrator'?'Reports':'Assignments')}>{role==='Administrator'?'View academy reports →':'Explore assignments →'}</button></section></div>
         </>}
         {role==='Guardian'&&(section==='Overview'||section==='Family')&&
-          <AcademyFamily key={section} view={section==='Family'?'family':'overview'} classes={classrooms}
+          <AcademyFamily view={section==='Family'?'family':'overview'} classes={classrooms}
             academic={academic} assessments={assessments} ledger={ledger} onOpenFamily={()=>setSection('Family')}/>}
-        {section === 'Courses' && <section className="panel"><span className="eyebrow">SAMPLE LEARNING PATHS</span><h2>Explore your courses</h2>{courses.map(course => <div key={course.title}><CourseRow course={course}/><button className="small-btn lesson-button" aria-expanded={expandedCourse===course.title} onClick={()=>setExpandedCourse(expandedCourse===course.title?null:course.title)}>{expandedCourse===course.title?'Hide':'View'} practice activity</button>{expandedCourse===course.title && <div className="exercise"><strong>Mini challenge · {course.title}</strong><p>{exercises[course.title]}</p><small>Demonstration only. Nothing is saved.</small></div>}</div>)}</section>}
+        {section === 'Courses' && <section className="panel"><span className="eyebrow">FICTIONAL CLASSROOM COURSE CATALOG</span><h2>{role==='Administrator'?'Course catalog':'Courses assigned in my sample groups'}</h2><p>These examples are derived from the current group roster, not measured course completion.</p>{visibleCourses.map(course => <div key={course.id}><CourseRow course={course}/><button className="small-btn lesson-button" aria-expanded={expandedCourse===course.id} onClick={()=>setExpandedCourse(expandedCourse===course.id?null:course.id)}>{expandedCourse===course.id?'Hide':'View'} practice activity</button>{expandedCourse===course.id && <div className="exercise"><strong>Mini challenge · {course.title}</strong><p>{course.activity}</p><small>Demonstration only. Nothing is saved.</small></div>}</div>)}{visibleCourses.length===0&&<p className="quiet">No course groups are assigned in this fictional role yet.</p>}</section>}
         {role!=='Guardian'&&(section==='Classes'||section==='Directory'||section==='Timetable') && <AcademyOperations key={role} role={role} view={section} classes={classrooms} onUpdate={setClassrooms}/>}
         {role!=='Guardian'&&(section === 'Assignments'||section === 'Quizzes'||section === 'Grades') && <AcademyAssessments
           key={role} view={section} role={role} classes={classrooms} terms={academic.terms}
@@ -119,7 +89,11 @@ function subtitle(section: Section) {
     default: return '';
   }
 }
-function CourseRow({course}:{course:{title:string;topic:string;progress:number;lessons:string;icon:string}}) {
-  return <div className="course-row"><div className="course-icon">{course.icon}</div><div className="course-main"><strong>{course.title}</strong><small>{course.topic}</small><div className="progress"><span style={{width:course.progress+'%'}} /></div></div><div className="course-stat"><strong>{course.progress}%</strong><small>{course.lessons}</small></div></div>;
+type DemoCourseCard={id:string;title:string;topic:string;icon:string;courseStat:string;statNote:string;activity:string;groupCount:number};
+function CourseRow({course}:{course:DemoCourseCard}) {
+  return <div className="course-row"><div className="course-icon">{course.icon}</div>
+    <div className="course-main"><strong>{course.title}</strong><small>{course.topic}</small></div>
+    <div className="course-stat"><strong>{course.courseStat}</strong><small>{course.statNote}</small></div>
+  </div>;
 }
 export default App;

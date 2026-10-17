@@ -17,6 +17,8 @@ test('reject duplicate fictional names, email addresses and non-sample names',()
  assert.throws(()=>addDemoTeacher(DEMO_TEACHERS,'Sample Teacher Delta@domain.com'),/fictional/);
  assert.throws(()=>addDemoTeacher(DEMO_TEACHERS,'Real Person'),/fictional/);
  assert.throws(()=>addDemoLearner(DEMO_LEARNERS,'Learner Z'),/fictional/);
+ assert.throws(()=>addDemoTeacher(DEMO_TEACHERS,'Sample Learner Indigo'),/fictional/);
+ assert.throws(()=>addDemoLearner(DEMO_LEARNERS,'Sample Teacher Delta'),/fictional/);
  const added=addDemoLearner(DEMO_LEARNERS,'Sample Learner Indigo');
  assert.throws(()=>addDemoLearner(added,'  sample   learner  indigo '),/already exists/);
 });

@@ -33,7 +33,7 @@ function addFictionalPerson(items,name,role,max){
   if(!Array.isArray(items))throw Error('Invalid sample directory');
   if(typeof name!=='string')throw Error('Enter a fictional sample name');
   const clean=name.trim().replace(/\s+/g,' ');
-  if(clean.length<10||clean.length>60||!/^Sample (?:Teacher|Learner) [\w -]+$/i.test(clean))
+  if(clean.length<10||clean.length>60||!(role==='teacher'?/^Sample Teacher [\w -]+$/i:/^Sample Learner [\w -]+$/i).test(clean))
     throw Error('Use a fictional name beginning with Sample '+(role==='teacher'?'Teacher ':'Learner '));
   if(items.some(x=>x.name.toLocaleLowerCase('en')===clean.toLocaleLowerCase('en')))
     throw Error('A sample person with this name already exists');

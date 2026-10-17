@@ -15,7 +15,7 @@ Updated: 2026-10-17. Evidence: current independent BigChange feature branch and 
 |---|---|---|---|
 | M0 | Design baseline, course exercises, sample assignments/attendance, offline ledger, fictional role previews | **Done** (existing branches) | CI; no real records |
 | M1 | Admin groups, teacher assignment, enrollment, group rosters, basic timetable, directory | **Implemented in feature/academy-operations-m1** (demo only) | Reject schedule clashes, capacity overflows, duplicate course enrollments; test role-based views; CI |
-| M2 | Academic planning: terms, editable course syllabus, lesson plans, class-specific sessions/attendance | Next | Term/date rules; teacher can edit only assigned groups at backend; auditable corrections |
+| M2 | Academic planning: terms, course modules, lesson plans, class-specific sessions/attendance | **Implemented in feature/academy-academics-m2** (demo only) | Term/date validation, schedule-day enforcement, per-session marks, visible corrections; backend authorization still pending |
 | M3 | Assignments and assessments: publish, submit, review, quizzes, rubrics, progress / grades | Next | Class ownership, versioned assessment, offline safe uploads when backend available |
 | M4 | Guardian view, notifications preference, student progress summary | Next | Server-verified guardian-child relation; privacy review; no contact details in demo |
 | M5 | Administration reports: enrollment, attendance, course outcomes, teachers, offline finance ledger/reconciliation | Next | No cross-tenant leaks; CSV export sanitized; audit log for adjustments |
@@ -34,7 +34,7 @@ The reference includes modules for hostel, transport, payroll, library and other
 - Tests run on pure immutable helpers; existing secure Auth pilot remains untouched. Public Pages deployment is not changed by this feature branch.
 
 ## Practical follow-on delivery
-1. Implement M2 term/session schedule and class-specific attendance with reliable validation.
+1. Review M2: create a fictional term, plan/edit lessons, mark/correct attendance for the right class/session; all state resets on refresh.
 2. Implement M3 assignment-per-group state and grading rubric using fictional IDs.
 3. Implement M4 permission-safe *prototype* guardian reporting with synthetic family relationships.
 4. Implement M5 management overview: attendance summary, teacher load, class utilization, offline payment reconciliation — no live payment collection.

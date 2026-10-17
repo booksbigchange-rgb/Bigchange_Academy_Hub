@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { outstandingBalance, paymentStatus } from './lib/finance.mjs';
-import { markAttendance, recordDemoPayment, nextSubmissionState } from './lib/learning.mjs';
+import { recordDemoPayment, nextSubmissionState } from './lib/learning.mjs';
+import { INITIAL_DEMO_ACADEMICS } from './lib/academics.mjs';
+import AcademyAcademics, { type AcademicState } from './components/AcademyAcademics';
 import { INITIAL_DEMO_CLASSES } from './lib/operations.mjs';
 import AcademyOperations, { type ClassRoom } from './components/AcademyOperations';
 
 type Role = 'Student' | 'Teacher' | 'Administrator';
-type Section = 'Overview' | 'Courses' | 'Classes' | 'Directory' | 'Timetable' | 'Assignments' | 'Attendance' | 'Finance';
+type Section = 'Overview' | 'Courses' | 'Classes' | 'Directory' | 'Timetable' | 'Lessons' | 'Assignments' | 'Attendance' | 'Finance';
 type Feature = { title: string; subtitle: string; icon: string; value: string };
 const courses = [
   { title: 'Computer Foundations', topic: 'Hardware, files & basic troubleshooting', progress: 76, lessons: '9 of 12 lessons', icon: '◈' },
@@ -40,12 +42,12 @@ const cardsByRole: Record<Role, Feature[]> = {
     { title: 'Balances due', value: currency(4000), subtitle: 'From sample ledger', icon: '◈' },
   ],
 };
-const nav: Section[] = ['Overview', 'Courses', 'Classes', 'Directory', 'Timetable', 'Assignments', 'Attendance', 'Finance'];
+const nav: Section[] = ['Overview', 'Courses', 'Classes', 'Directory', 'Timetable', 'Lessons', 'Assignments', 'Attendance', 'Finance'];
 function App() {
   const [role, setRole] = useState<Role>('Student');
   const [classrooms,setClassrooms] = useState<ClassRoom[]>(() => structuredClone(INITIAL_DEMO_CLASSES));
   const [section, setSection] = useState<Section>('Overview');
-  const [register,setRegister] = useState<Record<string,'Present'|'Absent'|'Late'>>({a:'Present',b:'Absent',c:'Present',d:'Late'});
+  const [academic,setAcademic] = useState<AcademicState>(() => structuredClone(INITIAL_DEMO_ACADEMICS));
   const [submissions,setSubmissions] = useState<Record<string,'Not submitted'|'Submitted'|'Reviewed'>>({poster:'Not submitted',hardware:'Not submitted'});
   const [ledger,setLedger] = useState(sampleLedger);
   const [amount,setAmount] = useState('500');
@@ -59,7 +61,7 @@ function App() {
       <div className="identity"><img className="brand-logo" src={`${import.meta.env.BASE_URL}bigchange-academy-logo.svg`} width="220" height="177" alt="BigChange Academy" /></div>
       <div className="side-label">WORKSPACE</div>
       <nav aria-label="Dashboard sections">
-        {sections.map((item, index) => <button key={item} className={section === item ? 'navitem active' : 'navitem'} aria-current={section === item ? 'page' : undefined} onClick={() => setSection(item)}><span className="navicon">{['▦','▤','▣','♧','◷','☷','◷','◇'][nav.indexOf(item)]}</span>{item}</button>)}
+        {sections.map((item, index) => <button key={item} className={section === item ? 'navitem active' : 'navitem'} aria-current={section === item ? 'page' : undefined} onClick={() => setSection(item)}><span className="navicon">{['▦','▤','▣','♧','◷','✎','☷','◷','◇'][nav.indexOf(item)]}</span>{item}</button>)}
       </nav>
       <div className="sidebar-bottom"><div className="sidebar-help"><strong>Build together, learn together.</strong><span>A better space for every learner.</span></div><div className="sidebar-note">Prototype · sample data only</div></div>
     </aside>
@@ -75,7 +77,7 @@ function App() {
         {section === 'Courses' && <section className="panel"><span className="eyebrow">SAMPLE LEARNING PATHS</span><h2>Explore your courses</h2>{courses.map(course => <div key={course.title}><CourseRow course={course}/><button className="small-btn lesson-button" aria-expanded={expandedCourse===course.title} onClick={()=>setExpandedCourse(expandedCourse===course.title?null:course.title)}>{expandedCourse===course.title?'Hide':'View'} practice activity</button>{expandedCourse===course.title && <div className="exercise"><strong>Mini challenge · {course.title}</strong><p>{exercises[course.title]}</p><small>Demonstration only. Nothing is saved.</small></div>}</div>)}</section>}
         {(section==='Classes'||section==='Directory'||section==='Timetable') && <AcademyOperations key={role} role={role} view={section} classes={classrooms} onUpdate={setClassrooms}/>}
         {section === 'Assignments' && <section className="panel"><span className="eyebrow">PRACTICE WORKFLOW · FICTIONAL RECORDS</span><h2>Assignments</h2><p>Try a sample submission and review workflow.</p>{[{id:'poster',title:'Design a digital poster',subject:'Creative Design'},{id:'hardware',title:'Identify the parts of a computer',subject:'Computer Foundations'}].map(task=>{const status=submissions[task.id];const submit=role==='Student'&&status==='Not submitted',review=role!=='Student'&&status==='Submitted';return <div className="assignment" key={task.id}><span className="assignment-icon">✎</span><div className="assignment-info"><strong>{task.title}</strong><small>{task.subject} · example only</small></div><span className={'tag '+(status==='Not submitted'?'amber':'green')}>{status}</span>{(submit||review)&&<button className="small-btn" onClick={()=>setSubmissions(current=>({...current,[task.id]:nextSubmissionState(current[task.id]) as 'Not submitted'|'Submitted'|'Reviewed'}))}>{submit?'Simulate submission':'Mark reviewed'}</button>}</div>})}<p className="quiet">Actions are in this browser tab only. Refresh to reset. No uploads or grades are saved.</p></section>}
-        {section === 'Attendance' && <section className="panel"><span className="eyebrow">SAMPLE CLASS REGISTER</span><h2>Attendance</h2><p>{role==='Student'?'Illustrative attendance for Learner A.':'Change fictional attendance statuses to test the teacher workflow.'}</p><div className="roster-head">Computer Foundations · Sample session</div>{(role==='Student'?learners.slice(0,1):learners).map(learner=><div className="roster-row" key={learner.id}><span className="student-token">{learner.id.toUpperCase()}</span><strong>{learner.name}</strong>{role==='Student'?<span className="tag green">{register[learner.id]}</span>:<label className="attendance-picker">Status <select aria-label={'Attendance for '+learner.name} value={register[learner.id]} onChange={e=>setRegister(current=>markAttendance(current,learner.id,e.target.value as 'Present'|'Absent'|'Late'))}><option>Present</option><option>Absent</option><option>Late</option></select></label>}</div>)}<p className="quiet">Not actual attendance. Preview roles are not account permissions.</p></section>}
+        {(section === 'Attendance'||section === 'Lessons') && <AcademyAcademics key={role} view={section} role={role} classes={classrooms} academic={academic} onUpdate={setAcademic}/>}
         {section === 'Finance' && role === 'Administrator' && <section className="panel"><div className="panel-head"><div><span className="eyebrow">ADMIN LEDGER · FICTIONAL AMOUNTS ONLY</span><h2>External payment tracking</h2><p>Simulate recording money received outside this Hub. No payment processing or parent messages.</p></div></div><div className="finance-strip"><div><small>Expected</small><strong>{currency(ledger.reduce((s,x)=>s+x.due,0))}</strong></div><div><small>Recorded</small><strong>{currency(ledger.reduce((s,x)=>s+x.recorded,0))}</strong></div><div><small>Outstanding</small><strong>{currency(ledger.reduce((s,x)=>s+outstandingBalance(x.due-x.recorded),0))}</strong></div></div><div className="table-wrap"><table><thead><tr><th>Student</th><th>Guardian</th><th>Period</th><th>Due</th><th>Recorded</th><th>Status</th></tr></thead><tbody>{ledger.map(row=><tr key={row.student}><td>{row.student}</td><td>{row.guardian}</td><td>{row.period}</td><td>{currency(row.due)}</td><td>{currency(row.recorded)}</td><td><span className={'tag '+(paymentStatus(row.due,row.recorded)==='Paid'?'green':'amber')}>{paymentStatus(row.due,row.recorded)}</span></td></tr>)}</tbody></table></div><form className="demo-form" onSubmit={event=>{event.preventDefault();const row=ledger[invoice];try{const n=recordDemoPayment(row.due,row.recorded,Number(amount));setLedger(all=>all.map((item,i)=>i===invoice?{...item,recorded:n}:item));setFinanceFeedback('Updated fictional ledger for '+row.student+'. No actual payment.');setAmount('');}catch(error){setFinanceFeedback(error instanceof Error?error.message:'Invalid amount');}}}><h3>Record a demo payment</h3><label>Sample invoice<select value={invoice} onChange={e=>{setInvoice(Number(e.target.value));setFinanceFeedback('');}}>{ledger.map((item,i)=><option key={item.student} value={i}>{item.student} · {currency(Math.max(0,item.due-item.recorded))} remaining</option>)}</select></label><label>ETB amount<input type="number" min="1" step="1" placeholder="500" value={amount} onChange={e=>setAmount(e.target.value)}/></label><button className="primary-btn" type="submit">Record sample only</button><p className="form-feedback" role="status" aria-live="polite">{financeFeedback}</p></form><p className="quiet">No email or WhatsApp is sent. Verified contacts and authorization must come first.</p></section>}
         
         <footer>BigChange Academy Hub · Original independent prototype · Never enter real student data here</footer>
@@ -89,6 +91,7 @@ function subtitle(section: Section) {
     case 'Classes': return 'Organize fictional groups, instructors and class rosters.';
     case 'Directory': return 'Browse illustrative instructors and learner enrollments.';
     case 'Timetable': return 'Follow two weekly sample class sessions.';
+    case 'Lessons': return 'Plan class sessions and learning goals within three-month terms.';
     case 'Assignments': return 'Small challenges, big steps forward.';
     case 'Attendance': return 'Celebrate the sessions that move us forward.';
     case 'Finance': return 'A clear view of payments received outside the system.';

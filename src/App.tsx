@@ -50,7 +50,7 @@ function App() {
   const [classrooms,setClassrooms] = useState<ClassRoom[]>(() => structuredClone(INITIAL_DEMO_CLASSES));
   const [section, setSection] = useState<Section>('Overview');
   const [academic,setAcademic] = useState<AcademicState>(() => structuredClone(INITIAL_DEMO_ACADEMICS));
-  const [assessments,setAssessments] = useState<AssessmentState>(() => structuredClone(INITIAL_DEMO_ASSESSMENTS));
+  const [assessments,setAssessments] = useState<AssessmentState>(() => structuredClone(INITIAL_DEMO_ASSESSMENTS) as unknown as AssessmentState);
   const [ledger,setLedger] = useState(sampleLedger);
   const [amount,setAmount] = useState('500');
   const [invoice,setInvoice] = useState(1);

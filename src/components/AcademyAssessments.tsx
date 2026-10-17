@@ -16,6 +16,8 @@ export type DemoSubmission={taskId:string;learnerId:string;response:string;answe
 export type GradeChange={sequence:number;taskId:string;learnerId:string;from:number|null;to:number};
 export type AssessmentState={tasks:Assessment[];submissions:DemoSubmission[];gradeHistory:GradeChange[]};
 type Role='Student'|'Teacher'|'Administrator';
+type GradeRow={taskId:string;classId:string;learnerId:string;title:string;kind:string;
+  status:string;points:number|null;maxPoints:number};
 type Props={view:'Assignments'|'Quizzes'|'Grades';role:Role;classes:ClassRoom[];terms:Term[];
   state:AssessmentState;onUpdate:(newState:AssessmentState)=>void};
 const learnerName=(id:string)=>DEMO_LEARNERS.find(x=>x.id===id)?.name??'Sample learner';
@@ -74,7 +76,7 @@ export default function AcademyAssessments({view,role,classes,terms,state,onUpda
   const educator=role!=='Student';
   const selectedClass=groupList.find(c=>c.id===classChoice)??groupList[0];
   const kind=view==='Quizzes'?'quiz':'project';
-  const visible=visibleDemoTasks(state.tasks,classes,role,view==='Grades'?undefined:kind);
+  const visible: Assessment[]=visibleDemoTasks(state.tasks,classes,role,view==='Grades'?undefined:kind);
   const filtered=visible.filter(t=>t.classId===selectedClass?.id);
   const selectedTask=filtered.find(t=>t.id===taskChoice)??filtered[0];
   const selectedSubmissions=state.submissions.filter(s=>s.taskId===selectedTask?.id
@@ -82,7 +84,7 @@ export default function AcademyAssessments({view,role,classes,terms,state,onUpda
   const submittedProjects=selectedSubmissions.filter(s=>s.status==='submitted'||s.status==='graded');
   const pickedSubmission=submittedProjects.find(s=>s.learnerId===learnerChoice)??submittedProjects[0];
   const mine=state.submissions.find(s=>s.taskId===selectedTask?.id&&s.learnerId==='learner-a');
-  const gradeRows=demoGradeRows(state,classes,role).filter(row=>row.classId===selectedClass?.id);
+  const gradeRows: GradeRow[]=(demoGradeRows(state,classes,role) as GradeRow[]).filter(row=>row.classId===selectedClass?.id);
   const stats=demoProgress(gradeRows);
   const term=terms.find(t=>t.id===termId)??terms[0];
   const scoreValue=(points:number|null,max:number)=>points===null?'Pending':points+' / '+max;

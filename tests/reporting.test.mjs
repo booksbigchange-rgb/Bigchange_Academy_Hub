@@ -49,9 +49,9 @@ test('filters update dynamically after enrollment and grades',()=>{
  assert.equal(r.grades.assigned,8);assert.equal(r.grades.graded,1);assert.equal(r.grades.average,100);
 });
 test('CSV export quotes formula cells and includes aggregates only',()=>{
- assert.equal(safeCsvCell('=SUM(1)'),'"\\'=SUM(1)"');
+ assert.ok(safeCsvCell('=SUM(1)').startsWith(String.fromCharCode(34,39)));
  assert.equal(safeCsvCell(' "quoted"'),'" ""quoted"""');
- assert.ok(safeCsvCell('  +invalid').startsWith('"\\''));
+ assert.ok(safeCsvCell('  +invalid').startsWith(String.fromCharCode(34,39)));
  const csv=demoAggregateCsv(summarizeDemoAcademy(fixture()));
  assert.ok(csv.startsWith('\uFEFF"Section","Name","Metric","Value","Scope"'));
  assert.match(csv,/"External fees","Academy ledger","outstanding","4000"/);

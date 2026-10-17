@@ -46,7 +46,7 @@ export default function AcademyAcademics({view,role,classes,academic,onUpdate}:P
     .sort((a,b)=>a.date.localeCompare(b.date));
   const selected=lessons.find(s=>s.id===lessonChoice)??lessons[0];
   const editable=role==='Administrator'||role==='Teacher';
-  const syllabus=currentClass?availableSyllabus(currentClass.courseId):[];
+  const syllabus: string[]=currentClass?availableSyllabus(currentClass.courseId):[];
   const summary=selected&&currentClass?sessionSummary(academic.attendance,selected.id,currentClass.learnerIds):null;
   const currentHistory=academic.history.filter(h=>h.sessionId===selected?.id).slice(-10).reverse();
   function change(action:()=>AcademicState,success:string){
@@ -107,9 +107,9 @@ export default function AcademyAcademics({view,role,classes,academic,onUpdate}:P
           return <div className="roster-row" key={id}>
             <span className="student-token">{id.slice(-1).toUpperCase()}</span><strong>{learnerName(id)}</strong>
             {editable?<label className="attendance-picker">Status <select value={status} aria-label={'Attendance for '+learnerName(id)+' on '+selected.date}
-              onChange={e=>change(()=>markDemoSessionAttendance(academic,{
+              onChange={e=>change(()=>({...academic,...markDemoSessionAttendance(academic,{
                 classes,sessions:academic.sessions,sessionId:selected.id,learnerId:id,status:e.target.value
-              }),'Updated '+learnerName(id)+' for '+formatDate(selected.date)+' (demo only).')}>
+              })}),'Updated '+learnerName(id)+' for '+formatDate(selected.date)+' (demo only).')}>
               <option value="Unmarked" disabled>Unmarked</option>
               {ATTENDANCE_STATUSES.map(option=><option key={option}>{option}</option>)}
             </select></label>:<span className="tag">{status}</span>}

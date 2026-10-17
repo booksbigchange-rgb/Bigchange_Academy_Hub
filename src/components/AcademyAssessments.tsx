@@ -1,10 +1,10 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { DEMO_COURSES, DEMO_LEARNERS, visibleDemoClasses } from '../lib/operations.mjs';
+import { DEMO_COURSES, visibleDemoClasses } from '../lib/operations.mjs';
 import {
   createDemoAssessment, submitDemoProject, submitDemoQuiz, gradeDemoProject,
   visibleDemoTasks, demoGradeRows, demoProgress
 } from '../lib/assessments.mjs';
-import type { ClassRoom } from './AcademyOperations';
+import type { ClassRoom, Person } from './AcademyOperations';
 import type { Term } from './AcademyAcademics';
 
 export type RubricCriterion={id:string;label:string;max:number};
@@ -18,9 +18,8 @@ export type AssessmentState={tasks:Assessment[];submissions:DemoSubmission[];gra
 type Role='Student'|'Teacher'|'Administrator';
 type GradeRow={taskId:string;classId:string;learnerId:string;title:string;kind:string;
   status:string;points:number|null;maxPoints:number};
-type Props={view:'Assignments'|'Quizzes'|'Grades';role:Role;classes:ClassRoom[];terms:Term[];
+type Props={view:'Assignments'|'Quizzes'|'Grades';role:Role;classes:ClassRoom[];learners:Person[];terms:Term[];
   state:AssessmentState;onUpdate:(newState:AssessmentState)=>void};
-const learnerName=(id:string)=>DEMO_LEARNERS.find(x=>x.id===id)?.name??'Sample learner';
 const courseName=(id:string)=>DEMO_COURSES.find(x=>x.id===id)?.name??'Sample course';
 function ProjectResponse({onSubmit}:{onSubmit:(value:string)=>void}){
   const [response,setResponse]=useState('');
@@ -62,7 +61,8 @@ function RubricEditor({task,submission,onGrade}:{task:Assessment;submission:Demo
     <button className="primary-btn" type="submit">{submission.status==='graded'?'Update sample grade':'Save sample grade'}</button>
   </form>;
 }
-export default function AcademyAssessments({view,role,classes,terms,state,onUpdate}:Props){
+export default function AcademyAssessments({view,role,classes,learners,terms,state,onUpdate}:Props){
+  const learnerName=(id:string)=>learners.find(x=>x.id===id)?.name??'Sample learner';
   const groupList=useMemo(()=>visibleDemoClasses(classes,role),[classes,role]);
   const [classChoice,setClassChoice]=useState('');
   const [taskChoice,setTaskChoice]=useState('');

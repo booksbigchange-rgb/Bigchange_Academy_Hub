@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import {
-  DEMO_COURSES, DEMO_TEACHERS, DEMO_LEARNERS, DEMO_SLOTS,
+  DEMO_COURSES, DEMO_SLOTS, addDemoTeacher, addDemoLearner,
   createDemoClass, enrollDemoLearner, removeDemoLearner, assignDemoTeacher,
   visibleDemoClasses, enrolledClassCount
 } from '../lib/operations.mjs';
@@ -8,14 +8,16 @@ import {
 export type ClassRoom = {
   id: string; courseId: string; teacherId: string; slot: string; capacity: number; learnerIds: string[];
 };
+export type Person = {id:string;name:string};
 type Role = 'Student' | 'Teacher' | 'Administrator';
 type View = 'Classes' | 'Directory' | 'Timetable';
-type Props = { view: View; role: Role; classes: ClassRoom[]; onUpdate: (next: ClassRoom[]) => void };
+type Props = { view: View; role: Role; classes: ClassRoom[]; onUpdate: (next: ClassRoom[]) => void;
+  teachers: Person[]; learners: Person[]; onTeachers:(list:Person[])=>void; onLearners:(list:Person[])=>void };
 const courseName = (id:string) => DEMO_COURSES.find(c=>c.id===id)?.name ?? 'Unknown course';
-const teacherName = (id:string) => DEMO_TEACHERS.find(t=>t.id===id)?.name ?? 'Unknown instructor';
-const learnerName = (id:string) => DEMO_LEARNERS.find(l=>l.id===id)?.name ?? 'Unknown learner';
 
-export default function AcademyOperations({view,role,classes,onUpdate}:Props){
+export default function AcademyOperations({view,role,classes,onUpdate,teachers,learners,onTeachers,onLearners}:Props){
+  const teacherName=(id:string)=>teachers.find(t=>t.id===id)?.name??'Sample instructor';
+  const learnerName=(id:string)=>learners.find(l=>l.id===id)?.name??'Sample learner';
   const visible=useMemo(()=>visibleDemoClasses(classes,role),[classes,role]);
   const [courseId,setCourseId]=useState('computer');
   const [teacherId,setTeacherId]=useState('teacher-a');
@@ -26,38 +28,91 @@ export default function AcademyOperations({view,role,classes,onUpdate}:Props){
   const [message,setMessage]=useState('');
   const [filter,setFilter]=useState('all');
   const [manageClass,setManageClass]=useState('');
+  const [teacherDraft,setTeacherDraft]=useState('Sample Teacher Delta');
+  const [learnerDraft,setLearnerDraft]=useState('Sample Learner Indigo');
+  const [directoryClass,setDirectoryClass]=useState('');
+  const [directoryLearner,setDirectoryLearner]=useState('learner-a');
   const canManage=role==='Administrator';
   const displayed=visible.filter(c=>filter==='all'||c.courseId===filter);
+  const directoryGroups=role==='Teacher'?visible:classes;
+  function createTeacher(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();
+    try{onTeachers(addDemoTeacher(teachers,teacherDraft));setMessage('Added fictional teacher. Assign them to a class in Classes.');}
+    catch(error){setMessage(error instanceof Error?error.message:'Cannot add a sample teacher');}
+  }
+  function createLearner(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();
+    try{onLearners(addDemoLearner(learners,learnerDraft));setMessage('Added fictional student. Enroll them in a class using the form below.');}
+    catch(error){setMessage(error instanceof Error?error.message:'Cannot add a sample student');}
+  }
+  function enrollFromDirectory(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();
+    if(!directoryGroups.some(c=>c.id===directoryClass)){setMessage('Choose one of your visible sample classes');return;}
+    handle(()=>enrollDemoLearner(classes,directoryClass,directoryLearner,learners),
+      'Enrolled '+learnerName(directoryLearner)+' in the fictional class.');
+  }
   function handle(operation:()=>ClassRoom[],success:string){
     try{onUpdate(operation());setMessage(success);}
     catch(error){setMessage(error instanceof Error?error.message:'Cannot update sample data');}
   }
   function addClass(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
-    handle(()=>createDemoClass(classes,{courseId,teacherId,slot,capacity}),'Fictional class added. Nothing was stored.');
+    handle(()=>createDemoClass(classes,{courseId,teacherId,slot,capacity},teachers),'Fictional class added. Nothing was stored.');
   }
   function enroll(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     const classroom=classes.find(c=>c.id===chosenClass);
-    handle(()=>enrollDemoLearner(classes,chosenClass,chosenLearner),
+    handle(()=>enrollDemoLearner(classes,chosenClass,chosenLearner,learners),
       'Enrolled '+learnerName(chosenLearner)+' in '+courseName(classroom?.courseId??'')+' (demo only).');
   }
-  if(view==='Directory')return <section className="panel operations">
-    <span className="eyebrow">FICTIONAL PEOPLE · NO PERSONAL RECORDS</span>
-    <h2>{role==='Administrator'?'Teacher and learner directory':'My class rosters'}</h2>
-    <p>{role==='Administrator'?'Browse sample instructors and fictional learner enrollments.':'Only classes assigned to Instructor A appear in this preview.'}</p>
-    {canManage&&<div className="people-grid">
-      {DEMO_TEACHERS.map(teacher=><div className="person-tile" key={teacher.id}>
-        <span className="student-token" aria-hidden="true">✳</span><div><strong>{teacher.name}</strong><small>{classes.filter(c=>c.teacherId===teacher.id).length} sample groups</small></div>
-      </div>)}
+  if(view==='Directory')return <section className="panel operations" aria-label="Fictional people management">
+    <span className="eyebrow">PEOPLE & ROLES · FICTIONAL DEMO ONLY</span>
+    <h2>{canManage?'Manage teachers and students':'My class rosters and student enrollment'}</h2>
+    <p>{canManage?'Create sample teacher and student directory entries, then assign them to groups. No login accounts are created.':'Enroll an existing fictional learner into one of Instructor A’s assigned classes. Only administrators create people.'}</p>
+    {canManage&&<div className="people-actions">
+      <form className="people-form" onSubmit={createTeacher}>
+        <h3>Add Teacher</h3>
+        <label>Fictional teacher name<input required maxLength={60} value={teacherDraft} onChange={e=>setTeacherDraft(e.target.value)} placeholder="Sample Teacher Delta" /></label>
+        <button className="primary-btn" type="submit">+ Add Teacher</button>
+      </form>
+      <form className="people-form" onSubmit={createLearner}>
+        <h3>Add Student</h3>
+        <label>Fictional student name<input required maxLength={60} value={learnerDraft} onChange={e=>setLearnerDraft(e.target.value)} placeholder="Sample Learner Indigo" /></label>
+        <button className="primary-btn" type="submit">+ Add Student</button>
+      </form>
     </div>}
-    <div className="table-wrap"><table><thead><tr><th>Fictional learner</th><th>Enrolled groups</th><th>Subjects</th></tr></thead><tbody>
-      {DEMO_LEARNERS.filter(learner=>visible.some(c=>c.learnerIds.includes(learner.id))).map(learner=>{
-        const roster=visible.filter(c=>c.learnerIds.includes(learner.id));
-        return <tr key={learner.id}><td>{learner.name}</td><td>{roster.length}</td><td>{roster.map(c=>courseName(c.courseId)).join(', ')}</td></tr>;
-      })}
-    </tbody></table></div>
-    <p className="quiet">This directory does not reveal actual contact details, school records or accounts.</p>
+    {canManage&&<>
+      <h3>Teacher directory ({teachers.length})</h3>
+      <div className="people-grid">{teachers.map(teacher=><div className="person-tile" key={teacher.id}>
+        <span className="student-token" aria-hidden="true">✳</span><div><strong>{teacher.name}</strong>
+          <small>{classes.filter(c=>c.teacherId===teacher.id).length} fictional groups · {teacher.id}</small>
+        </div>
+      </div>)}</div>
+    </>}
+    {(canManage||role==='Teacher')&&<>
+      <h3>{canManage?'Students in directory':'Students in my groups'} ({canManage?learners.length:new Set(visible.flatMap(c=>c.learnerIds)).size})</h3>
+      <div className="table-wrap"><table><thead><tr><th>Fictional student</th><th>Enrolled groups</th><th>Subjects</th></tr></thead><tbody>
+        {learners.filter(learner=>canManage||visible.some(c=>c.learnerIds.includes(learner.id))).map(learner=>{
+          const roster=visible.filter(c=>c.learnerIds.includes(learner.id));
+          return <tr key={learner.id}><td>{learner.name}</td><td>{roster.length}</td>
+            <td>{roster.length?roster.map(c=>courseName(c.courseId)).join(', '):'Not enrolled'}</td></tr>;
+        })}
+      </tbody></table></div>
+      <div className="people-enroll">
+        <h3>Enroll an existing student into {canManage?'a class':'my class'}</h3>
+        <form className="ops-form" onSubmit={enrollFromDirectory}>
+          <label>Class group<select value={directoryClass} required onChange={e=>setDirectoryClass(e.target.value)}>
+            <option value="">Choose a class</option>{directoryGroups.map(c=><option value={c.id} key={c.id}>{courseName(c.courseId)} · {c.id.toUpperCase()}</option>)}
+          </select></label>
+          <label>Student<select value={directoryLearner} onChange={e=>setDirectoryLearner(e.target.value)}>
+            {learners.map(l=><option value={l.id} key={l.id}>{l.name}</option>)}
+          </select></label>
+          <button className="primary-btn" type="submit">+ Enroll Student</button>
+        </form>
+      </div>
+    </>}
+    <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
+    <p className="quiet">Use only fictional names beginning with “Sample Teacher” or “Sample Learner”. Refresh resets everyone you create. Guardians cannot self-link new children; their relationships require verification when the backend resumes.</p>
   </section>;
   if(view==='Timetable')return <section className="panel operations">
     <span className="eyebrow">TWO SESSIONS PER WEEK · SAMPLE SCHEDULE</span>
@@ -93,8 +148,8 @@ export default function AcademyOperations({view,role,classes,onUpdate}:Props){
         {displayed.map(c=><tr key={c.id}>
           <td>{c.id.toUpperCase()}</td><td>{courseName(c.courseId)}</td>
           <td>{canManage?<select className="ops-inline-select" aria-label={'Assign instructor for '+c.id} value={c.teacherId}
-              onChange={e=>handle(()=>assignDemoTeacher(classes,c.id,e.target.value),'Sample teacher assignment changed.')}>
-            {DEMO_TEACHERS.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+              onChange={e=>handle(()=>assignDemoTeacher(classes,c.id,e.target.value,teachers),'Sample teacher assignment changed.')}>
+            {teachers.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
           </select>:teacherName(c.teacherId)}</td>
           <td>{c.slot}</td><td><span className={'tag '+(c.learnerIds.length===c.capacity?'amber':'green')}>{c.learnerIds.length}/{c.capacity}</span></td>
           <td><button className="text-btn" aria-expanded={manageClass===c.id} onClick={()=>setManageClass(manageClass===c.id?'':c.id)}>Roster {manageClass===c.id?'↑':'↓'}</button></td>
@@ -117,7 +172,7 @@ export default function AcademyOperations({view,role,classes,onUpdate}:Props){
       <section className="panel"><span className="eyebrow">ADMINISTRATION · FICTIONAL DATA</span><h2>Create a sample class</h2>
         <form className="ops-form" onSubmit={addClass}>
           <label>Course<select value={courseId} onChange={e=>setCourseId(e.target.value)}>{DEMO_COURSES.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label>Assigned instructor<select value={teacherId} onChange={e=>setTeacherId(e.target.value)}>{DEMO_TEACHERS.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+          <label>Assigned instructor<select value={teacherId} onChange={e=>setTeacherId(e.target.value)}>{teachers.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
           <label>Two weekly sessions<select value={slot} onChange={e=>setSlot(e.target.value)}>{DEMO_SLOTS.map(s=><option key={s} value={s}>{s}</option>)}</select></label>
           <label>Seat limit<select value={capacity} onChange={e=>setCapacity(Number(e.target.value))}>{[5,10,15,20].map(x=><option key={x} value={x}>{x} seats</option>)}</select></label>
           <button type="submit" className="primary-btn">Create fictional group</button>
@@ -126,7 +181,7 @@ export default function AcademyOperations({view,role,classes,onUpdate}:Props){
       <section className="panel"><span className="eyebrow">ADMINISTRATION · FICTIONAL DATA</span><h2>Enroll a sample learner</h2>
         <form className="ops-form" onSubmit={enroll}>
           <label>Class group<select required value={chosenClass} onChange={e=>setChosenClass(e.target.value)}><option value="">Choose a group</option>{classes.map(c=><option key={c.id} value={c.id}>{courseName(c.courseId)} · {c.id.toUpperCase()}</option>)}</select></label>
-          <label>Fictional learner<select value={chosenLearner} onChange={e=>setChosenLearner(e.target.value)}>{DEMO_LEARNERS.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
+          <label>Fictional learner<select value={chosenLearner} onChange={e=>setChosenLearner(e.target.value)}>{learners.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
           <button type="submit" className="primary-btn">Enroll in sample class</button>
         </form>
         <p className="quiet">Enrollment rejects duplicate course groups and full classes. Refreshing resets the preview.</p>

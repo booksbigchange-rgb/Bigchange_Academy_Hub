@@ -912,3 +912,16 @@ footer {
   .report-tabs{overflow-x:auto;overscroll-behavior-x:contain;}
   .role-select select{min-height:44px;}
 }
+
+/* M5.6 People & Roles — fictional onboarding controls */
+.people-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px;margin:22px 0 30px;}
+.people-form{display:grid;gap:13px;align-content:start;border:1px solid var(--stroke);border-radius:14px;background:var(--bg-card-alt);padding:20px;}
+.people-form h3{margin:0;font-size:16px;}
+.people-form label{display:grid;gap:7px;font-size:12px;font-weight:750;color:var(--text-secondary);}
+.people-form input{min-height:44px;width:100%;min-width:0;border:1px solid var(--stroke-strong);border-radius:10px;padding:10px 12px;background:var(--bg-raised);color:var(--text);font-size:13px;}
+.people-form button{justify-self:start;min-height:44px;}
+.people-enroll{margin:25px 0 12px;border-top:1px solid var(--stroke);padding-top:21px;}
+.people-enroll h3{margin-bottom:15px;}
+.quick-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:0 0 19px;}
+.quick-actions button{min-height:44px;}
+@media(max-width:720px){.people-actions{grid-template-columns:1fr;}.people-actions>.people-form{padding:15px;}}

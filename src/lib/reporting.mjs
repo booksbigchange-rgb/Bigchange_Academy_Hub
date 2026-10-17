@@ -45,9 +45,9 @@ function reconcile(ledger,period){
  return {...sum(valid),periods,exceptions};
 }
 /** Academic scope is by term/course/teacher. Finance is ONLY by payment period. */
-export function summarizeDemoAcademy({classes,academic,assessments,ledger,termId='all',courseId='all',teacherId='all',period='all'}){
+export function summarizeDemoAcademy({classes,academic,assessments,ledger,termId='all',courseId='all',teacherId='all',period='all',teachers=DEMO_TEACHERS}){
  check(termId,academic.terms.map(x=>x.id),'term');check(courseId,DEMO_COURSES.map(x=>x.id),'course');
- check(teacherId,DEMO_TEACHERS.map(x=>x.id),'teacher');check(period,ledger.map(x=>x.period),'payment period');
+ check(teacherId,teachers.map(x=>x.id),'teacher');check(period,ledger.map(x=>x.period),'payment period');
  const groups=classes.filter(c=>(courseId==='all'||c.courseId===courseId)&&(teacherId==='all'||c.teacherId===teacherId));
  const ids=new Set(groups.map(c=>c.id)),students=new Set(groups.flatMap(c=>c.learnerIds));
  const sessions=academic.sessions.filter(s=>ids.has(s.classId)&&(termId==='all'||s.termId===termId));
@@ -55,12 +55,12 @@ export function summarizeDemoAcademy({classes,academic,assessments,ledger,termId
  const capacity=groups.reduce((s,c)=>s+c.capacity,0),enrollments=groups.reduce((s,c)=>s+c.learnerIds.length,0);
  const classRows=groups.map(c=>{
   const cs=sessions.filter(s=>s.classId===c.id),ts=tasks.filter(t=>t.classId===c.id);
-  return {id:c.id,course:label(DEMO_COURSES,c.courseId),courseId:c.courseId,teacher:label(DEMO_TEACHERS,c.teacherId),
+  return {id:c.id,course:label(DEMO_COURSES,c.courseId),courseId:c.courseId,teacher:label(teachers,c.teacherId),
    teacherId:c.teacherId,slot:c.slot,learners:c.learnerIds.length,capacity:c.capacity,
    utilization:c.capacity?Math.round(c.learnerIds.length/c.capacity*100):0,sessions:cs.length,
    attendance:attendance(cs,[c],academic.attendance),grades:assessmentTotals(ts,[c],assessments.submissions)};
  });
- const teacherRows=DEMO_TEACHERS.filter(t=>teacherId==='all'||teacherId===t.id).map(t=>{
+ const teacherRows=teachers.filter(t=>teacherId==='all'||teacherId===t.id).map(t=>{
   const own=groups.filter(c=>c.teacherId===t.id);
   return {id:t.id,name:t.name,groups:own.length,weeklySessions:2*own.length,
    enrollments:own.reduce((s,c)=>s+c.learnerIds.length,0),uniqueLearners:new Set(own.flatMap(c=>c.learnerIds)).size,

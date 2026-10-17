@@ -28,6 +28,10 @@ export default function AcademyOperations({view,role,classes,onUpdate,teachers,l
   const [message,setMessage]=useState('');
   const [filter,setFilter]=useState('all');
   const [manageClass,setManageClass]=useState('');
+  const [teacherDraft,setTeacherDraft]=useState('Sample Teacher Delta');
+  const [learnerDraft,setLearnerDraft]=useState('Sample Learner Indigo');
+  const [directoryClass,setDirectoryClass]=useState('');
+  const [directoryLearner,setDirectoryLearner]=useState('learner-a');
   const canManage=role==='Administrator';
   const displayed=visible.filter(c=>filter==='all'||c.courseId===filter);
   const directoryGroups=role==='Teacher'?visible:classes;
@@ -145,7 +149,7 @@ export default function AcademyOperations({view,role,classes,onUpdate,teachers,l
           <td>{c.id.toUpperCase()}</td><td>{courseName(c.courseId)}</td>
           <td>{canManage?<select className="ops-inline-select" aria-label={'Assign instructor for '+c.id} value={c.teacherId}
               onChange={e=>handle(()=>assignDemoTeacher(classes,c.id,e.target.value,teachers),'Sample teacher assignment changed.')}>
-            {DEMO_TEACHERS.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+            {teachers.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
           </select>:teacherName(c.teacherId)}</td>
           <td>{c.slot}</td><td><span className={'tag '+(c.learnerIds.length===c.capacity?'amber':'green')}>{c.learnerIds.length}/{c.capacity}</span></td>
           <td><button className="text-btn" aria-expanded={manageClass===c.id} onClick={()=>setManageClass(manageClass===c.id?'':c.id)}>Roster {manageClass===c.id?'↑':'↓'}</button></td>
@@ -168,7 +172,7 @@ export default function AcademyOperations({view,role,classes,onUpdate,teachers,l
       <section className="panel"><span className="eyebrow">ADMINISTRATION · FICTIONAL DATA</span><h2>Create a sample class</h2>
         <form className="ops-form" onSubmit={addClass}>
           <label>Course<select value={courseId} onChange={e=>setCourseId(e.target.value)}>{DEMO_COURSES.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label>Assigned instructor<select value={teacherId} onChange={e=>setTeacherId(e.target.value)}>{DEMO_TEACHERS.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+          <label>Assigned instructor<select value={teacherId} onChange={e=>setTeacherId(e.target.value)}>{teachers.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
           <label>Two weekly sessions<select value={slot} onChange={e=>setSlot(e.target.value)}>{DEMO_SLOTS.map(s=><option key={s} value={s}>{s}</option>)}</select></label>
           <label>Seat limit<select value={capacity} onChange={e=>setCapacity(Number(e.target.value))}>{[5,10,15,20].map(x=><option key={x} value={x}>{x} seats</option>)}</select></label>
           <button type="submit" className="primary-btn">Create fictional group</button>

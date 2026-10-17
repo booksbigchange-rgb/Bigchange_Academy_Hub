@@ -893,3 +893,22 @@ footer {
 .report-history{padding-left:23px;font-size:12px;line-height:1.9;color:var(--text)}
 @media(max-width:1120px){.report-filters,.report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.report-filters{grid-template-columns:1fr}.report-kpis{gap:11px}.report-kpis .metric{padding:14px;min-height:162px}.report-bar-label{flex-wrap:wrap}.report-tab{flex:1}}
+
+/* QA M5.5: course roster clarity & Chromebook keyboard navigation */
+.course-main {min-width:0;}
+.course-main strong,.course-stat strong{overflow-wrap:anywhere;}
+.course-stat{text-align:right;min-width:105px;}
+.sidebar nav{scrollbar-gutter:stable;}
+.navitem:focus-visible,.report-tab:focus-visible,.family-child:focus-visible{outline:3px solid #f3c477;outline-offset:2px;}
+@media(max-width:790px){
+  .sidebar nav{overscroll-behavior-x:contain;scroll-snap-type:x proximity;}
+  .navitem{scroll-snap-align:start;min-height:44px;}
+  .course-stat{min-width:88px;}
+}
+@media(max-width:520px){
+  .course-row{flex-wrap:wrap;}
+  .course-main{flex:1;min-width:150px;}
+  .course-stat{margin-left:auto;text-align:right;}
+  .report-tabs{overflow-x:auto;overscroll-behavior-x:contain;}
+  .role-select select{min-height:44px;}
+}

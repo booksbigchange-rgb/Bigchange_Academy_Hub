@@ -29,6 +29,21 @@ export const INITIAL_DEMO_CLASSES = [
   {id:'class-4',courseId:'scratch',teacherId:'teacher-c',slot:'Mon + Wed · 10:00',capacity:10,learnerIds:['learner-g','learner-h']}
 ];
 function allowed(items,id){return items.some(item=>item.id===id);}
+function addFictionalPerson(items,name,role,max){
+  if(!Array.isArray(items))throw Error('Invalid sample directory');
+  if(typeof name!=='string')throw Error('Enter a fictional sample name');
+  const clean=name.trim().replace(/\s+/g,' ');
+  if(clean.length<10||clean.length>60||!/^Sample (?:Teacher|Learner) [\w -]+$/i.test(clean))
+    throw Error('Use a fictional name beginning with Sample '+(role==='teacher'?'Teacher ':'Learner '));
+  if(items.some(x=>x.name.toLocaleLowerCase('en')===clean.toLocaleLowerCase('en')))
+    throw Error('A sample person with this name already exists');
+  if(items.length>=max)throw Error('Sample directory limit reached');
+  const ids=new Set(items.map(x=>x.id));
+  let n=1;while(ids.has(role+'-demo-'+n))n++;
+  return [...items,{id:role+'-demo-'+n,name:clean}];
+}
+export function addDemoTeacher(teachers,name){return addFictionalPerson(teachers,name,'teacher',100);}
+export function addDemoLearner(learners,name){return addFictionalPerson(learners,name,'learner',3000);}
 function validateUniqueSlot(classes,teacherId,slot,exceptId=''){
   if(classes.some(item=>item.teacherId===teacherId && item.slot===slot && item.id!==exceptId))
     throw Error('Instructor already teaches another sample class at this time');
@@ -37,10 +52,10 @@ function assertRoster(classes) {
   if(!Array.isArray(classes)||classes.some(c=>!Array.isArray(c.learnerIds))) throw Error('Invalid sample class list');
 }
 /** @param {DemoClass[]} classes @param {{courseId:string,teacherId:string,slot:string,capacity:number}} next @returns {DemoClass[]} */
-export function createDemoClass(classes,next){
+export function createDemoClass(classes,next,teachers=DEMO_TEACHERS){
   assertRoster(classes);
   if(classes.length>=300)throw Error('Sample preview limit reached (300 groups)');
-  if(!allowed(DEMO_COURSES,next.courseId)||!allowed(DEMO_TEACHERS,next.teacherId)||!DEMO_SLOTS.includes(next.slot))throw Error('Choose valid course, instructor and session time');
+  if(!allowed(DEMO_COURSES,next.courseId)||!allowed(teachers,next.teacherId)||!DEMO_SLOTS.includes(next.slot))throw Error('Choose valid course, instructor and session time');
   if(![5,10,15,20].includes(next.capacity))throw Error('Choose a valid class capacity');
   validateUniqueSlot(classes,next.teacherId,next.slot);
   const used=new Set(classes.map(c=>c.id));
@@ -49,9 +64,9 @@ export function createDemoClass(classes,next){
   return [...classes,{id:'class-'+idNumber,courseId:next.courseId,teacherId:next.teacherId,slot:next.slot,capacity:next.capacity,learnerIds:[]}];
 }
 /** @param {DemoClass[]} classes @param {string} classId @param {string} learnerId @returns {DemoClass[]} */
-export function enrollDemoLearner(classes,classId,learnerId){
+export function enrollDemoLearner(classes,classId,learnerId,learners=DEMO_LEARNERS){
   assertRoster(classes);
-  if(!allowed(DEMO_LEARNERS,learnerId))throw Error('Choose a fictional learner');
+  if(!allowed(learners,learnerId))throw Error('Choose a fictional learner');
   const target=classes.find(c=>c.id===classId);
   if(!target)throw Error('Class not found');
   if(target.learnerIds.includes(learnerId))throw Error('Learner is already enrolled in this class');
@@ -68,9 +83,9 @@ export function removeDemoLearner(classes,classId,learnerId){
   return classes.map(c=>c.id===classId?{...c,learnerIds:c.learnerIds.filter(id=>id!==learnerId)}:c);
 }
 /** @param {DemoClass[]} classes @param {string} classId @param {string} teacherId @returns {DemoClass[]} */
-export function assignDemoTeacher(classes,classId,teacherId){
+export function assignDemoTeacher(classes,classId,teacherId,teachers=DEMO_TEACHERS){
   assertRoster(classes);
-  if(!allowed(DEMO_TEACHERS,teacherId))throw Error('Choose a sample instructor');
+  if(!allowed(teachers,teacherId))throw Error('Choose a sample instructor');
   const target=classes.find(c=>c.id===classId);
   if(!target)throw Error('Class not found');
   validateUniqueSlot(classes,teacherId,target.slot,classId);

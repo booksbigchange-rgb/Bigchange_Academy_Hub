@@ -1,0 +1,73 @@
+name: Temporary web preview (GitHub Pages)
+# Preview runs from the dedicated development branch; main is unchanged.
+# Published contents use a pinned, CI-tested Academy people audit M5.7 snapshot.
+# Index stays a fictional demo; pilot.html is adult TEST accounts only.
+
+on:
+  push:
+    branches:
+      - feature/initial-student-hub
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'package.json'
+      - 'tsconfig.json'
+      - 'vite.config.ts'
+      - '.github/workflows/preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-preview
+  cancel-in-progress: true
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout pinned preview source
+        uses: actions/checkout@v4
+        with:
+          ref: 8cd7e9fe0ef4984fd7f2a41d435dd78cd5a53e3c
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install packages
+        run: npm ci --no-audit --no-fund
+      - name: Test and type-check
+        run: |
+          npm run typecheck
+          npm test
+      - name: Ensure no configured live credentials are embedded
+        run: |
+          test -z "${VITE_ACADEMY_SUPABASE_URL:-}"
+          test -z "${VITE_ACADEMY_SUPABASE_PUBLISHABLE_KEY:-}"
+          test -f pilot.html
+      - name: Build demo and isolated adult test pilot for GitHub Pages subpath
+        run: npm run build -- --base=/Bigchange_Academy_Hub/
+      - name: Retain built preview as downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bigchange-academy-preview
+          path: dist/
+          retention-days: 7
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+  deploy-preview:
+    needs: build-preview
+    runs-on: ubuntu-latest
+    environment:
+      name: academy-hub-preview
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish static demonstration
+        id: deployment
+        uses: actions/deploy-pages@v4

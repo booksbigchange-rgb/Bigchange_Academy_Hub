@@ -1,13 +1,13 @@
 import {useMemo,useState} from 'react';
-import {DEMO_COURSES,DEMO_TEACHERS} from '../lib/operations.mjs';
+import {DEMO_COURSES} from '../lib/operations.mjs';
 import {summarizeDemoAcademy,demoAggregateCsv} from '../lib/reporting.mjs';
-import type {ClassRoom} from './AcademyOperations';
+import type {ClassRoom,Person} from './AcademyOperations';
 import type {AcademicState} from './AcademyAcademics';
 import type {AssessmentState} from './AcademyAssessments';
 
 type Ledger={student:string;learnerId:string;guardian:string;guardianId:string;due:number;recorded:number;period:string};
 type Change={sequence:number;previous:number;next:number;delta:number};
-type Props={classes:ClassRoom[];academic:AcademicState;assessments:AssessmentState;ledger:Ledger[];financeChanges:Change[]};
+type Props={classes:ClassRoom[];academic:AcademicState;assessments:AssessmentState;ledger:Ledger[];teachers:Person[];financeChanges:Change[]};
 type Summary={classes:number;enrollments:number;capacity:number;uniqueLearners:number;utilization:number;activeTeachers:number;activeCourses:number;plannedSessions:number};
 type Attendance={opportunities:number;present:number;late:number;absent:number;excused:number;unmarked:number;markedRate:number|null};
 type Grades={assigned:number;submitted:number;awaitingReview:number;graded:number;average:number|null};
@@ -19,15 +19,15 @@ type Report={summary:Summary;attendance:Attendance;grades:Grades;classRows:Group
 type Tab='Classes'|'Teachers'|'Attendance'|'Grades'|'Finance';
 const price=(n:number)=>'ETB '+n.toLocaleString('en-US');
 const rate=(n:number|null)=>n===null?'—':n+'%';
-export default function AcademyReports({classes,academic,assessments,ledger,financeChanges}:Props){
+export default function AcademyReports({classes,academic,assessments,ledger,teachers,financeChanges}:Props){
  const [termId,setTermId]=useState('all');
  const [courseId,setCourseId]=useState('all');
  const [teacherId,setTeacherId]=useState('all');
  const [period,setPeriod]=useState('all');
  const [tab,setTab]=useState<Tab>('Classes');
  const [message,setMessage]=useState('');
- const report=useMemo(()=>summarizeDemoAcademy({classes,academic,assessments,ledger,termId,courseId,teacherId,period}),
-  [classes,academic,assessments,ledger,termId,courseId,teacherId,period]) as Report;
+ const report=useMemo(()=>summarizeDemoAcademy({classes,academic,assessments,ledger,termId,courseId,teacherId,period,teachers}),
+  [classes,academic,assessments,ledger,termId,courseId,teacherId,period,teachers]) as Report;
  const periods=[...new Set(ledger.map(x=>x.period))].sort();
  function download(){
   try{
@@ -52,7 +52,7 @@ export default function AcademyReports({classes,academic,assessments,ledger,fina
      <option value="all">All courses</option>{DEMO_COURSES.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
     </select></label>
     <label>Instructor<select value={teacherId} onChange={e=>setTeacherId(e.target.value)}>
-     <option value="all">All instructors</option>{DEMO_TEACHERS.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+     <option value="all">All instructors</option>{teachers.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
     </select></label>
     <label>Fee period<select value={period} onChange={e=>setPeriod(e.target.value)}>
      <option value="all">All fee periods</option>{periods.map(p=><option key={p} value={p}>{p}</option>)}

@@ -46,10 +46,10 @@ function nonSubmittedTasks(classes,assessments,learnerId){
    submitted:assigned.length-assigned.filter(t=>!submitted.has(t.id)).length};
 }
 const card=(title,value,subtitle,icon)=>({title,value:String(value),subtitle,icon});
-export function demoOverviewCards(role,{classes,academic,assessments,ledger}){
+export function demoOverviewCards(role,{classes,academic,assessments,ledger,teachers}){
  if(role==='Guardian'||!['Administrator','Student','Teacher'].includes(role))return [];
  if(role==='Administrator'){
-  const r=summarizeDemoAcademy({classes,academic,assessments,ledger});
+  const r=summarizeDemoAcademy({classes,academic,assessments,ledger,teachers});
   return [
    card('Unique learners',r.summary.uniqueLearners,r.summary.enrollments+' course enrollments','♧'),
    card('Active courses',r.summary.activeCourses,'With at least one fictional class','▣'),

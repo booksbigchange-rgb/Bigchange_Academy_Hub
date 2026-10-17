@@ -2,7 +2,7 @@
  * QA: keep ALL four fictional role dashboards consistent with M1–M5 data.
  * This is an in-browser illustration, NOT authentication or persisted reporting.
  */
-import {DEMO_COURSES,visibleDemoClasses} from './operations.mjs';
+import {DEMO_COURSES,DEMO_TEACHERS,DEMO_LEARNERS,visibleDemoClasses} from './operations.mjs';
 import {summarizeDemoAcademy} from './reporting.mjs';
 const NAV=['Overview','Courses','Classes','Directory','Timetable','Lessons','Assignments',
   'Quizzes','Grades','Attendance','Finance','Reports','Family'];
@@ -46,14 +46,14 @@ function nonSubmittedTasks(classes,assessments,learnerId){
    submitted:assigned.length-assigned.filter(t=>!submitted.has(t.id)).length};
 }
 const card=(title,value,subtitle,icon)=>({title,value:String(value),subtitle,icon});
-export function demoOverviewCards(role,{classes,academic,assessments,ledger,teachers}){
+export function demoOverviewCards(role,{classes,academic,assessments,ledger,teachers=DEMO_TEACHERS,students=DEMO_LEARNERS}){
  if(role==='Guardian'||!['Administrator','Student','Teacher'].includes(role))return [];
  if(role==='Administrator'){
   const r=summarizeDemoAcademy({classes,academic,assessments,ledger,teachers});
   return [
-   card('Unique learners',r.summary.uniqueLearners,r.summary.enrollments+' course enrollments','♧'),
-   card('Active courses',r.summary.activeCourses,'With at least one fictional class','▣'),
-   card('Instructors',r.summary.activeTeachers,'Assigned to classroom groups','✳'),
+   card('Registered students',students.length,r.summary.uniqueLearners+' enrolled in a class','♧'),
+   card('Teachers',teachers.length,r.summary.activeTeachers+' assigned to class groups','✳'),
+   card('Class groups',r.summary.classes,r.summary.activeCourses+' courses with groups','▣'),
    card('Balances due','ETB '+r.fees.outstanding.toLocaleString('en-US'),'Offline example ledger only','◈')
   ];
  }

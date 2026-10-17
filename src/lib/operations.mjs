@@ -75,6 +75,18 @@ export function enrollDemoLearner(classes,classId,learnerId,learners=DEMO_LEARNE
     throw Error('Learner is already enrolled in another group for this course');
   return classes.map(c=>c.id===classId?{...c,learnerIds:[...c.learnerIds,learnerId]}:c);
 }
+/**
+ * Demo-only role guard for student enrollment. This is NOT backend authorization.
+ * In this limited preview Teacher always represents fictitious Instructor A.
+ */
+export function enrollDemoLearnerForRole({classes,classId,learnerId,learners=DEMO_LEARNERS,role,teacherId='teacher-a'}){
+  if(role!=='Administrator'&&role!=='Teacher')throw Error('This preview role cannot enroll students');
+  const classroom=classes.find(c=>c.id===classId);
+  if(!classroom)throw Error('Class not found');
+  if(role==='Teacher'&&classroom.teacherId!==teacherId)
+    throw Error('Teachers may enroll only into their assigned sample groups');
+  return enrollDemoLearner(classes,classId,learnerId,learners);
+}
 /** @param {DemoClass[]} classes @param {string} classId @param {string} learnerId @returns {DemoClass[]} */
 export function removeDemoLearner(classes,classId,learnerId){
   assertRoster(classes);

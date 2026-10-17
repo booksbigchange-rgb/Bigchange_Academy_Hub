@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
  DEMO_TEACHERS,DEMO_LEARNERS,INITIAL_DEMO_CLASSES,
- addDemoTeacher,addDemoLearner,createDemoClass,enrollDemoLearner,assignDemoTeacher
+ addDemoTeacher,addDemoLearner,createDemoClass,enrollDemoLearner,enrollDemoLearnerForRole,assignDemoTeacher
 } from '../src/lib/operations.mjs';
 const groups=()=>structuredClone(INITIAL_DEMO_CLASSES);
 test('sample Add Teacher and Add Student create immutable people, not real accounts',()=>{
@@ -36,4 +36,14 @@ test('new sample learners can enroll, still respecting class/duplicate rules',()
  assert.equal(joined[0].learnerIds.includes(id),true);
  assert.throws(()=>enrollDemoLearner(joined,'class-1',id,l),/already enrolled/);
  assert.throws(()=>enrollDemoLearner(groups(),'class-1',id),/Choose a fictional learner/);
+});
+
+test('role guard refuses cross-class Teacher enrollment, but allows assigned group and Admin',()=>{
+ const l=addDemoLearner(DEMO_LEARNERS,'Sample Learner Indigo');
+ const args={classes:groups(),classId:'class-2',learnerId:l.at(-1).id,learners:l};
+ assert.throws(()=>enrollDemoLearnerForRole({...args,role:'Teacher'}),/assigned sample groups/);
+ assert.throws(()=>enrollDemoLearnerForRole({...args,role:'Student'}),/cannot enroll/);
+ assert.throws(()=>enrollDemoLearnerForRole({...args,role:'Guardian'}),/cannot enroll/);
+ assert.equal(enrollDemoLearnerForRole({...args,classId:'class-1',role:'Teacher'})[0].learnerIds.includes(l.at(-1).id),true);
+ assert.equal(enrollDemoLearnerForRole({...args,role:'Administrator'})[1].learnerIds.includes(l.at(-1).id),true);
 });

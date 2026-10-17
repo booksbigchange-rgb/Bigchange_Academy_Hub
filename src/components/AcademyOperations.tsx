@@ -1,7 +1,7 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, useEffect, useRef, type FormEvent } from 'react';
 import {
   DEMO_COURSES, DEMO_SLOTS, addDemoTeacher, addDemoLearner,
-  createDemoClass, enrollDemoLearner, removeDemoLearner, assignDemoTeacher,
+  createDemoClass, enrollDemoLearner, enrollDemoLearnerForRole, removeDemoLearner, assignDemoTeacher,
   visibleDemoClasses, enrolledClassCount
 } from '../lib/operations.mjs';
 
@@ -12,10 +12,18 @@ export type Person = {id:string;name:string};
 type Role = 'Student' | 'Teacher' | 'Administrator';
 type View = 'Classes' | 'Directory' | 'Timetable';
 type Props = { view: View; role: Role; classes: ClassRoom[]; onUpdate: (next: ClassRoom[]) => void;
-  teachers: Person[]; learners: Person[]; onTeachers:(list:Person[])=>void; onLearners:(list:Person[])=>void };
+  teachers: Person[]; learners: Person[]; focusPerson?:'teacher'|'student'|null;
+  onTeachers:(list:Person[])=>void; onLearners:(list:Person[])=>void };
 const courseName = (id:string) => DEMO_COURSES.find(c=>c.id===id)?.name ?? 'Unknown course';
 
-export default function AcademyOperations({view,role,classes,onUpdate,teachers,learners,onTeachers,onLearners}:Props){
+export default function AcademyOperations({view,role,classes,onUpdate,teachers,learners,focusPerson,onTeachers,onLearners}:Props){
+  const teacherInput=useRef<HTMLInputElement>(null);
+  const studentInput=useRef<HTMLInputElement>(null);
+  useEffect(()=>{
+    if(view!=='Directory'||role!=='Administrator')return;
+    if(focusPerson==='teacher')teacherInput.current?.focus();
+    if(focusPerson==='student')studentInput.current?.focus();
+  },[view,role,focusPerson]);
   const teacherName=(id:string)=>teachers.find(t=>t.id===id)?.name??'Sample instructor';
   const learnerName=(id:string)=>learners.find(l=>l.id===id)?.name??'Sample learner';
   const visible=useMemo(()=>visibleDemoClasses(classes,role),[classes,role]);
@@ -48,7 +56,7 @@ export default function AcademyOperations({view,role,classes,onUpdate,teachers,l
   function enrollFromDirectory(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     if(!directoryGroups.some(c=>c.id===directoryClass)){setMessage('Choose one of your visible sample classes');return;}
-    handle(()=>enrollDemoLearner(classes,directoryClass,directoryLearner,learners),
+    handle(()=>enrollDemoLearnerForRole({classes,classId:directoryClass,learnerId:directoryLearner,learners,role}),
       'Enrolled '+learnerName(directoryLearner)+' in the fictional class.');
   }
   function handle(operation:()=>ClassRoom[],success:string){
@@ -72,12 +80,12 @@ export default function AcademyOperations({view,role,classes,onUpdate,teachers,l
     {canManage&&<div className="people-actions">
       <form className="people-form" onSubmit={createTeacher}>
         <h3>Add Teacher</h3>
-        <label>Fictional teacher name<input required maxLength={60} value={teacherDraft} onChange={e=>setTeacherDraft(e.target.value)} placeholder="Sample Teacher Delta" /></label>
+        <label>Fictional teacher name<input ref={teacherInput} required maxLength={60} value={teacherDraft} onChange={e=>setTeacherDraft(e.target.value)} placeholder="Sample Teacher Delta" /></label>
         <button className="primary-btn" type="submit">+ Add Teacher</button>
       </form>
       <form className="people-form" onSubmit={createLearner}>
         <h3>Add Student</h3>
-        <label>Fictional student name<input required maxLength={60} value={learnerDraft} onChange={e=>setLearnerDraft(e.target.value)} placeholder="Sample Learner Indigo" /></label>
+        <label>Fictional student name<input ref={studentInput} required maxLength={60} value={learnerDraft} onChange={e=>setLearnerDraft(e.target.value)} placeholder="Sample Learner Indigo" /></label>
         <button className="primary-btn" type="submit">+ Add Student</button>
       </form>
     </div>}

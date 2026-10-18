@@ -20,8 +20,8 @@ const descriptors={
  automation:{topic:'Spreadsheets, webhooks and simple workflows',icon:'⌘',activity:'Outline the steps of a sample homework-help automation.'},
  scratch:{topic:'Creative stories, games and digital logic',icon:'▧',activity:'Plan a short interactive story with two sprites.'}
 };
-export function demoVisibleCourses(role,classes){
-  const visible=visibleDemoClasses(classes,role);
+export function demoVisibleCourses(role,classes,identity={}){
+  const visible=visibleDemoClasses(classes,role,identity);
   if(role==='Guardian'||!['Student','Teacher','Administrator'].includes(role))return [];
   return DEMO_COURSES.filter(c=>role==='Administrator'||visible.some(v=>v.courseId===c.id)).map(c=>{
     const n=visible.filter(v=>v.courseId===c.id).length;
@@ -46,7 +46,7 @@ function nonSubmittedTasks(classes,assessments,learnerId){
    submitted:assigned.length-assigned.filter(t=>!submitted.has(t.id)).length};
 }
 const card=(title,value,subtitle,icon)=>({title,value:String(value),subtitle,icon});
-export function demoOverviewCards(role,{classes,academic,assessments,ledger,teachers=DEMO_TEACHERS,students=DEMO_LEARNERS}){
+export function demoOverviewCards(role,{classes,academic,assessments,ledger,teachers=DEMO_TEACHERS,students=DEMO_LEARNERS,teacherId='teacher-a',learnerId='learner-a'}){
  if(role==='Guardian'||!['Administrator','Student','Teacher'].includes(role))return [];
  if(role==='Administrator'){
   const r=summarizeDemoAcademy({classes,academic,assessments,ledger,teachers});
@@ -57,13 +57,13 @@ export function demoOverviewCards(role,{classes,academic,assessments,ledger,teac
    card('Balances due','ETB '+r.fees.outstanding.toLocaleString('en-US'),'Offline example ledger only','◈')
   ];
  }
- const visible=visibleDemoClasses(classes,role);
+ const visible=visibleDemoClasses(classes,role,{teacherId,learnerId});
  const ids=new Set(visible.map(c=>c.id));
  if(role==='Student'){
-  const homework=nonSubmittedTasks(classes,assessments,'learner-a');
-  const attendance=attendanceForLearner(classes,academic,'learner-a');
+  const homework=nonSubmittedTasks(classes,assessments,learnerId);
+  const attendance=attendanceForLearner(classes,academic,learnerId);
   return [
-   card('My classes',visible.length,'Fictional Learner A group membership','▣'),
+   card('My classes',visible.length,'Selected fictional learner’s groups','▣'),
    card('Assignments to do',homework.due,homework.assigned+' assigned in my groups','◫'),
    card('Submitted work',homework.submitted,'Projects and quizzes combined','✎'),
    card('Attendance recorded',attendance.marked+' / '+attendance.scheduled,
@@ -81,7 +81,7 @@ export function demoOverviewCards(role,{classes,academic,assessments,ledger,teac
  },0);
  const opportunities=sessions.reduce((sum,s)=>sum+(visible.find(c=>c.id===s.classId)?.learnerIds.length??0),0);
  return [
-  card('My teaching groups',visible.length,'Instructor A sample assignments','▣'),
+  card('My teaching groups',visible.length,'Selected fictional instructor’s groups','▣'),
   card('Unique learners',unique,'Across these teaching groups','♧'),
   card('To review',submissions.length,'Submitted written projects','◫'),
   card('Register marks',registered+' / '+opportunities,'Marked learner-session opportunities','◷')

@@ -43,9 +43,9 @@ export const INITIAL_DEMO_ASSESSMENTS={
   submissions:[],
   gradeHistory:[]
 };
-function assertRole(role,classes,classId){
+function assertRole(role,classes,classId,teacherId='teacher-a'){
   if(role!=='Teacher'&&role!=='Administrator')throw Error('Only educator preview roles can perform this action');
-  if(!visibleDemoClasses(classes,role).some(c=>c.id===classId))throw Error('This sample group is not assigned to this educator view');
+  if(!visibleDemoClasses(classes,role,{teacherId}).some(c=>c.id===classId))throw Error('This sample group is not assigned to this educator view');
 }
 function findTask(tasks,taskId){
   const task=tasks.find(t=>t.id===taskId);
@@ -60,8 +60,8 @@ function findGroup(classes,classId){
 function assertLearner(classes,task,learnerId){
   if(!findGroup(classes,task.classId).learnerIds.includes(learnerId))throw Error('Fictional learner is not enrolled in the task class');
 }
-function assertDemoStudent(role,learnerId){
-  if(role!=='Student'||learnerId!=='learner-a')throw Error('This sample submission is for the learner-A preview only');
+function assertDemoStudent(role,learnerId,previewLearnerId='learner-a'){
+  if(role!=='Student'||learnerId!==previewLearnerId)throw Error('Only the currently selected sample learner can submit');
 }
 function validateProjectResponse(text){
   if(typeof text!=='string'||text.trim().length<15||text.trim().length>800)
@@ -72,8 +72,8 @@ function isoDate(value){
   const d=new Date(value+'T00:00:00Z');
   return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===value;
 }
-export function createDemoAssessment(state,{classes,terms,role,classId,termId,kind,title,instructions,dueDate}){
-  assertRole(role,classes,classId);
+export function createDemoAssessment(state,{classes,terms,role,classId,termId,kind,title,instructions,dueDate,teacherId='teacher-a'}){
+  assertRole(role,classes,classId,teacherId);
   const classroom=findGroup(classes,classId);
   const term=terms.find(t=>t.id===termId);
   if(!term)throw Error('Choose an existing sample academic term');
@@ -93,8 +93,8 @@ export function createDemoAssessment(state,{classes,terms,role,classId,termId,ki
   };
   return {...state,tasks:[...state.tasks,task]};
 }
-export function submitDemoProject(state,{classes,role,taskId,learnerId,response}){
-  assertDemoStudent(role,learnerId);
+export function submitDemoProject(state,{classes,role,taskId,learnerId,response,previewLearnerId='learner-a'}){
+  assertDemoStudent(role,learnerId,previewLearnerId);
   const task=findTask(state.tasks,taskId);
   if(task.kind!=='project')throw Error('This is not a project task');
   assertLearner(classes,task,learnerId);
@@ -105,8 +105,8 @@ export function submitDemoProject(state,{classes,role,taskId,learnerId,response}
     rubricScores:null,feedback:''
   }]};
 }
-export function submitDemoQuiz(state,{classes,role,taskId,learnerId,answers}){
-  assertDemoStudent(role,learnerId);
+export function submitDemoQuiz(state,{classes,role,taskId,learnerId,answers,previewLearnerId='learner-a'}){
+  assertDemoStudent(role,learnerId,previewLearnerId);
   const task=findTask(state.tasks,taskId);
   if(task.kind!=='quiz')throw Error('This is not a quiz');
   assertLearner(classes,task,learnerId);
@@ -119,9 +119,9 @@ export function submitDemoQuiz(state,{classes,role,taskId,learnerId,answers}){
     feedback:'Automatically scored in this fictional demonstration'
   }]};
 }
-export function gradeDemoProject(state,{classes,role,taskId,learnerId,scores,feedback}){
+export function gradeDemoProject(state,{classes,role,taskId,learnerId,scores,feedback,teacherId='teacher-a'}){
   const task=findTask(state.tasks,taskId);
-  assertRole(role,classes,task.classId);
+  assertRole(role,classes,task.classId,teacherId);
   if(task.kind!=='project')throw Error('Only project tasks use the manual rubric');
   assertLearner(classes,task,learnerId);
   const old=state.submissions.find(s=>s.taskId===taskId&&s.learnerId===learnerId);
@@ -137,15 +137,15 @@ export function gradeDemoProject(state,{classes,role,taskId,learnerId,scores,fee
   return {...state,submissions:state.submissions.map(s=>s===old?newSubmission:s),
     gradeHistory:[...state.gradeHistory,newHistory]};
 }
-export function visibleDemoTasks(tasks,classes,role,kind){
-  const ids=new Set(visibleDemoClasses(classes,role).map(c=>c.id));
+export function visibleDemoTasks(tasks,classes,role,kind,identity={}){
+  const ids=new Set(visibleDemoClasses(classes,role,identity).map(c=>c.id));
   return tasks.filter(t=>ids.has(t.classId)&&(!kind||t.kind===kind));
 }
-export function demoGradeRows(state,classes,role){
-  const tasks=visibleDemoTasks(state.tasks,classes,role);
+export function demoGradeRows(state,classes,role,identity={}){
+  const tasks=visibleDemoTasks(state.tasks,classes,role,undefined,identity);
   return tasks.flatMap(task=>{
     const room=findGroup(classes,task.classId);
-    const ids=role==='Student'?room.learnerIds.filter(id=>id==='learner-a'):room.learnerIds;
+    const ids=role==='Student'?room.learnerIds.filter(id=>id===(identity.learnerId??'learner-a')):room.learnerIds;
     return ids.map(learnerId=>{
       const sub=state.submissions.find(s=>s.taskId===task.id&&s.learnerId===learnerId);
       return {taskId:task.id,classId:task.classId,learnerId,title:task.title,kind:task.kind,

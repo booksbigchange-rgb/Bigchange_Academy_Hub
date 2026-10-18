@@ -12,7 +12,7 @@ export type Lesson = {id:string;classId:string;termId:string;date:string;topic:s
 export type AttendanceRecord = {sessionId:string;learnerId:string;status:string};
 export type AttendanceChange = {sequence:number;sessionId:string;learnerId:string;before:string;after:string};
 export type AcademicState = {terms:Term[];sessions:Lesson[];attendance:AttendanceRecord[];history:AttendanceChange[]};
-type Props = {view:'Lessons'|'Attendance';role:Role;classes:ClassRoom[];learners:Person[];academic:AcademicState;onUpdate:(next:AcademicState)=>void};
+type Props = {view:'Lessons'|'Attendance';role:Role;classes:ClassRoom[];learners:Person[];teacherId?:string;learnerId?:string;academic:AcademicState;onUpdate:(next:AcademicState)=>void};
 const courseName=(id:string)=>DEMO_COURSES.find(x=>x.id===id)?.name??'Sample subject';
 function formatDate(iso:string){
   return new Date(iso+'T12:00:00.000Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
@@ -26,9 +26,9 @@ function LessonEditor({lesson,canEdit,onSave}:{lesson:Lesson;canEdit:boolean;onS
     {canEdit&&<button type="submit" className="small-btn">Save sample lesson changes</button>}
   </form>;
 }
-export default function AcademyAcademics({view,role,classes,learners,academic,onUpdate}:Props){
+export default function AcademyAcademics({view,role,classes,learners,academic,onUpdate,teacherId='teacher-a',learnerId='learner-a'}:Props){
   const learnerName=(id:string)=>learners.find(x=>x.id===id)?.name??'Fictional learner';
-  const visible=visibleDemoClasses(classes,role);
+  const visible=visibleDemoClasses(classes,role,{teacherId,learnerId});
   const [classChoice,setClassChoice]=useState('');
   const [termChoice,setTermChoice]=useState('term-autumn-2026');
   const [lessonChoice,setLessonChoice]=useState('');
@@ -96,13 +96,13 @@ export default function AcademyAcademics({view,role,classes,learners,academic,on
       {view==='Lessons'?<>
         <p>The lesson plan is specific to {courseName(currentClass.courseId)} in {currentClass.id.toUpperCase()}.</p>
         {editingLesson}
-        <p className="quiet">Teacher previews may edit Instructor A's groups only. This is not server authorization.</p>
+        <p className="quiet">Teacher previews may edit only the selected instructor’s groups. This is not server authorization.</p>
       </>:<>
         <div className="academic-summary">
           {([{name:'Present',count:summary?.present},{name:'Absent',count:summary?.absent},{name:'Late',count:summary?.late},{name:'Unmarked',count:summary?.unmarked}]).map(x=>
             <div key={x.name}><strong>{x.count??0}</strong><small>{x.name}</small></div>)}
         </div>
-        {(role==='Student'?currentClass.learnerIds.filter(id=>id==='learner-a'):currentClass.learnerIds).map(id=>{
+        {(role==='Student'?currentClass.learnerIds.filter(id=>id===learnerId):currentClass.learnerIds).map(id=>{
           const status=academic.attendance.find(a=>a.sessionId===selected.id&&a.learnerId===id)?.status??'Unmarked';
           return <div className="roster-row" key={id}>
             <span className="student-token">{id.slice(-1).toUpperCase()}</span><strong>{learnerName(id)}</strong>

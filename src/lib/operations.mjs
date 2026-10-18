@@ -28,7 +28,7 @@ export const INITIAL_DEMO_CLASSES = [
   {id:'class-3',courseId:'ai',teacherId:'teacher-a',slot:'Sat + Sun · 10:00',capacity:10,learnerIds:['learner-c','learner-e','learner-f']},
   {id:'class-4',courseId:'scratch',teacherId:'teacher-c',slot:'Mon + Wed · 10:00',capacity:10,learnerIds:['learner-g','learner-h']}
 ];
-function allowed(items,id){return items.some(item=>item.id===id);}
+function allowed(items,id){return items.some(item=>item.id===id&&item.active!==false);}
 function addFictionalPerson(items,name,role,max){
   if(!Array.isArray(items))throw Error('Invalid sample directory');
   if(typeof name!=='string')throw Error('Enter a fictional sample name');
@@ -44,6 +44,28 @@ function addFictionalPerson(items,name,role,max){
 }
 export function addDemoTeacher(teachers,name){return addFictionalPerson(teachers,name,'teacher',100);}
 export function addDemoLearner(learners,name){return addFictionalPerson(learners,name,'learner',3000);}
+
+/** Only administrator-created fictional people may be renamed/deactivated. Seed fixtures stay stable. */
+export function renameDemoPerson(people,id,name,role){
+  const person=people.find(p=>p.id===id);
+  if(!person||!id.startsWith(role+'-demo-'))throw Error('Only added sample people can be edited');
+  if(person.active===false)throw Error('Reactivate this sample person before editing');
+  const existing=people.filter(p=>p.id!==id);
+  const valid=addFictionalPerson(existing,name,role,role==='teacher'?100:3000).at(-1);
+  return people.map(p=>p.id===id?{...p,name:valid.name}:p);
+}
+export function setDemoPersonActive(people,{id,role,active,classes}){
+  const person=people.find(p=>p.id===id);
+  if(!person||!id.startsWith(role+'-demo-'))throw Error('Only newly added sample people can be deactivated');
+  if(typeof active!=='boolean')throw Error('Choose an active state');
+  if(!active&&role==='teacher'&&classes.some(c=>c.teacherId===id))
+    throw Error('Reassign this teacher’s classes before deactivation');
+  if(!active&&role==='learner'&&classes.some(c=>c.learnerIds.includes(id)))
+    throw Error('Remove student enrollments before deactivation');
+  return people.map(p=>p.id===id?{...p,active}:p);
+}
+export const activeDemoPeople=people=>people.filter(p=>p.active!==false);
+
 function validateUniqueSlot(classes,teacherId,slot,exceptId=''){
   if(classes.some(item=>item.teacherId===teacherId && item.slot===slot && item.id!==exceptId))
     throw Error('Instructor already teaches another sample class at this time');
@@ -104,10 +126,10 @@ export function assignDemoTeacher(classes,classId,teacherId,teachers=DEMO_TEACHE
   return classes.map(c=>c.id===classId?{...c,teacherId}:c);
 }
 /** @param {DemoClass[]} classes @param {'Student'|'Teacher'|'Administrator'} role @returns {DemoClass[]} */
-export function visibleDemoClasses(classes,role){
+export function visibleDemoClasses(classes,role,{teacherId='teacher-a',learnerId='learner-a'}={}){
   if(role==='Administrator')return classes;
-  if(role==='Teacher')return classes.filter(c=>c.teacherId==='teacher-a');
-  if(role==='Student')return classes.filter(c=>c.learnerIds.includes('learner-a'));
+  if(role==='Teacher')return classes.filter(c=>c.teacherId===teacherId);
+  if(role==='Student')return classes.filter(c=>c.learnerIds.includes(learnerId));
   return [];
 }
 /** @param {DemoClass[]} classes @param {string} learnerId */

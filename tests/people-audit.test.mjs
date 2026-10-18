@@ -65,5 +65,5 @@ test('overview quick actions target distinct form inputs, teacher options and co
  assert.match(people,/studentInput\.current\?\.focus\(\)/);
  assert.match(people,/enrollDemoLearnerForRole/);
  assert.match(people,/\{teachers\.map\(/);
- assert.match(people,/\{learners\.map\(/);
+ assert.match(people,/\{activeLearners\.map\(/);
 });

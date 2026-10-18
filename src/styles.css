@@ -925,3 +925,12 @@ footer {
 .quick-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:0 0 19px;}
 .quick-actions button{min-height:44px;}
 @media(max-width:720px){.people-actions{grid-template-columns:1fr;}.people-actions>.people-form{padding:15px;}}
+
+/* M5.8: accessible, lightweight demo identities and sample people lifecycle. */
+.heading{flex-wrap:wrap;gap:14px;}
+.role-select{min-width:185px;}
+.role-select select{max-width:100%;}
+.people-enroll .ops-form{margin:12px 0;}
+.people-enroll button{margin-right:9px;margin-top:10px;min-height:40px;}
+.people-enroll button:disabled{cursor:not-allowed;opacity:.5;}
+@media(max-width:620px){.role-select{min-width:0;width:100%;}.role-select select{width:100%;}.people-enroll .ops-form{display:grid;gap:12px;}}

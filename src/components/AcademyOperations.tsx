@@ -27,8 +27,8 @@ export default function AcademyOperations({view,role,classes,onUpdate,teachers,l
   const teacherName=(id:string)=>teachers.find(t=>t.id===id)?.name??'Sample instructor';
   const learnerName=(id:string)=>learners.find(l=>l.id===id)?.name??'Sample learner';
   const visible=useMemo(()=>visibleDemoClasses(classes,role,{teacherId,learnerId}),[classes,role,teacherId,learnerId]);
-  const activeTeachers=activeDemoPeople(teachers);
-  const activeLearners=activeDemoPeople(learners);
+  const activeTeachers=activeDemoPeople(teachers) as Person[];
+  const activeLearners=activeDemoPeople(learners) as Person[];
   const [courseId,setCourseId]=useState('computer');
   const [assignedTeacherId,setAssignedTeacherId]=useState('teacher-a');
   const [slot,setSlot]=useState('Tue + Thu · 16:00');

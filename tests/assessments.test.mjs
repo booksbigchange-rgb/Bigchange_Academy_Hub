@@ -37,7 +37,7 @@ test('students submit exactly once to their enrolled class, never outside their 
   assert.equal(result.submissions[0].points,null);
   assert.equal(s.submissions.length,0);
   assert.throws(()=>submitDemoProject(result,{classes:groups(),role:'Student',taskId:'task-1',learnerId:'learner-a',response}),/Already submitted/);
-  assert.throws(()=>submitDemoProject(s,{classes:groups(),role:'Teacher',taskId:'task-1',learnerId:'learner-a',response}),/learner-A/);
+  assert.throws(()=>submitDemoProject(s,{classes:groups(),role:'Teacher',taskId:'task-1',learnerId:'learner-a',response}),/selected sample learner/);
   assert.throws(()=>submitDemoProject(s,{classes:groups(),role:'Student',taskId:'task-1',learnerId:'learner-a',response:'too short'}),/15/);
   const assigned=createDemoAssessment(s,{...options,kind:'project',classId:'class-3',role:'Administrator'});
   assert.throws(()=>submitDemoProject(assigned,{classes:groups(),role:'Student',

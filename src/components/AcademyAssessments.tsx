@@ -18,7 +18,7 @@ export type AssessmentState={tasks:Assessment[];submissions:DemoSubmission[];gra
 type Role='Student'|'Teacher'|'Administrator';
 type GradeRow={taskId:string;classId:string;learnerId:string;title:string;kind:string;
   status:string;points:number|null;maxPoints:number};
-type Props={view:'Assignments'|'Quizzes'|'Grades';role:Role;classes:ClassRoom[];learners:Person[];terms:Term[];
+type Props={view:'Assignments'|'Quizzes'|'Grades';role:Role;classes:ClassRoom[];learners:Person[];teacherId?:string;learnerId?:string;terms:Term[];
   state:AssessmentState;onUpdate:(newState:AssessmentState)=>void};
 const courseName=(id:string)=>DEMO_COURSES.find(x=>x.id===id)?.name??'Sample course';
 function ProjectResponse({onSubmit}:{onSubmit:(value:string)=>void}){
@@ -61,9 +61,9 @@ function RubricEditor({task,submission,onGrade}:{task:Assessment;submission:Demo
     <button className="primary-btn" type="submit">{submission.status==='graded'?'Update sample grade':'Save sample grade'}</button>
   </form>;
 }
-export default function AcademyAssessments({view,role,classes,learners,terms,state,onUpdate}:Props){
+export default function AcademyAssessments({view,role,classes,learners,terms,state,onUpdate,teacherId='teacher-a',learnerId='learner-a'}:Props){
   const learnerName=(id:string)=>learners.find(x=>x.id===id)?.name??'Sample learner';
-  const groupList=useMemo(()=>visibleDemoClasses(classes,role),[classes,role]);
+  const groupList=useMemo(()=>visibleDemoClasses(classes,role,{teacherId,learnerId}),[classes,role,teacherId,learnerId]);
   const [classChoice,setClassChoice]=useState('');
   const [taskChoice,setTaskChoice]=useState('');
   const [learnerChoice,setLearnerChoice]=useState('');
@@ -76,15 +76,15 @@ export default function AcademyAssessments({view,role,classes,learners,terms,sta
   const educator=role!=='Student';
   const selectedClass=groupList.find(c=>c.id===classChoice)??groupList[0];
   const kind=view==='Quizzes'?'quiz':'project';
-  const visible: Assessment[]=visibleDemoTasks(state.tasks,classes,role,view==='Grades'?undefined:kind);
+  const visible: Assessment[]=visibleDemoTasks(state.tasks,classes,role,view==='Grades'?undefined:kind,{teacherId,learnerId});
   const filtered=visible.filter(t=>t.classId===selectedClass?.id);
   const selectedTask=filtered.find(t=>t.id===taskChoice)??filtered[0];
   const selectedSubmissions=state.submissions.filter(s=>s.taskId===selectedTask?.id
     &&selectedClass?.learnerIds.includes(s.learnerId));
   const submittedProjects=selectedSubmissions.filter(s=>s.status==='submitted'||s.status==='graded');
   const pickedSubmission=submittedProjects.find(s=>s.learnerId===learnerChoice)??submittedProjects[0];
-  const mine=state.submissions.find(s=>s.taskId===selectedTask?.id&&s.learnerId==='learner-a');
-  const gradeRows: GradeRow[]=(demoGradeRows(state,classes,role) as GradeRow[]).filter(row=>row.classId===selectedClass?.id);
+  const mine=state.submissions.find(s=>s.taskId===selectedTask?.id&&s.learnerId===learnerId);
+  const gradeRows: GradeRow[]=(demoGradeRows(state,classes,role,{teacherId,learnerId}) as GradeRow[]).filter(row=>row.classId===selectedClass?.id);
   const stats=demoProgress(gradeRows);
   const term=terms.find(t=>t.id===termId)??terms[0];
   const scoreValue=(points:number|null,max:number)=>points===null?'Pending':points+' / '+max;
@@ -96,7 +96,7 @@ export default function AcademyAssessments({view,role,classes,learners,terms,sta
     e.preventDefault();
     if(!selectedClass||!term)return;
     apply(()=>createDemoAssessment(state,{classes,terms,role,classId:selectedClass.id,termId:term.id,
-      kind,title,instructions,dueDate}),'Created a fictional '+kind+'. Select it to continue.');
+      kind,title,instructions,dueDate,teacherId}),'Created a fictional '+kind+'. Select it to continue.');
     setTaskChoice('');
   }
   return <div className="assessment-workspace">
@@ -155,10 +155,10 @@ export default function AcademyAssessments({view,role,classes,learners,terms,sta
           {selectedTask.kind==='quiz'&&<p>This browser demonstration reveals the quiz grade immediately. Answers are not securely stored.</p>}
         </div>:selectedTask.kind==='project'
           ?<ProjectResponse key={selectedTask.id} onSubmit={response=>apply(()=>submitDemoProject(state,{classes,role,
-              taskId:selectedTask.id,learnerId:'learner-a',response}),'Submitted fictional work for teacher review.')}/>
+              taskId:selectedTask.id,learnerId,previewLearnerId:learnerId,response}),'Submitted fictional work for teacher review.')}/>
           :<QuizResponse key={selectedTask.id} task={selectedTask}
             onSubmit={answers=>apply(()=>submitDemoQuiz(state,{classes,role,taskId:selectedTask.id,
-              learnerId:'learner-a',answers}),'Quiz submitted and automatically scored (demo only).')}/>}
+              learnerId,previewLearnerId:learnerId,answers}),'Quiz submitted and automatically scored (demo only).')}/>}
       </>}
       {educator&&<>
         <h3>{selectedTask.kind==='project'?'Sample submissions and review':'Automatically marked sample quiz responses'}</h3>
@@ -175,7 +175,7 @@ export default function AcademyAssessments({view,role,classes,learners,terms,sta
           <RubricEditor key={selectedTask.id+'-'+pickedSubmission.learnerId+'-'+pickedSubmission.status}
             task={selectedTask} submission={pickedSubmission}
             onGrade={(scores,feedback)=>apply(()=>gradeDemoProject(state,{classes,role,
-              taskId:selectedTask.id,learnerId:pickedSubmission.learnerId,scores,feedback}),
+              taskId:selectedTask.id,learnerId:pickedSubmission.learnerId,scores,feedback,teacherId}),
               'Fictional grade recorded with a browser-only correction entry.')}/>
           <button className="text-btn" type="button" onClick={()=>setShowGradeHistory(!showGradeHistory)}
             aria-expanded={showGradeHistory}>{showGradeHistory?'Hide':'Show'} sample regrade history</button>

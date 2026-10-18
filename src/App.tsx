@@ -8,7 +8,7 @@ import AcademyAssessments, { type AssessmentState } from './components/AcademyAs
 import AcademyFamily from './components/AcademyFamily';
 import { INITIAL_DEMO_ACADEMICS } from './lib/academics.mjs';
 import AcademyAcademics, { type AcademicState } from './components/AcademyAcademics';
-import { INITIAL_DEMO_CLASSES, DEMO_TEACHERS, DEMO_LEARNERS } from './lib/operations.mjs';
+import { INITIAL_DEMO_CLASSES, DEMO_TEACHERS, DEMO_LEARNERS,activeDemoPeople } from './lib/operations.mjs';
 import AcademyOperations, { type ClassRoom, type Person } from './components/AcademyOperations';
 
 type Role = 'Student' | 'Teacher' | 'Administrator' | 'Guardian';
@@ -25,6 +25,8 @@ function App() {
   const [classrooms,setClassrooms] = useState<ClassRoom[]>(() => structuredClone(INITIAL_DEMO_CLASSES));
   const [teachers,setTeachers] = useState<Person[]>(() => DEMO_TEACHERS.map(t=>({...t})));
   const [students,setStudents] = useState<Person[]>(() => DEMO_LEARNERS.map(s=>({...s})));
+  const [previewTeacherId,setPreviewTeacherId]=useState('teacher-a');
+  const [previewLearnerId,setPreviewLearnerId]=useState('learner-a');
   const [section, setSection] = useState<Section>('Overview');
   const [peopleFocus,setPeopleFocus] = useState<'teacher'|'student'|null>(null);
   const [academic,setAcademic] = useState<AcademicState>(() => structuredClone(INITIAL_DEMO_ACADEMICS));
@@ -35,9 +37,14 @@ function App() {
   const [invoice,setInvoice] = useState(1);
   const [financeFeedback,setFinanceFeedback] = useState('');
   const [expandedCourse,setExpandedCourse] = useState<string|null>(null);
+  const activeTeachers=activeDemoPeople(teachers);
+  const activeLearners=activeDemoPeople(students);
+  const teacherId=activeTeachers.some(p=>p.id===previewTeacherId)?previewTeacherId:'teacher-a';
+  const learnerId=activeLearners.some(p=>p.id===previewLearnerId)?previewLearnerId:'learner-a';
+  const identity={teacherId,learnerId};
   const sections = demoSidebarSections(role) as Section[];
-  const cards = demoOverviewCards(role,{classes:classrooms,academic,assessments,ledger,teachers,students});
-  const visibleCourses = demoVisibleCourses(role,classrooms);
+  const cards = demoOverviewCards(role,{classes:classrooms,academic,assessments,ledger,teachers:activeTeachers,students:activeLearners,...identity});
+  const visibleCourses = demoVisibleCourses(role,classrooms,identity);
   function chooseRole(next: Role) { setRole(next); setPeopleFocus(null); setSection('Overview'); }
   function openPeopleForm(kind:'teacher'|'student'){setPeopleFocus(kind);setSection('Directory');}
   return <div className="shell">
@@ -52,7 +59,13 @@ function App() {
     <div className="workspace">
       <header className="topbar"><div className="crumb">BigChange Academy <span>/</span> {section}</div><div className="top-actions"><span className="prototype">● DEVELOPMENT PREVIEW</span><div className="avatar" aria-hidden="true">BC</div></div></header>
       <main className="content">
-        <div className="heading"><div><div className="eyebrow">YOUR LEARNING COMMUNITY</div><h1>{section === 'Overview' ? (role==='Guardian' ? 'Welcome, Guardian A.' : 'Welcome to BigChange.') : section}</h1><p>{section === 'Overview' ? 'A home for curiosity, creativity, and progress.' : subtitle(section)}</p></div><label className="role-select">Preview role (not login) <select aria-label="Preview role (not authentication)" value={role} onChange={e => chooseRole(e.target.value as Role)}><option>Student</option><option>Teacher</option><option>Administrator</option><option>Guardian</option></select></label></div>
+        <div className="heading"><div><div className="eyebrow">YOUR LEARNING COMMUNITY</div><h1>{section === 'Overview' ? (role==='Guardian' ? 'Welcome, Guardian A.' : 'Welcome to BigChange.') : section}</h1><p>{section === 'Overview' ? 'A home for curiosity, creativity, and progress.' : subtitle(section)}</p></div><label className="role-select">Preview role (not login) <select aria-label="Preview role (not authentication)" value={role} onChange={e => chooseRole(e.target.value as Role)}><option>Student</option><option>Teacher</option><option>Administrator</option><option>Guardian</option></select></label>
+        {(role==='Teacher'||role==='Student')&&<label className="role-select">Fictional {role.toLowerCase()} identity (not login)
+          <select aria-label="Selected fictional preview identity" value={role==='Teacher'?teacherId:learnerId}
+            onChange={e=>{if(role==='Teacher')setPreviewTeacherId(e.target.value);else setPreviewLearnerId(e.target.value);}}>
+            {(role==='Teacher'?activeTeachers:activeLearners).map(person=>
+              <option key={person.id} value={person.id}>{person.name}</option>)}
+          </select></label>}</div>
         <div role="note" className="notice"><strong>Demo environment</strong> — All names, balances and attendance are fictional. Interactions are temporary browser simulations and role-switching is not authentication. No real financial records or messages are stored or sent.</div>
         {section === 'Overview' && role==='Administrator' && <div className="quick-actions">
           <button className="primary-btn" type="button" onClick={()=>openPeopleForm('teacher')}>+ Add Teacher</button>
@@ -68,11 +81,11 @@ function App() {
             academic={academic} assessments={assessments} ledger={ledger} learners={students} onOpenFamily={()=>setSection('Family')}/>}
         {section === 'Courses' && <section className="panel"><span className="eyebrow">FICTIONAL CLASSROOM COURSE CATALOG</span><h2>{role==='Administrator'?'Course catalog':'Courses assigned in my sample groups'}</h2><p>These examples are derived from the current group roster, not measured course completion.</p>{visibleCourses.map(course => <div key={course.id}><CourseRow course={course}/><button className="small-btn lesson-button" aria-expanded={expandedCourse===course.id} onClick={()=>setExpandedCourse(expandedCourse===course.id?null:course.id)}>{expandedCourse===course.id?'Hide':'View'} practice activity</button>{expandedCourse===course.id && <div className="exercise"><strong>Mini challenge · {course.title}</strong><p>{course.activity}</p><small>Demonstration only. Nothing is saved.</small></div>}</div>)}{visibleCourses.length===0&&<p className="quiet">No course groups are assigned in this fictional role yet.</p>}</section>}
         {role!=='Guardian'&&(section==='Classes'||section==='Directory'||section==='Timetable') && <AcademyOperations key={role} role={role} view={section} classes={classrooms} onUpdate={setClassrooms}
-          teachers={teachers} learners={students} focusPerson={peopleFocus} onTeachers={setTeachers} onLearners={setStudents}/>}
+          teachers={teachers} learners={students} focusPerson={peopleFocus} onTeachers={setTeachers} onLearners={setStudents} teacherId={teacherId} learnerId={learnerId}/>}
         {role!=='Guardian'&&(section === 'Assignments'||section === 'Quizzes'||section === 'Grades') && <AcademyAssessments
           key={role} view={section} role={role} classes={classrooms} learners={students} terms={academic.terms}
-          state={assessments} onUpdate={setAssessments}/>}
-        {role!=='Guardian'&&(section === 'Attendance'||section === 'Lessons') && <AcademyAcademics key={role} view={section} role={role} classes={classrooms} learners={students} academic={academic} onUpdate={setAcademic}/>}
+          state={assessments} onUpdate={setAssessments} teacherId={teacherId} learnerId={learnerId}/>}
+        {role!=='Guardian'&&(section === 'Attendance'||section === 'Lessons') && <AcademyAcademics key={role} view={section} role={role} classes={classrooms} learners={students} academic={academic} onUpdate={setAcademic} teacherId={teacherId} learnerId={learnerId}/>}
         {section==='Reports'&&role==='Administrator'&&<AcademyReports classes={classrooms} academic={academic}
           assessments={assessments} ledger={ledger} teachers={teachers} financeChanges={financeChanges}/>}
         {section === 'Finance' && role === 'Administrator' && <section className="panel"><div className="panel-head"><div><span className="eyebrow">ADMIN LEDGER · FICTIONAL AMOUNTS ONLY</span><h2>External payment tracking</h2><p>Simulate recording money received outside this Hub. No payment processing or parent messages.</p></div></div><div className="finance-strip"><div><small>Expected</small><strong>{currency(ledger.reduce((s,x)=>s+x.due,0))}</strong></div><div><small>Recorded</small><strong>{currency(ledger.reduce((s,x)=>s+x.recorded,0))}</strong></div><div><small>Outstanding</small><strong>{currency(ledger.reduce((s,x)=>s+outstandingBalance(x.due-x.recorded),0))}</strong></div></div><div className="table-wrap"><table><thead><tr><th>Student</th><th>Guardian</th><th>Period</th><th>Due</th><th>Recorded</th><th>Status</th></tr></thead><tbody>{ledger.map(row=><tr key={row.student}><td>{row.student}</td><td>{row.guardian}</td><td>{row.period}</td><td>{currency(row.due)}</td><td>{currency(row.recorded)}</td><td><span className={'tag '+(paymentStatus(row.due,row.recorded)==='Paid'?'green':'amber')}>{paymentStatus(row.due,row.recorded)}</span></td></tr>)}</tbody></table></div><form className="demo-form" onSubmit={event=>{event.preventDefault();const row=ledger[invoice];try{const n=recordDemoPayment(row.due,row.recorded,Number(amount));setLedger(all=>all.map((item,i)=>i===invoice?{...item,recorded:n}:item));setFinanceChanges(history=>[...history,{sequence:history.length+1,previous:row.recorded,next:n,delta:Number(amount)}]);setFinanceFeedback('Updated fictional ledger for '+row.student+'. No actual payment.');setAmount('');}catch(error){setFinanceFeedback(error instanceof Error?error.message:'Invalid amount');}}}><h3>Record a demo payment</h3><label>Sample invoice<select value={invoice} onChange={e=>{setInvoice(Number(e.target.value));setFinanceFeedback('');}}>{ledger.map((item,i)=><option key={item.student} value={i}>{item.student} · {currency(Math.max(0,item.due-item.recorded))} remaining</option>)}</select></label><label>ETB amount<input type="number" min="1" step="1" placeholder="500" value={amount} onChange={e=>setAmount(e.target.value)}/></label><button className="primary-btn" type="submit">Record sample only</button><p className="form-feedback" role="status" aria-live="polite">{financeFeedback}</p></form><p className="quiet">No email or WhatsApp is sent. Verified contacts and authorization must come first.</p></section>}

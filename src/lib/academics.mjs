@@ -151,7 +151,8 @@ export function sessionSummary(attendance,sessionId,rosterIds){
     unmarked:marks.filter(x=>x==='Unmarked').length
   };
 }
-export function availableSyllabus(courseId){
-  if(!DEMO_COURSES.some(c=>c.id===courseId))throw Error('Invalid course');
-  return DEMO_SYLLABUS[courseId]??[];
+export function availableSyllabus(courseId,courses=DEMO_COURSES){
+  const course=courses.find(c=>c.id===courseId);
+  if(!course)throw Error('Invalid course');
+  return Array.isArray(course.syllabus)?course.syllabus:(DEMO_SYLLABUS[courseId]??[]);
 }

@@ -45,8 +45,8 @@ function reconcile(ledger,period){
  return {...sum(valid),periods,exceptions};
 }
 /** Academic scope is by term/course/teacher. Finance is ONLY by payment period. */
-export function summarizeDemoAcademy({classes,academic,assessments,ledger,termId='all',courseId='all',teacherId='all',period='all',teachers=DEMO_TEACHERS}){
- check(termId,academic.terms.map(x=>x.id),'term');check(courseId,DEMO_COURSES.map(x=>x.id),'course');
+export function summarizeDemoAcademy({classes,academic,assessments,ledger,termId='all',courseId='all',teacherId='all',period='all',teachers=DEMO_TEACHERS,courses=DEMO_COURSES}){
+ check(termId,academic.terms.map(x=>x.id),'term');check(courseId,courses.map(x=>x.id),'course');
  check(teacherId,teachers.map(x=>x.id),'teacher');check(period,ledger.map(x=>x.period),'payment period');
  const groups=classes.filter(c=>(courseId==='all'||c.courseId===courseId)&&(teacherId==='all'||c.teacherId===teacherId));
  const ids=new Set(groups.map(c=>c.id)),students=new Set(groups.flatMap(c=>c.learnerIds));
@@ -55,7 +55,7 @@ export function summarizeDemoAcademy({classes,academic,assessments,ledger,termId
  const capacity=groups.reduce((s,c)=>s+c.capacity,0),enrollments=groups.reduce((s,c)=>s+c.learnerIds.length,0);
  const classRows=groups.map(c=>{
   const cs=sessions.filter(s=>s.classId===c.id),ts=tasks.filter(t=>t.classId===c.id);
-  return {id:c.id,course:label(DEMO_COURSES,c.courseId),courseId:c.courseId,teacher:label(teachers,c.teacherId),
+  return {id:c.id,course:label(courses,c.courseId),courseId:c.courseId,teacher:label(teachers,c.teacherId),
    teacherId:c.teacherId,slot:c.slot,learners:c.learnerIds.length,capacity:c.capacity,
    utilization:c.capacity?Math.round(c.learnerIds.length/c.capacity*100):0,sessions:cs.length,
    attendance:attendance(cs,[c],academic.attendance),grades:assessmentTotals(ts,[c],assessments.submissions)};
@@ -66,7 +66,7 @@ export function summarizeDemoAcademy({classes,academic,assessments,ledger,termId
    enrollments:own.reduce((s,c)=>s+c.learnerIds.length,0),uniqueLearners:new Set(own.flatMap(c=>c.learnerIds)).size,
    plannedSessions:sessions.filter(s=>own.some(c=>c.id===s.classId)).length};
  });
- const courseRows=DEMO_COURSES.filter(c=>courseId==='all'||courseId===c.id).map(c=>{
+ const courseRows=courses.filter(c=>courseId==='all'||courseId===c.id).map(c=>{
   const own=groups.filter(g=>g.courseId===c.id),cap=own.reduce((s,g)=>s+g.capacity,0),enrl=own.reduce((s,g)=>s+g.learnerIds.length,0);
   return {id:c.id,name:c.name,groups:own.length,enrollments:enrl,capacity:cap,utilization:cap?Math.round(100*enrl/cap):0};
  });

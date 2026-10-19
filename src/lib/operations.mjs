@@ -76,10 +76,10 @@ function assertRoster(classes) {
   if(!Array.isArray(classes)||classes.some(c=>!Array.isArray(c.learnerIds))) throw Error('Invalid sample class list');
 }
 /** @param {DemoClass[]} classes @param {{courseId:string,teacherId:string,slot:string,capacity:number}} next @returns {DemoClass[]} */
-export function createDemoClass(classes,next,teachers=DEMO_TEACHERS){
+export function createDemoClass(classes,next,teachers=DEMO_TEACHERS,courses=DEMO_COURSES){
   assertRoster(classes);
   if(classes.length>=300)throw Error('Sample preview limit reached (300 groups)');
-  if(!allowed(DEMO_COURSES,next.courseId)||!allowed(teachers,next.teacherId)||!DEMO_SLOTS.includes(next.slot))throw Error('Choose valid course, instructor and session time');
+  if(!allowed(courses,next.courseId)||!allowed(teachers,next.teacherId)||!DEMO_SLOTS.includes(next.slot))throw Error('Choose valid course, instructor and session time');
   if(![5,10,15,20].includes(next.capacity))throw Error('Choose a valid class capacity');
   validateUniqueSlot(classes,next.teacherId,next.slot);
   const used=new Set(classes.map(c=>c.id));

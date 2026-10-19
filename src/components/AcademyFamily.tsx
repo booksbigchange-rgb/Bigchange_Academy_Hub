@@ -1,23 +1,23 @@
 import {useState} from 'react';
-import { DEMO_COURSES } from '../lib/operations.mjs';
 import { demoGuardianProfile, demoFamilyReport } from '../lib/family.mjs';
 import type { ClassRoom, Person } from './AcademyOperations';
+import type {CourseRecord} from './AcademyCourseCatalog';
 import type { AcademicState } from './AcademyAcademics';
 import type { AssessmentState } from './AcademyAssessments';
 
 type LedgerRow={student:string;learnerId:string;guardian:string;guardianId:string;
   due:number;recorded:number;period:string};
-type Props={view:'overview'|'family';classes:ClassRoom[];learners:Person[];academic:AcademicState;
+type Props={view:'overview'|'family';classes:ClassRoom[];courses:CourseRecord[];learners:Person[];academic:AcademicState;
   assessments:AssessmentState;ledger:LedgerRow[];guardianId:string;guardians:{id:string;name:string;learnerIds:string[];active?:boolean}[];onOpenFamily:()=>void};
 
-const courseOf=(id:string)=>DEMO_COURSES.find(x=>x.id===id)?.name??'Course';
 const money=(amount:number)=>'ETB '+amount.toLocaleString('en-US');
 function statusTag(status:string){
   if(status==='graded'||status==='Present'||status==='Paid')return 'green';
   if(status==='Absent'||status==='Unpaid'||status==='not submitted')return 'amber';
   return '';
 }
-export default function AcademyFamily({view,classes,learners,academic,assessments,ledger,guardianId,guardians,onOpenFamily}:Props){
+export default function AcademyFamily({view,classes,courses,learners,academic,assessments,ledger,guardianId,guardians,onOpenFamily}:Props){
+  const courseOf=(id:string)=>courses.find(x=>x.id===id)?.name??'Course';
   const nameOf=(id:string)=>learners.find(x=>x.id===id)?.name??'Fictional learner';
   // The identity selector is a simulated switch, NOT an authenticated guardian session.
   const guardian=demoGuardianProfile(guardianId,guardians);

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { outstandingBalance, paymentStatus } from './lib/finance.mjs';
 import {demoOverviewCards,demoSidebarSections,demoVisibleCourses,demoOverviewHighlight} from './lib/dashboard.mjs';
 import AcademyReports from './components/AcademyReports';
+import AcademyCourseCatalog,{type CourseRecord} from './components/AcademyCourseCatalog';
+import {initialDemoCourses} from './lib/course-catalog.mjs';
 import AcademyFeePlan from './components/AcademyFeePlan';
 import { recordDemoPayment } from './lib/learning.mjs';
 import { INITIAL_DEMO_ASSESSMENTS } from './lib/assessments.mjs';
@@ -26,6 +28,7 @@ const navIcons: Record<Section,string> = {Overview:'▦',Courses:'▤',Classes:'
 function App() {
   const [role, setRole] = useState<Role>('Student');
   const [classrooms,setClassrooms] = useState<ClassRoom[]>(() => structuredClone(INITIAL_DEMO_CLASSES));
+  const [courses,setCourses] = useState<CourseRecord[]>(() => initialDemoCourses() as CourseRecord[]);
   const [teachers,setTeachers] = useState<Person[]>(() => DEMO_TEACHERS.map(t=>({...t})));
   const [students,setStudents] = useState<Person[]>(() => DEMO_LEARNERS.map(s=>({...s})));
   const [guardians,setGuardians] = useState<Guardian[]>(initialDemoGuardians);
@@ -50,9 +53,9 @@ function App() {
   const learnerId=activeLearners.some(p=>p.id===previewLearnerId)?previewLearnerId:'learner-a';
   const identity={teacherId,learnerId};
   const sections = demoSidebarSections(role) as Section[];
-  const cards = demoOverviewCards(role,{classes:classrooms,academic,assessments,ledger,teachers:activeTeachers,students:activeLearners,...identity});
-  const visibleCourses = demoVisibleCourses(role,classrooms,identity);
-  const classHighlight = demoOverviewHighlight(role,classrooms,identity);
+  const cards = demoOverviewCards(role,{classes:classrooms,academic,assessments,ledger,teachers:activeTeachers,students:activeLearners,courses,...identity});
+  const visibleCourses = demoVisibleCourses(role,classrooms,identity,courses);
+  const classHighlight = demoOverviewHighlight(role,classrooms,identity,courses);
   function chooseRole(next: Role) { setRole(next); setPeopleFocus(null); setSection('Overview'); }
   function openPeopleForm(kind:'teacher'|'student'){setPeopleFocus(kind);setSection('Directory');}
   return <div className="shell">
@@ -92,16 +95,17 @@ function App() {
         </>}
         {role==='Guardian'&&(section==='Overview'||section==='Family')&&
           <AcademyFamily key={guardianId} view={section==='Family'?'family':'overview'} classes={classrooms}
-            academic={academic} assessments={assessments} ledger={ledger} learners={students} guardianId={guardianId} guardians={guardians} onOpenFamily={()=>setSection('Family')}/>}
-        {section === 'Courses' && <section className="panel"><span className="eyebrow">FICTIONAL CLASSROOM COURSE CATALOG</span><h2>{role==='Administrator'?'Course catalog':'Courses assigned in my sample groups'}</h2><p>These examples are derived from the current group roster, not measured course completion.</p>{visibleCourses.map(course => <div key={course.id}><CourseRow course={course}/><button className="small-btn lesson-button" aria-expanded={expandedCourse===course.id} onClick={()=>setExpandedCourse(expandedCourse===course.id?null:course.id)}>{expandedCourse===course.id?'Hide':'View'} practice activity</button>{expandedCourse===course.id && <div className="exercise"><strong>Mini challenge · {course.title}</strong><p>{course.activity}</p><small>Demonstration only. Nothing is saved.</small></div>}</div>)}{visibleCourses.length===0&&<p className="quiet">No course groups are assigned in this fictional role yet.</p>}</section>}
-        {role!=='Guardian'&&(section==='Classes'||section==='Directory'||section==='Timetable') && <AcademyOperations key={role+'-'+(role==='Teacher'?teacherId:learnerId)} role={role} view={section} classes={classrooms} sessions={academic.sessions} onUpdate={setClassrooms}
+            academic={academic} assessments={assessments} ledger={ledger} learners={students} courses={courses} guardianId={guardianId} guardians={guardians} onOpenFamily={()=>setSection('Family')}/>}
+        {section==='Courses'&&role==='Administrator'&&<AcademyCourseCatalog courses={courses} classes={classrooms} onChange={setCourses}/>}
+        {section==='Courses'&&role!=='Administrator'&&<section className="panel"><span className="eyebrow">FICTIONAL CLASSROOM COURSE CATALOG</span><h2>Courses assigned in my sample groups</h2><p>These examples are derived from the current group roster, not measured course completion.</p>{visibleCourses.map(course=><div key={course.id}><CourseRow course={course}/><button className="small-btn lesson-button" aria-expanded={expandedCourse===course.id} onClick={()=>setExpandedCourse(expandedCourse===course.id?null:course.id)}>{expandedCourse===course.id?'Hide':'View'} practice activity</button>{expandedCourse===course.id&&<div className="exercise"><strong>Mini challenge · {course.title}</strong><p>{course.activity}</p><small>Demonstration only. Nothing is saved.</small></div>}</div>)}{visibleCourses.length===0&&<p className="quiet">No course groups are assigned in this fictional role yet.</p>}</section>}
+        {role!=='Guardian'&&(section==='Classes'||section==='Directory'||section==='Timetable') && <AcademyOperations key={role+'-'+(role==='Teacher'?teacherId:learnerId)} role={role} view={section} classes={classrooms} courses={courses} sessions={academic.sessions} onUpdate={setClassrooms}
           teachers={teachers} learners={students} guardians={guardians} focusPerson={peopleFocus} onTeachers={setTeachers} onLearners={setStudents} teacherId={teacherId} learnerId={learnerId}/>}
         {role!=='Guardian'&&(section === 'Assignments'||section === 'Quizzes'||section === 'Grades') && <AcademyAssessments
-          key={role+'-'+(role==='Teacher'?teacherId:learnerId)} view={section} role={role} classes={classrooms} learners={students} terms={academic.terms}
+          key={role+'-'+(role==='Teacher'?teacherId:learnerId)} view={section} role={role} classes={classrooms} courses={courses} learners={students} terms={academic.terms}
           state={assessments} onUpdate={setAssessments} teacherId={teacherId} learnerId={learnerId}/>}
-        {role!=='Guardian'&&(section === 'Attendance'||section === 'Lessons') && <AcademyAcademics key={role+'-'+(role==='Teacher'?teacherId:learnerId)} view={section} role={role} classes={classrooms} learners={students} academic={academic} onUpdate={setAcademic} teacherId={teacherId} learnerId={learnerId}/>}
+        {role!=='Guardian'&&(section === 'Attendance'||section === 'Lessons') && <AcademyAcademics key={role+'-'+(role==='Teacher'?teacherId:learnerId)} view={section} role={role} classes={classrooms} courses={courses} learners={students} academic={academic} onUpdate={setAcademic} teacherId={teacherId} learnerId={learnerId}/>}
         {section==='Guardians'&&role==='Administrator'&&<AcademyGuardianAdmin guardians={guardians} learners={students} onChange={setGuardians}/>}
-        {section==='Reports'&&role==='Administrator'&&<AcademyReports classes={classrooms} academic={academic}
+        {section==='Reports'&&role==='Administrator'&&<AcademyReports classes={classrooms} courses={courses} academic={academic}
           assessments={assessments} ledger={ledger} teachers={activeTeachers} financeChanges={financeChanges}/>}
         {section==='Finance'&&role==='Administrator'&&<AcademyFeePlan
           learners={students} guardians={guardians} ledger={ledger}

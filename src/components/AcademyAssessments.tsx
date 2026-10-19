@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { DEMO_COURSES, visibleDemoClasses } from '../lib/operations.mjs';
+import { visibleDemoClasses } from '../lib/operations.mjs';
+import type {CourseRecord} from './AcademyCourseCatalog';
 import {
   createDemoAssessment, reviseDemoAssessment, submitDemoProject, submitDemoQuiz, gradeDemoProject,
   visibleDemoTasks, demoGradeRows, demoProgress
@@ -18,9 +19,8 @@ export type AssessmentState={tasks:Assessment[];submissions:DemoSubmission[];gra
 type Role='Student'|'Teacher'|'Administrator';
 type GradeRow={taskId:string;classId:string;learnerId:string;title:string;kind:string;
   status:string;points:number|null;maxPoints:number};
-type Props={view:'Assignments'|'Quizzes'|'Grades';role:Role;classes:ClassRoom[];learners:Person[];teacherId?:string;learnerId?:string;terms:Term[];
+type Props={view:'Assignments'|'Quizzes'|'Grades';role:Role;classes:ClassRoom[];courses:CourseRecord[];learners:Person[];teacherId?:string;learnerId?:string;terms:Term[];
   state:AssessmentState;onUpdate:(newState:AssessmentState)=>void};
-const courseName=(id:string)=>DEMO_COURSES.find(x=>x.id===id)?.name??'Sample course';
 function ProjectResponse({onSubmit}:{onSubmit:(value:string)=>void}){
   const [response,setResponse]=useState('');
   return <form className="assessment-form" onSubmit={e=>{e.preventDefault();onSubmit(response);}}>
@@ -77,7 +77,8 @@ function AssessmentEditor({task,term,onSave}:{task:Assessment;term:Term;
     <button className="primary-btn" type="submit">Save task changes</button>
   </form>;
 }
-export default function AcademyAssessments({view,role,classes,learners,terms,state,onUpdate,teacherId='teacher-a',learnerId='learner-a'}:Props){
+export default function AcademyAssessments({view,role,classes,courses,learners,terms,state,onUpdate,teacherId='teacher-a',learnerId='learner-a'}:Props){
+  const courseName=(id:string)=>courses.find(x=>x.id===id)?.name??'Sample course';
   const learnerName=(id:string)=>learners.find(x=>x.id===id)?.name??'Sample learner';
   const groupList=useMemo(()=>visibleDemoClasses(classes,role,{teacherId,learnerId}),[classes,role,teacherId,learnerId]);
   const [classChoice,setClassChoice]=useState('');
@@ -114,7 +115,7 @@ export default function AcademyAssessments({view,role,classes,learners,terms,sta
     e.preventDefault();
     if(!selectedClass||!term)return;
     apply(()=>createDemoAssessment(state,{classes,terms,role,classId:selectedClass.id,termId:term.id,
-      kind,title,instructions,dueDate,teacherId}),'Created a fictional '+kind+'. Select it to continue.');
+      kind,title,instructions,dueDate,teacherId,courses}),'Created a fictional '+kind+'. Select it to continue.');
     setTaskChoice('');
   }
   function saveTask(nextTitle:string,nextInstructions:string,nextDueDate:string){

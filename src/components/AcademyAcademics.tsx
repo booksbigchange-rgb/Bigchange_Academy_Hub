@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { DEMO_COURSES, visibleDemoClasses } from '../lib/operations.mjs';
+import { visibleDemoClasses } from '../lib/operations.mjs';
+import type {CourseRecord} from './AcademyCourseCatalog';
 import {
   ATTENDANCE_STATUSES, availableSyllabus, createDemoSession,
   createDemoTerm, markDemoSessionAttendance, reviseDemoSession, updateDemoSession, sessionSummary
@@ -12,8 +13,7 @@ export type Lesson = {id:string;classId:string;termId:string;date:string;topic:s
 export type AttendanceRecord = {sessionId:string;learnerId:string;status:string};
 export type AttendanceChange = {sequence:number;sessionId:string;learnerId:string;before:string;after:string};
 export type AcademicState = {terms:Term[];sessions:Lesson[];attendance:AttendanceRecord[];history:AttendanceChange[]};
-type Props = {view:'Lessons'|'Attendance';role:Role;classes:ClassRoom[];learners:Person[];teacherId?:string;learnerId?:string;academic:AcademicState;onUpdate:(next:AcademicState)=>void};
-const courseName=(id:string)=>DEMO_COURSES.find(x=>x.id===id)?.name??'Sample subject';
+type Props = {view:'Lessons'|'Attendance';role:Role;classes:ClassRoom[];courses:CourseRecord[];learners:Person[];teacherId?:string;learnerId?:string;academic:AcademicState;onUpdate:(next:AcademicState)=>void};
 function formatDate(iso:string){
   return new Date(iso+'T12:00:00.000Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
 }
@@ -29,7 +29,8 @@ function LessonEditor({lesson,canEdit,term,onSave}:{lesson:Lesson;canEdit:boolea
     {canEdit&&<button type="submit" className="small-btn">Save lesson changes</button>}
   </form>;
 }
-export default function AcademyAcademics({view,role,classes,learners,academic,onUpdate,teacherId='teacher-a',learnerId='learner-a'}:Props){
+export default function AcademyAcademics({view,role,classes,courses,learners,academic,onUpdate,teacherId='teacher-a',learnerId='learner-a'}:Props){
+  const courseName=(id:string)=>courses.find(x=>x.id===id)?.name??'Sample subject';
   const learnerName=(id:string)=>learners.find(x=>x.id===id)?.name??'Fictional learner';
   const visible=visibleDemoClasses(classes,role,{teacherId,learnerId});
   const [classChoice,setClassChoice]=useState('');
@@ -49,7 +50,7 @@ export default function AcademyAcademics({view,role,classes,learners,academic,on
     .sort((a,b)=>a.date.localeCompare(b.date));
   const selected=lessons.find(s=>s.id===lessonChoice)??lessons[0];
   const editable=role==='Administrator'||role==='Teacher';
-  const syllabus: string[]=currentClass?availableSyllabus(currentClass.courseId):[];
+  const syllabus: string[]=currentClass?availableSyllabus(currentClass.courseId,courses):[];
   const summary=selected&&currentClass?sessionSummary(academic.attendance,selected.id,currentClass.learnerIds):null;
   const currentHistory=academic.history.filter(h=>h.sessionId===selected?.id).slice(-10).reverse();
   function change(action:()=>AcademicState,success:string){

@@ -20,13 +20,13 @@ const descriptors={
  automation:{topic:'Spreadsheets, webhooks and simple workflows',icon:'⌘',activity:'Outline the steps of a sample homework-help automation.'},
  scratch:{topic:'Creative stories, games and digital logic',icon:'▧',activity:'Plan a short interactive story with two sprites.'}
 };
-export function demoVisibleCourses(role,classes,identity={}){
+export function demoVisibleCourses(role,classes,identity={},courses=DEMO_COURSES){
   const visible=visibleDemoClasses(classes,role,identity);
   if(role==='Guardian'||!['Student','Teacher','Administrator'].includes(role))return [];
-  return DEMO_COURSES.filter(c=>role==='Administrator'||visible.some(v=>v.courseId===c.id)).map(c=>{
+  return courses.filter(c=>role==='Administrator'||visible.some(v=>v.courseId===c.id)).map(c=>{
     const n=visible.filter(v=>v.courseId===c.id).length;
-    return {id:c.id,title:c.name,topic:descriptors[c.id].topic,icon:descriptors[c.id].icon,
-      activity:descriptors[c.id].activity,
+    return {id:c.id,title:c.name,topic:c.topic??descriptors[c.id]?.topic??'Sample learning course',icon:c.icon??descriptors[c.id]?.icon??'✦',
+      activity:c.activity??descriptors[c.id]?.activity??'Complete a short practice activity for this course.',
       groupCount:n,courseStat:n+' '+(n===1?'group':'groups'),
       statNote:role==='Administrator'?'Current groups':'Linked fictional classes'};
   });
@@ -35,16 +35,16 @@ export function demoVisibleCourses(role,classes,identity={}){
  * Current class highlight, not a claim that this is the next lesson by date.
  * Follows the selected fictional identity and existing group roster.
  */
-export function demoOverviewHighlight(role,classes,identity={}){
+export function demoOverviewHighlight(role,classes,identity={},courses=DEMO_COURSES){
  const groups=visibleDemoClasses(classes,role,identity);
  const first=groups[0];
  if(!first)return {label:role==='Administrator'?'Academy class groups':'My class groups',
   subject:'No fictional groups assigned',schedule:'Add or enroll in a sample class to begin',
   practice:'No class activity is available yet'};
- const course=DEMO_COURSES.find(c=>c.id===first.courseId);
+ const course=courses.find(c=>c.id===first.courseId);
  return {label:role==='Administrator'?'Academy class group':'My class group',
   subject:(course?.name??'Sample course')+' · '+first.id.toUpperCase(),
-  schedule:first.slot,practice:descriptors[first.courseId]?.activity??'Practice with a fictional course example'};
+  schedule:first.slot,practice:course?.activity??descriptors[first.courseId]?.activity??'Practice with a fictional course example'};
 }
 function attendanceForLearner(classes,academic,learnerId){
  const ids=new Set(classes.filter(c=>c.learnerIds.includes(learnerId)).map(c=>c.id));
@@ -61,10 +61,10 @@ function nonSubmittedTasks(classes,assessments,learnerId){
    submitted:assigned.length-assigned.filter(t=>!submitted.has(t.id)).length};
 }
 const card=(title,value,subtitle,icon)=>({title,value:String(value),subtitle,icon});
-export function demoOverviewCards(role,{classes,academic,assessments,ledger,teachers=DEMO_TEACHERS,students=DEMO_LEARNERS,teacherId='teacher-a',learnerId='learner-a'}){
+export function demoOverviewCards(role,{classes,academic,assessments,ledger,teachers=DEMO_TEACHERS,students=DEMO_LEARNERS,teacherId='teacher-a',learnerId='learner-a',courses=DEMO_COURSES}){
  if(role==='Guardian'||!['Administrator','Student','Teacher'].includes(role))return [];
  if(role==='Administrator'){
-  const r=summarizeDemoAcademy({classes,academic,assessments,ledger,teachers});
+  const r=summarizeDemoAcademy({classes,academic,assessments,ledger,teachers,courses});
   return [
    card('Registered students',students.length,r.summary.uniqueLearners+' enrolled in a class','♧'),
    card('Teachers',teachers.length,r.summary.activeTeachers+' assigned to class groups','✳'),

@@ -72,7 +72,7 @@ function isoDate(value){
   const d=new Date(value+'T00:00:00Z');
   return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===value;
 }
-export function createDemoAssessment(state,{classes,terms,role,classId,termId,kind,title,instructions,dueDate,teacherId='teacher-a'}){
+export function createDemoAssessment(state,{classes,terms,role,classId,termId,kind,title,instructions,dueDate,teacherId='teacher-a',courses=DEMO_COURSES}){
   assertRole(role,classes,classId,teacherId);
   const classroom=findGroup(classes,classId);
   const term=terms.find(t=>t.id===termId);
@@ -83,7 +83,9 @@ export function createDemoAssessment(state,{classes,terms,role,classId,termId,ki
   if(typeof instructions!=='string'||instructions.trim().length<15||instructions.trim().length>500)throw Error('Instructions must contain 15–500 characters');
   if(state.tasks.filter(t=>t.classId===classId&&t.termId===termId).length>=30)throw Error('This class already has 30 sample tasks');
   if(state.tasks.some(t=>t.classId===classId&&t.termId===termId&&t.title.toLowerCase()===title.trim().toLowerCase()))throw Error('The class already has a task with this title');
-  const quiz=DEMO_QUIZ_BANK[classroom.courseId]??[];
+  const course=courses.find(c=>c.id===classroom.courseId);
+  if(!course)throw Error('Choose a course in the catalog for this class');
+  const quiz=course.quizQuestions??DEMO_QUIZ_BANK[classroom.courseId]??[];
   if(kind==='quiz'&&!quiz.length)throw Error('No quiz bank available for this subject');
   const used=new Set(state.tasks.map(t=>t.id));let n=1;while(used.has('task-'+n))n++;
   const task={

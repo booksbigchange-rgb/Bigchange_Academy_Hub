@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef, type FormEvent } from 'react';
 import {
-  DEMO_COURSES, DEMO_SLOTS, addDemoTeacher, addDemoLearner,renameDemoPerson,setDemoPersonActive,activeDemoPeople,
+  DEMO_SLOTS, addDemoTeacher, addDemoLearner,renameDemoPerson,setDemoPersonActive,activeDemoPeople,
   createDemoClass, enrollDemoLearner, enrollDemoLearnerForRole, removeDemoLearner, assignDemoTeacher,updateDemoClass,transferDemoLearner,
   visibleDemoClasses, enrolledClassCount
 } from '../lib/operations.mjs';
@@ -11,12 +11,13 @@ export type ClassRoom = {
 export type Person = {id:string;name:string;active?:boolean};
 type Role = 'Student' | 'Teacher' | 'Administrator';
 type View = 'Classes' | 'Directory' | 'Timetable';
-type Props = { view: View; role: Role; classes: ClassRoom[]; onUpdate: (next: ClassRoom[]) => void;
+type Props = { view: View; role: Role; classes: ClassRoom[]; courses:CourseRecord[]; onUpdate: (next: ClassRoom[]) => void;
   teachers: Person[]; learners: Person[]; guardians?:{id:string;learnerIds:string[]}[]; teacherId?:string;learnerId?:string; sessions?:{classId:string;date:string}[]; focusPerson?:'teacher'|'student'|null;
   onTeachers:(list:Person[])=>void; onLearners:(list:Person[])=>void };
-const courseName = (id:string) => DEMO_COURSES.find(c=>c.id===id)?.name ?? 'Unknown course';
-
-export default function AcademyOperations({view,role,classes,onUpdate,teachers,learners,guardians=[],teacherId='teacher-a',learnerId='learner-a',sessions=[],focusPerson,onTeachers,onLearners}:Props){
+export default function AcademyOperations({view,role,classes,courses,onUpdate,teachers,learners,guardians=[],teacherId='teacher-a',learnerId='learner-a',sessions=[],focusPerson,onTeachers,onLearners}:Props){
+  const courseName=(id:string)=>courses.find(c=>c.id===id)?.name??'Unknown course';
+  const activeCourses=courses.filter(c=>c.active!==false);
+  const selectedCourseId=activeCourses.some(c=>c.id===courseId)?courseId:(activeCourses[0]?.id??'');
   const teacherInput=useRef<HTMLInputElement>(null);
   const studentInput=useRef<HTMLInputElement>(null);
   useEffect(()=>{
@@ -103,7 +104,7 @@ export default function AcademyOperations({view,role,classes,onUpdate,teachers,l
   }
   function addClass(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
-    handle(()=>createDemoClass(classes,{courseId,teacherId:assignedTeacherId,slot,capacity},activeTeachers),'Fictional class added. Nothing was stored.');
+    handle(()=>createDemoClass(classes,{courseId:selectedCourseId,teacherId:assignedTeacherId,slot,capacity},activeTeachers,courses),'Fictional class added. Nothing was stored.');
   }
   function chooseEditingClass(id:string){
     setEditClassId(id);
@@ -242,7 +243,7 @@ export default function AcademyOperations({view,role,classes,onUpdate,teachers,l
         <h2>{role==='Teacher'?'Assigned teaching groups':role==='Student'?'My learning groups':'Manage classes and enrollment'}</h2>
       </div><label className="ops-filter">Course
           <select value={filter} onChange={e=>setFilter(e.target.value)}>
-            <option value="all">All courses</option>{DEMO_COURSES.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+            <option value="all">All courses</option>{courses.map(c=><option key={c.id} value={c.id}>{c.name}{c.active===false?' (Archived)':''}</option>)}
           </select>
         </label></div>
       <div className="table-wrap"><table><thead><tr><th>Group</th><th>Course</th><th>Instructor</th><th>Schedule</th><th>Capacity</th><th>Roster</th></tr></thead><tbody>
@@ -313,11 +314,11 @@ export default function AcademyOperations({view,role,classes,onUpdate,teachers,l
     {canManage&&<div className="operations-grid">
       <section className="panel"><span className="eyebrow">ADMINISTRATION · FICTIONAL DATA</span><h2>Create a sample class</h2>
         <form className="ops-form" onSubmit={addClass}>
-          <label>Course<select value={courseId} onChange={e=>setCourseId(e.target.value)}>{DEMO_COURSES.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label>Course<select value={selectedCourseId} onChange={e=>setCourseId(e.target.value)} disabled={!activeCourses.length}>{!activeCourses.length&&<option value="">No active courses</option>}{activeCourses.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           <label>Assigned instructor<select value={assignedTeacherId} onChange={e=>setAssignedTeacherId(e.target.value)}>{activeTeachers.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
           <label>Two weekly sessions<select value={slot} onChange={e=>setSlot(e.target.value)}>{DEMO_SLOTS.map(s=><option key={s} value={s}>{s}</option>)}</select></label>
           <label>Seat limit<select value={capacity} onChange={e=>setCapacity(Number(e.target.value))}>{[5,10,15,20].map(x=><option key={x} value={x}>{x} seats</option>)}</select></label>
-          <button type="submit" className="primary-btn">Create fictional group</button>
+          <button type="submit" className="primary-btn" disabled={!activeCourses.length}>Create fictional group</button>
         </form>
       </section>
       <section className="panel"><span className="eyebrow">ADMINISTRATION · FICTIONAL DATA</span><h2>Enroll a sample learner</h2>

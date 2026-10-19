@@ -958,3 +958,26 @@ footer {
   outline:3px solid #f1c36f;outline-offset:2px;
 }
 @media(max-width:720px){.people-search{grid-template-columns:1fr}.guardian-admin .operations-grid{grid-template-columns:1fr}}
+
+/* M5.12 course catalog administration — responsive and keyboard-first. */
+.course-catalog-workspace{display:grid;gap:18px;}
+.course-catalog-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px;}
+.course-catalog-form label{display:grid;gap:7px;font-size:12px;font-weight:750;color:var(--text-secondary);}
+.course-catalog-form input,.course-catalog-form textarea{width:100%;min-width:0;border:1px solid var(--stroke-strong);border-radius:10px;padding:11px 12px;background:var(--bg-raised);color:var(--text);font-size:13px;}
+.course-catalog-form input{min-height:44px;}.course-catalog-form textarea{resize:vertical;line-height:1.5;}
+.course-modules-field{grid-column:1/-1;}.course-catalog-form .primary-btn{justify-self:start;min-height:44px;}
+.course-catalog-count{font-size:12px;font-weight:750;color:var(--text-secondary);}
+.course-catalog-list{display:grid;gap:12px;margin-top:18px;}
+.course-catalog-card{border:1px solid var(--stroke);border-radius:14px;padding:16px;background:var(--bg-card-alt);}
+.course-catalog-card-head{display:flex;gap:12px;align-items:flex-start;}
+.course-catalog-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:12px;background:var(--bg-raised);font-size:22px;}
+.course-catalog-main{flex:1;min-width:0;}.course-catalog-main h3{margin:2px 0 6px;font-size:16px;}
+.course-catalog-main p{margin:0 0 10px;color:var(--text-secondary);font-size:13px;line-height:1.5;}
+.course-catalog-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--text-secondary);}
+.course-catalog-meta>span{padding:4px 7px;border:1px solid var(--stroke);border-radius:20px;}
+.course-status{background:var(--success-bg);color:var(--success-text);font-weight:800;}
+.course-status.archived{background:var(--warning-bg);color:var(--warning-text);}
+.course-catalog-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.course-catalog-editor{padding-top:16px;border-top:1px solid var(--stroke);margin-top:16px;}
+.assessment-edit-actions{display:flex;justify-content:flex-end;margin-bottom:12px;}
+@media(max-width:720px){.course-catalog-form{grid-template-columns:1fr}.course-catalog-card-head{flex-wrap:wrap}.course-catalog-actions{width:100%;padding-left:54px}.course-catalog-form .primary-btn{width:100%;}}

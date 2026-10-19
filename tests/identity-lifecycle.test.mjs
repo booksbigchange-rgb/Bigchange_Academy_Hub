@@ -68,6 +68,7 @@ test('deactivation is reversible only for unassigned/unenrolled added sample peo
  let teachers=addDemoTeacher(DEMO_TEACHERS,'Sample Teacher Delta');
  let students=addDemoLearner(DEMO_LEARNERS,'Sample Learner Indigo');
  const teacherId=teachers.at(-1).id,learnerId=students.at(-1).id;
+ assert.throws(()=>setDemoPersonActive(students,{id:learnerId,role:'learner',active:false,classes:classes(),guardians:[{id:'guardian-demo-1',learnerIds:[learnerId]}]}),/Unlink this fictional learner from guardians/);
  assert.throws(()=>setDemoPersonActive(teachers,{id:'teacher-a',role:'teacher',active:false,classes:classes()}),/Only newly/);
  teachers=setDemoPersonActive(teachers,{id:teacherId,role:'teacher',active:false,classes:classes()});
  assert.equal(activeDemoPeople(teachers).some(p=>p.id===teacherId),false);

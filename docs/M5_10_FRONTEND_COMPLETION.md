@@ -6,6 +6,7 @@ This release continues from M5.9 on the **fictional demo** branch. No real schoo
 - **Class editing:** Administrator can correct an existing teacher, weekly schedule, or seat limit in Classes without erasing enrollments. Validation rejects teacher double-booking, student schedule collisions, reduced capacity below roster, and changes that would invalidate already planned lesson weekdays.
 - **Student transfers:** Move a fictional learner atomically between groups of the *same course*. Rejection due to duplicate enrollment, class capacity, source membership, or schedule conflict never removes the original roster entry.
 - **Directory search:** Teacher and Administrator may search available fictional student names and identifiers. Administrator may filter active, inactive, or currently unenrolled sample people.
+- **Offline fee obligations:** Administrator can add a fictional monthly fee to a learner with an existing synthetic guardian link. Duplicate periods, invalid amounts, and unlinked guardians are rejected; the parent view, Finance, and Reports automatically reflect the sample balance. Existing October 2026 long-name sample periods are normalized for duplicate prevention.
 - **Fictional guardian administration:** Administrator gets a Guardians page for adding synthetic `Sample Guardian ...` people, linking and unlinking explicitly fictional children, and deactivating/reactivating newly added guardian profiles. Seed guardian relationships cannot be rewritten in this preview. No real identity/custody verification takes place.
 - **Guardian identity selector:** Switch between fictional Guardian A, B, and newly added active guardian profiles. Guardian view draws data from that selected synthetic relationship. Empty accounts get a clear no-linked-learners message.
 - React state remains temporary; all changes reset on refresh.
@@ -19,7 +20,8 @@ This release continues from M5.9 on the **fictional demo** branch. No real schoo
 6. Attempt to deactivate guardian before unlinking Learner B; it must refuse. Unlink, deactivate, and verify the profile vanishes from active guardian preview choices.
 7. Verify Teacher and Student role navigation do **not** show Guardians; the guardian selection and child link are just a fake role preview, not a privacy mechanism.
 8. Test at Chromebook-size 1366×768 and smaller mobile viewports, with keyboard navigation, forms, and tables. No live account should be entered.
-9. Refresh: verify fictional edits and people disappear; the adult `pilot.html` remains unaffected.
+9. Administrator > Finance: create a 2026-11 sample fee for Learner A under Guardian A. Check new row, Reports and Guardian A. Attempt another 2026-11 fee and a 2026-10 fee (legacy October row): both should be rejected.
+10. Refresh: verify fictional edits and people disappear; the adult `pilot.html` remains unaffected.
 
 ## Important unresolved frontend / release work
 - Admin course-catalog creation (currently fixed 5 examples), a production-style curriculum builder, editable rescheduling of individual lesson dates, deeper task editing, formal fee-plan creation and receipts, actual localization, and full design/device QA.

@@ -54,6 +54,10 @@ export function renameDemoPerson(people,id,name,role){
   const valid=addFictionalPerson(existing,name,role,role==='teacher'?100:3000).at(-1);
   return people.map(p=>p.id===id?{...p,name:valid.name}:p);
 }
+/**
+ * @param {Array<{id:string,name:string,active?:boolean}>} people
+ * @param {{id:string,role:'teacher'|'learner',active:boolean,classes:DemoClass[],guardians?:Array<{id:string,learnerIds:string[]}>}} options
+ */
 export function setDemoPersonActive(people,{id,role,active,classes,guardians=[]}){
   const person=people.find(p=>p.id===id);
   if(!person||!id.startsWith(role+'-demo-'))throw Error('Only newly added sample people can be deactivated');

@@ -53,3 +53,15 @@ test('test-admin provisioning refuses a missing email and other role reassignmen
   assert.match(sql,/academy_learners/);
   assert.doesNotMatch(sql,/service_role|auth\.admin\.createUser/i);
 });
+
+test('public prototype provides skip navigation, named breadcrumbs and accessible mobile section navigation',()=>{
+  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
+  assert.match(app,/href="#main-content">Skip to main content<\\/a>/);
+  assert.match(app,/<main className="content" id="main-content" tabIndex=\\{-1\\}>/);
+  assert.match(app,/<span className="navicon" aria-hidden="true">/);
+  assert.match(app,/<nav className="crumb" aria-label="Breadcrumb">/);
+  assert.match(app,/nav-scroll-hint/);
+  assert.match(css,/\\.skip-link:focus/);
+  assert.match(css,/@media\\(max-width:790px\\)[\\s\\S]*?\\.nav-scroll-hint/);
+});

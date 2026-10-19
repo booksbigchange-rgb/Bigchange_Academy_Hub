@@ -59,17 +59,19 @@ function App() {
   function chooseRole(next: Role) { setRole(next); setPeopleFocus(null); setSection('Overview'); }
   function openPeopleForm(kind:'teacher'|'student'){setPeopleFocus(kind);setSection('Directory');}
   return <div className="shell">
+    <a className="skip-link" href="#main-content">Skip to main content</a>
     <aside className="sidebar">
       <div className="identity"><img className="brand-logo" src={`${import.meta.env.BASE_URL}bigchange-academy-logo.svg`} width="220" height="177" alt="BigChange Academy" /></div>
       <div className="side-label">WORKSPACE</div>
       <nav aria-label="Dashboard sections">
-        {sections.map(item => <button key={item} className={section === item ? 'navitem active' : 'navitem'} aria-current={section === item ? 'page' : undefined} onClick={() => {setPeopleFocus(null);setSection(item);}}><span className="navicon">{navIcons[item]}</span>{item==='Directory'?'People & Roles':item}</button>)}
+        {sections.map(item => <button key={item} className={section === item ? 'navitem active' : 'navitem'} aria-current={section === item ? 'page' : undefined} onClick={() => {setPeopleFocus(null);setSection(item);}}><span className="navicon" aria-hidden="true">{navIcons[item]}</span>{item==='Directory'?'People & Roles':item}</button>)}
       </nav>
+      <p className="nav-scroll-hint">On small screens, scroll the section menu sideways to see more options.</p>
       <div className="sidebar-bottom"><div className="sidebar-help"><strong>Build together, learn together.</strong><span>A better space for every learner.</span></div><div className="sidebar-note">Prototype · sample data only</div></div>
     </aside>
     <div className="workspace">
-      <header className="topbar"><div className="crumb">BigChange Academy <span>/</span> {section}</div><div className="top-actions"><span className="prototype">● DEVELOPMENT PREVIEW</span><div className="avatar" aria-hidden="true">BC</div></div></header>
-      <main className="content">
+      <header className="topbar"><nav className="crumb" aria-label="Breadcrumb">BigChange Academy <span aria-hidden="true">/</span> <span aria-current="page">{section}</span></nav><div className="top-actions"><span className="prototype">● DEVELOPMENT PREVIEW</span><div className="avatar" aria-hidden="true">BC</div></div></header>
+      <main className="content" id="main-content" tabIndex={-1}>
         <div className="heading"><div><div className="eyebrow">YOUR LEARNING COMMUNITY</div><h1>{section === 'Overview' ? (role==='Guardian' ? 'Welcome to the family space.' : 'Welcome to BigChange.') : section}</h1><p>{section === 'Overview' ? 'A home for curiosity, creativity, and progress.' : subtitle(section)}</p></div><label className="role-select">Preview role (not login) <select aria-label="Preview role (not authentication)" value={role} onChange={e => chooseRole(e.target.value as Role)}><option>Student</option><option>Teacher</option><option>Administrator</option><option>Guardian</option></select></label>
         {role==='Guardian'&&<label className="role-select">Fictional guardian identity (not login)
           <select aria-label="Selected fictional guardian preview" value={guardianId} onChange={e=>setPreviewGuardianId(e.target.value)}>

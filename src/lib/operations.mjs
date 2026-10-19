@@ -54,7 +54,7 @@ export function renameDemoPerson(people,id,name,role){
   const valid=addFictionalPerson(existing,name,role,role==='teacher'?100:3000).at(-1);
   return people.map(p=>p.id===id?{...p,name:valid.name}:p);
 }
-export function setDemoPersonActive(people,{id,role,active,classes,guardians=[],ledger=[]}){
+export function setDemoPersonActive(people,{id,role,active,classes,guardians=[]}){
   const person=people.find(p=>p.id===id);
   if(!person||!id.startsWith(role+'-demo-'))throw Error('Only newly added sample people can be deactivated');
   if(typeof active!=='boolean')throw Error('Choose an active state');
@@ -64,8 +64,6 @@ export function setDemoPersonActive(people,{id,role,active,classes,guardians=[],
     throw Error('Remove student enrollments before deactivation');
   if(!active&&role==='learner'&&guardians.some(g=>g.learnerIds.includes(id)))
     throw Error('Unlink this fictional learner from guardians before deactivation');
-  if(!active&&role==='learner'&&ledger.some(row=>row.learnerId===id))
-    throw Error('Resolve existing sample fee obligations before deactivation');
   return people.map(p=>p.id===id?{...p,active}:p);
 }
 export const activeDemoPeople=people=>people.filter(p=>p.active!==false);

@@ -12,11 +12,11 @@ export type Person = {id:string;name:string;active?:boolean};
 type Role = 'Student' | 'Teacher' | 'Administrator';
 type View = 'Classes' | 'Directory' | 'Timetable';
 type Props = { view: View; role: Role; classes: ClassRoom[]; onUpdate: (next: ClassRoom[]) => void;
-  teachers: Person[]; learners: Person[]; guardians?:{id:string;learnerIds:string[]}[];feeRows?:{learnerId:string}[]; teacherId?:string;learnerId?:string; sessions?:{classId:string;date:string}[]; focusPerson?:'teacher'|'student'|null;
+  teachers: Person[]; learners: Person[]; guardians?:{id:string;learnerIds:string[]}[]; teacherId?:string;learnerId?:string; sessions?:{classId:string;date:string}[]; focusPerson?:'teacher'|'student'|null;
   onTeachers:(list:Person[])=>void; onLearners:(list:Person[])=>void };
 const courseName = (id:string) => DEMO_COURSES.find(c=>c.id===id)?.name ?? 'Unknown course';
 
-export default function AcademyOperations({view,role,classes,onUpdate,teachers,learners,guardians=[],feeRows=[],teacherId='teacher-a',learnerId='learner-a',sessions=[],focusPerson,onTeachers,onLearners}:Props){
+export default function AcademyOperations({view,role,classes,onUpdate,teachers,learners,guardians=[],teacherId='teacher-a',learnerId='learner-a',sessions=[],focusPerson,onTeachers,onLearners}:Props){
   const teacherInput=useRef<HTMLInputElement>(null);
   const studentInput=useRef<HTMLInputElement>(null);
   useEffect(()=>{
@@ -85,7 +85,7 @@ export default function AcademyOperations({view,role,classes,onUpdate,teachers,l
       if(!canManage||!editRecord)throw Error('Choose an added fictional person');
       const activate=editRecord.active===false;
       if(!activate&&!pendingDeactivate){setPendingDeactivate(true);setMessage('Confirm deactivation to proceed. Assigned teachers and enrolled students cannot be deactivated.');return;}
-      const changed=setDemoPersonActive(editing,{id:editRecord.id,role:editRole,active:activate,classes,guardians,ledger:feeRows});
+      const changed=setDemoPersonActive(editing,{id:editRecord.id,role:editRole,active:activate,classes,guardians});
       if(editRole==='teacher')onTeachers(changed);else onLearners(changed);
       setPendingDeactivate(false);
       setMessage(activate?'Fictional person reactivated.':'Fictional person deactivated. No records were deleted.');

@@ -981,3 +981,15 @@ footer {
 .course-catalog-editor{padding-top:16px;border-top:1px solid var(--stroke);margin-top:16px;}
 .assessment-edit-actions{display:flex;justify-content:flex-end;margin-bottom:12px;}
 @media(max-width:720px){.course-catalog-form{grid-template-columns:1fr}.course-catalog-card-head{flex-wrap:wrap}.course-catalog-actions{width:100%;padding-left:54px}.course-catalog-form .primary-btn{width:100%;}}
+
+/* M5.13 fictional fee maintenance and printable demo receipts. */
+.fee-adjustment{border-top:1px solid var(--stroke);margin-top:22px;padding-top:18px;}
+.fee-adjustment h3{margin:0 0 8px;}.fee-adjustment>label{display:grid;gap:7px;margin:14px 0;font-size:12px;font-weight:750;color:var(--text-secondary);}
+.fee-adjustment select{min-height:44px;width:100%;border:1px solid var(--stroke-strong);border-radius:10px;padding:10px;background:var(--bg-raised);color:var(--text);}
+.fee-edit-form{margin-top:14px;padding:14px;border-radius:12px;background:var(--bg-card-alt);}
+.sample-receipt{margin-top:16px;border:1px dashed var(--gold-deep);}
+.sample-receipt h2{margin-bottom:4px;}.sample-receipt dl{display:grid;gap:0;margin:18px 0;}
+.sample-receipt dl>div{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--stroke);}
+.sample-receipt dt{color:var(--text-secondary);font-size:12px;}.sample-receipt dd{margin:0;text-align:right;font-weight:800;font-size:13px;}
+.receipt-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}
+@media print{body *{visibility:hidden!important}.sample-receipt,.sample-receipt *{visibility:visible!important}.sample-receipt{position:fixed!important;inset:0!important;width:100%!important;border:1px solid #777!important;border-radius:0!important;background:#fff!important;color:#111!important;box-shadow:none!important;padding:24px!important}.sample-receipt .eyebrow,.sample-receipt .quiet{color:#333!important}.sample-receipt button{display:none!important}}

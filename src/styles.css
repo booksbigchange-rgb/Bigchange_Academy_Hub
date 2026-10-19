@@ -1,3 +1,7 @@
+.skip-link{position:fixed;top:10px;left:10px;z-index:10000;transform:translateY(calc(-100% - 16px));padding:11px 15px;border:2px solid var(--gold-deep);border-radius:10px;background:var(--bg-raised);color:var(--text);font-size:13px;font-weight:800;box-shadow:var(--soft-shadow);}
+.skip-link:focus{transform:translateY(0);}
+#main-content:focus{outline:3px solid var(--gold-deep);outline-offset:4px;}
+.nav-scroll-hint{display:none;}
 /* BigChange Academy — Warm Ivory & Gold
    Branded UI tokens, accessible focus, responsive Chromebook-first layout.
    No images, JS changes, or external font downloads required. */
@@ -715,7 +719,7 @@ footer {
   .assignment { gap: 9px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .navitem, .primary-btn, .small-btn { transition: none; }
+  .navitem, .primary-btn, .small-btn, .skip-link { transition: none; }
 }
 
 /* Milestone: owner-provided Academy emblem, traced to a lightweight SVG */
@@ -901,6 +905,7 @@ footer {
 .sidebar nav{scrollbar-gutter:stable;}
 .navitem:focus-visible,.report-tab:focus-visible,.family-child:focus-visible{outline:3px solid #f3c477;outline-offset:2px;}
 @media(max-width:790px){
+  .nav-scroll-hint{display:block;margin:5px 4px 0;color:#c9b8a0;font-size:10px;line-height:1.5;}
   .sidebar nav{overscroll-behavior-x:contain;scroll-snap-type:x proximity;}
   .navitem{scroll-snap-align:start;min-height:44px;}
   .course-stat{min-width:88px;}

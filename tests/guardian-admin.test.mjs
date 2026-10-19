@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {DEMO_LEARNERS,INITIAL_DEMO_CLASSES,addDemoLearner} from '../src/lib/operations.mjs';
+import {DEMO_LEARNERS,INITIAL_DEMO_CLASSES,addDemoLearner,setDemoPersonActive} from '../src/lib/operations.mjs';
 import {INITIAL_DEMO_ACADEMICS} from '../src/lib/academics.mjs';
 import {INITIAL_DEMO_ASSESSMENTS} from '../src/lib/assessments.mjs';
 import {demoGuardianProfile,demoFamilyReport} from '../src/lib/family.mjs';
@@ -71,4 +71,16 @@ test('guardian navigation and controls are admin-only, preview selector never eq
  assert.match(app,/Selected fictional guardian preview/);
  assert.match(app,/role==='Administrator'&&<AcademyGuardianAdmin/);
  assert.match(app,/Preview role \(not login\)/);
+});
+
+test('an added fictional student must be unlinked before deactivation, even when unenrolled',()=>{
+ let students=addDemoLearner(DEMO_LEARNERS,'Sample Learner Indigo');
+ let guardians=addDemoGuardian(seed(),'Sample Guardian Delta');
+ guardians=linkDemoChild(guardians,'guardian-demo-1','learner-demo-1',students);
+ assert.throws(()=>setDemoPersonActive(students,{id:'learner-demo-1',
+  role:'learner',active:false,classes:structuredClone(INITIAL_DEMO_CLASSES),guardians}),/Unlink/);
+ guardians=unlinkDemoChild(guardians,'guardian-demo-1','learner-demo-1');
+ students=setDemoPersonActive(students,{id:'learner-demo-1',
+  role:'learner',active:false,classes:structuredClone(INITIAL_DEMO_CLASSES),guardians});
+ assert.equal(students.at(-1).active,false);
 });

@@ -98,6 +98,26 @@ export function reviseDemoSession(sessions,sessionId,{topic,objective}){
   validLesson(topic,objective);
   return sessions.map(s=>s.id===sessionId?{...s,topic:topic.trim(),objective:objective.trim()}:s);
 }
+
+/**
+ * Update a lesson while preserving its stable session ID. Attendance remains linked
+ * to this ID; rescheduling never silently drops marks. Fictional browser state only.
+ */
+export function updateDemoSession(sessions,sessionId,{topic,objective,date},{classes,terms}){
+  const previous=sessions.find(s=>s.id===sessionId);
+  if(!previous)throw Error('Select a planned lesson');
+  validLesson(topic,objective);
+  const classroom=classById(classes,previous.classId);
+  const term=termById(terms,previous.termId);
+  const d=assertTermDate(term,date);
+  if(!slotDays(classroom.slot).includes(d.getUTCDay()))
+    throw Error('Choose one of this class’s two weekly meeting days');
+  if(sessions.some(s=>s.id!==sessionId&&s.classId===previous.classId&&s.date===date))
+    throw Error('This class already has a lesson on that date');
+  return sessions.map(s=>s.id===sessionId
+    ?{...s,date,topic:topic.trim(),objective:objective.trim()}
+    :s).sort((a,b)=>a.date.localeCompare(b.date)||a.classId.localeCompare(b.classId));
+}
 /** Each session's marks are independently keyed to the class, date, and learner.
  * The change log is only an in-browser demonstration, NOT an immutable server audit.
  * @param {{attendance:Array,history:Array}} current

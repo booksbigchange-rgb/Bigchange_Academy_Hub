@@ -1,6 +1,6 @@
 # Academy Hub — product parity and milestones
 
-Updated: 2026-10-17. Evidence: current independent BigChange feature branch and the reference repository's public module list documented in [FEATURE_MAPPING.md](FEATURE_MAPPING.md).
+Updated: 2026-10-19. Evidence: current independent BigChange feature branch and the reference repository's public module list documented in [FEATURE_MAPPING.md](FEATURE_MAPPING.md).
 **Reference is not a source of code.** We are developing original implementation of relevant workflows, not importing AGPL components or copying visuals.
 
 ## Target and scale
@@ -21,6 +21,7 @@ Updated: 2026-10-17. Evidence: current independent BigChange feature branch and 
 | M5 | Admin aggregates: enrollment snapshot, utilization, instructor load, attendance, grades, offline fee reconciliation | **Implemented in feature/academy-reporting-m5** (fictional demo only) | Aggregated CSV/formula escape, filter boundaries, invalid ledger flags verified; real audit and privacy still blocked |
 | M5.10 | Frontend operations completion: edit schedules/capacity, transfer student, search directory, synthetic guardians, sample monthly fee obligations | **Implemented in feature/academy-frontend-completion-m5-10** (CI pending) | Validated class/transfer checks, guardian-child sample isolation, mock finance duplicate prevention; real privacy and persistence still blocked |
 | M5.6 | Administrator teacher/student directory creation and teacher enrollment | **Implemented in feature/academy-people-m5-6** (fictional only) | Cross-role preview controls, duplicate/capacity and assignment checks; real onboarding paused |
+| M5.11 | Lesson rescheduling with stable attendance identity; edit existing assignment/quiz metadata while preserving submissions and grades | **Implemented in feature/academy-lesson-assessment-edit-m5-11** (manual review deferred) | Validate term/day/duplicate constraints and submission integrity later; public preview remains on last verified deployment |
 | M6 | Backend persistence and authorization integration | **On hold per owner request** | Auth, actual server RLS read/write isolation, backups, audit, private storage; no direct client trust |
 | M7 | Real school readiness / scale, family consent, disaster recovery, accessibility/performance/load test | Later | Real-world pilot with adult test accounts first, security/legal review completed, backups tested |
 

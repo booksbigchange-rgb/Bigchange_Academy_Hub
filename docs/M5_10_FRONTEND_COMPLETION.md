@@ -24,7 +24,7 @@ This release continues from M5.9 on the **fictional demo** branch. No real schoo
 10. Refresh: verify fictional edits and people disappear; the adult `pilot.html` remains unaffected.
 
 ## Important unresolved frontend / release work
-- Admin course-catalog creation (currently fixed 5 examples), a production-style curriculum builder, editable rescheduling of individual lesson dates, deeper task editing, formal fee-plan creation and receipts, actual localization, and full design/device QA.
+- Admin course-catalog creation (currently fixed 5 examples), a production-style curriculum builder, richer fee-plan edits and receipts, actual localization, and full design/device QA. Lesson rescheduling and task metadata editing are added in M5.11; manual review remains deferred.
 - Enrollment history and payment charts require real durable timestamps; never invent time-series data.
 - Production launch requires a secure backend with actual authentication, server-authorized role policies, verified guardianship, secure finance audit, privacy review, accessibility and scale testing.
 - No claim is made of real-browser visual test coverage solely from GitHub Actions tests.

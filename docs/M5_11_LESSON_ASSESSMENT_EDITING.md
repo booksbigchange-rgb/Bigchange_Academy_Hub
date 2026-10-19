@@ -21,6 +21,9 @@ This feature branch builds on M5.10. **Manual hands-on review is deliberately de
 7. Switch to Student preview and confirm editing controls are absent, while revised task information is visible.
 8. Refresh and confirm changes reset. Do not use real names or data.
 
+
+- **Admin course catalog:** create a course with 3–8 modules, edit its descriptive fields, and archive/reactivate it. Custom course IDs are passed to class groups, lesson modules, quiz generation, family views, dashboards and reports. Archiving preserves existing classes/lesson/grade history and prevents assigning the course to new groups.
+
 ## Still outstanding before calling the frontend complete
 - Admin course catalog create/edit/archive and an integrated curriculum builder.
 - Richer fee-plan edits, adjustment history and receipt/export flows (still fictional; no payment processing).

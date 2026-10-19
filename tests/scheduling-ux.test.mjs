@@ -59,6 +59,6 @@ test('frontend does not use misleading static next-class advice or inactive-teac
  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
  assert.doesNotMatch(app,/<strong>Next class<\/strong>/);
  assert.doesNotMatch(app,/<small>Computer Foundations · sample schedule<\/small>/);
- assert.match(app,/demoOverviewHighlight\(role,classrooms,identity\)/);
+ assert.match(app,/demoOverviewHighlight\(role,classrooms,identity(?:,courses)?\)/);
  assert.match(app,/teachers=\{activeTeachers\} financeChanges=/);
 });

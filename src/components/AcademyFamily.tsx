@@ -8,7 +8,7 @@ import type { AssessmentState } from './AcademyAssessments';
 type LedgerRow={student:string;learnerId:string;guardian:string;guardianId:string;
   due:number;recorded:number;period:string};
 type Props={view:'overview'|'family';classes:ClassRoom[];learners:Person[];academic:AcademicState;
-  assessments:AssessmentState;ledger:LedgerRow[];onOpenFamily:()=>void};
+  assessments:AssessmentState;ledger:LedgerRow[];guardianId:string;guardians:{id:string;name:string;learnerIds:string[];active?:boolean}[];onOpenFamily:()=>void};
 
 const courseOf=(id:string)=>DEMO_COURSES.find(x=>x.id===id)?.name??'Course';
 const money=(amount:number)=>'ETB '+amount.toLocaleString('en-US');
@@ -17,20 +17,26 @@ function statusTag(status:string){
   if(status==='Absent'||status==='Unpaid'||status==='not submitted')return 'amber';
   return '';
 }
-export default function AcademyFamily({view,classes,learners,academic,assessments,ledger,onOpenFamily}:Props){
+export default function AcademyFamily({view,classes,learners,academic,assessments,ledger,guardianId,guardians,onOpenFamily}:Props){
   const nameOf=(id:string)=>learners.find(x=>x.id===id)?.name??'Fictional learner';
-  // Exactly one synthetic family is displayed. This is not a logged-in guardian identity.
-  const guardian=demoGuardianProfile('guardian-a');
+  // The identity selector is a simulated switch, NOT an authenticated guardian session.
+  const guardian=demoGuardianProfile(guardianId,guardians);
   const [childId,setChildId]=useState('learner-a');
   const [channels,setChannels]=useState({email:false,whatsapp:false});
   if(!guardian)return <section className="panel"><h2>Sample family unavailable</h2></section>;
+  if(guardian.learnerIds.length===0)return <section className="panel">
+    <span className="eyebrow">FAMILY PREVIEW · FICTIONAL ONLY</span>
+    <h2>{guardian.name}</h2>
+    <p>No fictional learners are linked to this sample guardian yet. An administrator may add synthetic links from the Guardian management screen.</p>
+    <p className="quiet">This preview does not verify guardianship, custody, consent, or provide real child access.</p>
+  </section>;
   const selected=guardian.learnerIds.includes(childId)?childId:guardian.learnerIds[0];
   const report=demoFamilyReport({guardianId:guardian.id,learnerId:selected,
-    classes,academic,assessment:assessments,ledger});
+    classes,academic,assessment:assessments,ledger,guardians});
   const linkedClasses=classes.filter(c=>report.classIds.includes(c.id));
   return <div className="family-dashboard">
     <section className="panel family-welcome">
-      <span className="eyebrow">FAMILY PREVIEW · FICTIONAL GUARDIAN A</span>
+      <span className="eyebrow">FAMILY PREVIEW · FICTIONAL GUARDIAN</span>
       <h2>{view==='overview'?'Welcome to the family learning space':'My children’s learning overview'}</h2>
       <p>View synthetic classroom progress, lesson attendance and externally recorded fee examples for linked fictional learners only.</p>
       <div className="family-child-picker" role="group" aria-label="Select fictional child">

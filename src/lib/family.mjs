@@ -7,20 +7,20 @@ export const DEMO_GUARDIANS=Object.freeze([
   {id:'guardian-a',name:'Guardian A',learnerIds:['learner-a','learner-c']},
   {id:'guardian-b',name:'Guardian B',learnerIds:['learner-b']}
 ]);
-export function demoGuardianProfile(guardianId){
-  const match=DEMO_GUARDIANS.find(g=>g.id===guardianId);
+export function demoGuardianProfile(guardianId,guardians=DEMO_GUARDIANS){
+  const match=guardians.find(g=>g.id===guardianId&&g.active!==false);
   return match?{id:match.id,name:match.name,learnerIds:[...match.learnerIds]}:null;
 }
-export function demoGuardianChildren(guardianId){
-  const match=demoGuardianProfile(guardianId);
+export function demoGuardianChildren(guardianId,guardians=DEMO_GUARDIANS){
+  const match=demoGuardianProfile(guardianId,guardians);
   return match?.learnerIds??[];
 }
 /**
  * @param {{guardianId:string,learnerId:string,classes:Array,
  * academic:{sessions:Array,attendance:Array},assessment:{tasks:Array,submissions:Array},ledger:Array}} opts
  */
-export function demoFamilyReport({guardianId,learnerId,classes,academic,assessment,ledger}){
-  const guardian=demoGuardianProfile(guardianId);
+export function demoFamilyReport({guardianId,learnerId,classes,academic,assessment,ledger,guardians=DEMO_GUARDIANS}){
+  const guardian=demoGuardianProfile(guardianId,guardians);
   if(!guardian)throw Error('Unknown fictional guardian');
   if(!guardian.learnerIds.includes(learnerId))throw Error('This learner is not linked to the fictional guardian');
   const enrolled=classes.filter(c=>c.learnerIds.includes(learnerId));

@@ -21,7 +21,7 @@ const sampleLedger = [
   { student: 'Student C', learnerId: 'learner-c', guardian: 'Guardian A', guardianId: 'guardian-a', due: 2500, recorded: 0, period: 'October 2026' },
 ];
 const currency = (value: number) => 'ETB ' + value.toLocaleString('en-US');
-const navIcons: Record<Section,string> = {Overview:'▦',Courses:'▤',Classes:'▣',Directory:'♧',Timetable:'◷',Lessons:'✎',Assignments:'☷',Quizzes:'❖',Grades:'▥',Attendance:'◷',Finance:'◇',Reports:'▥',Family:'♧',Guardians:'users'};
+const navIcons: Record<Section,string> = {Overview:'▦',Courses:'▤',Classes:'▣',Directory:'♧',Timetable:'◷',Lessons:'✎',Assignments:'☷',Quizzes:'❖',Grades:'▥',Attendance:'◷',Finance:'◇',Reports:'▥',Family:'♧',Guardians:'♧'};
 function App() {
   const [role, setRole] = useState<Role>('Student');
   const [classrooms,setClassrooms] = useState<ClassRoom[]>(() => structuredClone(INITIAL_DEMO_CLASSES));

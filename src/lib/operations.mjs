@@ -133,6 +133,7 @@ export function assignDemoTeacher(classes,classId,teacherId,teachers=DEMO_TEACHE
  * Existing lesson dates are preserved and must still fall on meeting weekdays.
  * Never silently move learners into overlapping classes.
  */
+/** @param {DemoClass[]} classes @param {string} classId @param {{teacherId:string,slot:string,capacity:number}} next @param {{teachers?:{id:string,name:string,active?:boolean}[],sessions?:{classId:string,date:string}[]}} options */
 export function updateDemoClass(classes,classId,{teacherId,slot,capacity},{teachers=DEMO_TEACHERS,sessions=[]}={}){
   assertRoster(classes);
   const previous=classes.find(c=>c.id===classId);

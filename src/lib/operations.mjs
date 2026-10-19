@@ -54,7 +54,11 @@ export function renameDemoPerson(people,id,name,role){
   const valid=addFictionalPerson(existing,name,role,role==='teacher'?100:3000).at(-1);
   return people.map(p=>p.id===id?{...p,name:valid.name}:p);
 }
-export function setDemoPersonActive(people,{id,role,active,classes}){
+/**
+ * @param {Array<{id:string,name:string,active?:boolean}>} people
+ * @param {{id:string,role:'teacher'|'learner',active:boolean,classes:DemoClass[],guardians?:Array<{id:string,learnerIds:string[]}>}} options
+ */
+export function setDemoPersonActive(people,{id,role,active,classes,guardians=[]}){
   const person=people.find(p=>p.id===id);
   if(!person||!id.startsWith(role+'-demo-'))throw Error('Only newly added sample people can be deactivated');
   if(typeof active!=='boolean')throw Error('Choose an active state');
@@ -62,6 +66,8 @@ export function setDemoPersonActive(people,{id,role,active,classes}){
     throw Error('Reassign this teacher’s classes before deactivation');
   if(!active&&role==='learner'&&classes.some(c=>c.learnerIds.includes(id)))
     throw Error('Remove student enrollments before deactivation');
+  if(!active&&role==='learner'&&guardians.some(g=>g.learnerIds.includes(id)))
+    throw Error('Unlink this fictional learner from guardians before deactivation');
   return people.map(p=>p.id===id?{...p,active}:p);
 }
 export const activeDemoPeople=people=>people.filter(p=>p.active!==false);
@@ -127,6 +133,52 @@ export function assignDemoTeacher(classes,classId,teacherId,teachers=DEMO_TEACHE
   validateUniqueSlot(classes,teacherId,target.slot,classId);
   return classes.map(c=>c.id===classId?{...c,teacherId}:c);
 }
+
+/**
+ * Admin-only model operation for a class timetable/teacher/seat-limit correction.
+ * Existing lesson dates are preserved and must still fall on meeting weekdays.
+ * Never silently move learners into overlapping classes.
+ */
+/** @param {DemoClass[]} classes @param {string} classId @param {{teacherId:string,slot:string,capacity:number}} next @param {{teachers?:{id:string,name:string,active?:boolean}[],sessions?:{classId:string,date:string}[]}} options */
+export function updateDemoClass(classes,classId,{teacherId,slot,capacity},{teachers=DEMO_TEACHERS,sessions=[]}={}){
+  assertRoster(classes);
+  const previous=classes.find(c=>c.id===classId);
+  if(!previous)throw Error('Class group not found');
+  if(!allowed(teachers,teacherId))throw Error('Choose an active sample instructor');
+  if(!DEMO_SLOTS.includes(slot))throw Error('Choose an existing sample meeting slot');
+  if(![5,10,15,20].includes(capacity))throw Error('Choose a valid class capacity');
+  if(capacity<previous.learnerIds.length)throw Error('Seat limit cannot fall below current enrollments');
+  validateUniqueSlot(classes,teacherId,slot,classId);
+  if(slot!==previous.slot){
+    const allowedDays=slot.split(' · ')[0].split(' + ');
+    const weekdays=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    if(sessions.some(s=>s.classId===classId&&
+      (!/^\d{4}-\d{2}-\d{2}$/.test(s.date)||!allowedDays.includes(weekdays[new Date(s.date+'T00:00:00Z').getUTCDay()]))))
+      throw Error('Existing lessons use different meeting days; keep the days or revise those lessons first');
+    for(const learnerId of previous.learnerIds){
+      if(classes.some(c=>c.id!==classId&&c.slot===slot&&c.learnerIds.includes(learnerId)))
+        throw Error('A learner in this class already attends another group in that weekly slot');
+    }
+  }
+  return classes.map(c=>c.id===classId?{...c,teacherId,slot,capacity}:c);
+}
+
+/**
+ * Move one learner between two groups of the SAME course in one immutable operation.
+ * Invalid destinations leave both rosters unchanged.
+ */
+export function transferDemoLearner(classes,{fromClassId,toClassId,learnerId},learners=DEMO_LEARNERS){
+  assertRoster(classes);
+  if(fromClassId===toClassId)throw Error('Choose two different class groups');
+  const from=classes.find(c=>c.id===fromClassId),to=classes.find(c=>c.id===toClassId);
+  if(!from||!to)throw Error('Choose existing class groups');
+  if(!from.learnerIds.includes(learnerId))throw Error('Learner is not enrolled in the source group');
+  if(from.courseId!==to.courseId)throw Error('Transfer must stay within the same course');
+  const without=removeDemoLearner(classes,fromClassId,learnerId);
+  // Validate target seat limit, collisions and duplicate-course enrollment atomically.
+  return enrollDemoLearner(without,toClassId,learnerId,learners);
+}
+
 /** @param {DemoClass[]} classes @param {'Student'|'Teacher'|'Administrator'} role @returns {DemoClass[]} */
 export function visibleDemoClasses(classes,role,{teacherId='teacher-a',learnerId='learner-a'}={}){
   if(role==='Administrator')return classes;

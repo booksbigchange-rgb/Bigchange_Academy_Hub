@@ -5,12 +5,12 @@
 import {DEMO_COURSES,DEMO_TEACHERS,DEMO_LEARNERS,visibleDemoClasses} from './operations.mjs';
 import {summarizeDemoAcademy} from './reporting.mjs';
 const NAV=['Overview','Courses','Classes','Directory','Timetable','Lessons','Assignments',
-  'Quizzes','Grades','Attendance','Finance','Reports','Family'];
+  'Quizzes','Grades','Attendance','Guardians','Finance','Reports','Family'];
 export function demoSidebarSections(role){
   if(role==='Guardian')return ['Overview','Family'];
   if(role==='Administrator')return NAV.filter(s=>s!=='Family');
-  if(role==='Teacher')return NAV.filter(s=>s!=='Finance'&&s!=='Reports'&&s!=='Family');
-  if(role==='Student')return NAV.filter(s=>!['Finance','Reports','Family','Directory'].includes(s));
+  if(role==='Teacher')return NAV.filter(s=>s!=='Finance'&&s!=='Reports'&&s!=='Family'&&s!=='Guardians');
+  if(role==='Student')return NAV.filter(s=>!['Finance','Reports','Family','Directory','Guardians'].includes(s));
   return [];
 }
 const descriptors={

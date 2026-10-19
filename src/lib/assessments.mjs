@@ -93,6 +93,29 @@ export function createDemoAssessment(state,{classes,terms,role,classId,termId,ki
   };
   return {...state,tasks:[...state.tasks,task]};
 }
+
+/**
+ * Edit only stable task metadata. Questions and rubrics remain unchanged so prior
+ * submissions keep their meaning. Only an assigned educator may revise this demo task.
+ */
+export function reviseDemoAssessment(state,{classes,terms,role,taskId,title,instructions,dueDate,teacherId='teacher-a'}){
+  const task=findTask(state.tasks,taskId);
+  assertRole(role,classes,task.classId,teacherId);
+  const term=terms.find(t=>t.id===task.termId);
+  if(!term)throw Error('The task’s academic term no longer exists');
+  if(!isoDate(dueDate)||dueDate<term.start||dueDate>term.end)
+    throw Error('Due date must fall inside the task’s academic term');
+  if(typeof title!=='string'||title.trim().length<5||title.trim().length>90)
+    throw Error('Title must contain 5–90 characters');
+  if(typeof instructions!=='string'||instructions.trim().length<15||instructions.trim().length>500)
+    throw Error('Instructions must contain 15–500 characters');
+  if(state.tasks.some(t=>t.id!==taskId&&t.classId===task.classId&&t.termId===task.termId
+      &&t.title.toLowerCase()===title.trim().toLowerCase()))
+    throw Error('This class already has another task with that title');
+  return {...state,tasks:state.tasks.map(t=>t.id===taskId
+    ?{...t,title:title.trim(),instructions:instructions.trim(),dueDate}
+    :t)};
+}
 export function submitDemoProject(state,{classes,role,taskId,learnerId,response,previewLearnerId='learner-a'}){
   assertDemoStudent(role,learnerId,previewLearnerId);
   const task=findTask(state.tasks,taskId);

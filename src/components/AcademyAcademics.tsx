@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { DEMO_COURSES, visibleDemoClasses } from '../lib/operations.mjs';
 import {
   ATTENDANCE_STATUSES, availableSyllabus, createDemoSession,
-  createDemoTerm, markDemoSessionAttendance, reviseDemoSession, sessionSummary
+  createDemoTerm, markDemoSessionAttendance, reviseDemoSession, updateDemoSession, sessionSummary
 } from '../lib/academics.mjs';
 import type { ClassRoom, Person } from './AcademyOperations';
 
@@ -17,13 +17,16 @@ const courseName=(id:string)=>DEMO_COURSES.find(x=>x.id===id)?.name??'Sample sub
 function formatDate(iso:string){
   return new Date(iso+'T12:00:00.000Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
 }
-function LessonEditor({lesson,canEdit,onSave}:{lesson:Lesson;canEdit:boolean;onSave:(topic:string,objective:string)=>void}){
+function LessonEditor({lesson,canEdit,term,onSave}:{lesson:Lesson;canEdit:boolean;term:Term;onSave:(topic:string,objective:string,date:string)=>void}){
   const [topic,setTopic]=useState(lesson.topic);
   const [objective,setObjective]=useState(lesson.objective);
-  return <form className="academic-edit" onSubmit={e=>{e.preventDefault();onSave(topic,objective);}}>
+  const [date,setDate]=useState(lesson.date);
+  return <form className="academic-edit" onSubmit={e=>{e.preventDefault();onSave(topic,objective,date);}}>
+    <label>Lesson date<input type="date" value={date} min={term.start} max={term.end} onChange={e=>setDate(e.target.value)} required disabled={!canEdit}/></label>
     <label>Lesson title<input value={topic} onChange={e=>setTopic(e.target.value)} minLength={3} maxLength={100} required disabled={!canEdit}/></label>
     <label>Learning objective<textarea value={objective} onChange={e=>setObjective(e.target.value)} minLength={8} maxLength={400} rows={3} required disabled={!canEdit}/></label>
-    {canEdit&&<button type="submit" className="small-btn">Save sample lesson changes</button>}
+    <p className="quiet">The date must match this class’s weekly schedule. Attendance stays attached to this lesson when it moves.</p>
+    {canEdit&&<button type="submit" className="small-btn">Save lesson changes</button>}
   </form>;
 }
 export default function AcademyAcademics({view,role,classes,learners,academic,onUpdate,teacherId='teacher-a',learnerId='learner-a'}:Props){
@@ -62,8 +65,10 @@ export default function AcademyAcademics({view,role,classes,learners,academic,on
       classId:currentClass?.id??'',termId:currentTerm?.id??'',date,topic,objective
     })}),'Lesson planned for this sample class. Nothing was stored.');
   }
-  const editingLesson=selected&&<LessonEditor key={selected.id} lesson={selected} canEdit={editable}
-    onSave={(title,goal)=>change(()=>({...academic,sessions:reviseDemoSession(academic.sessions,selected.id,{topic:title,objective:goal})}),'Sample lesson plan updated.')}/>;
+  const editingLesson=selected&&currentTerm&&<LessonEditor key={selected.id} lesson={selected} canEdit={editable} term={currentTerm}
+    onSave={(title,goal,newDate)=>change(()=>({...academic,sessions:updateDemoSession(academic.sessions,selected.id,
+      {topic:title,objective:goal,date:newDate},{classes,terms:academic.terms})}),
+      'Lesson updated. Attendance remains linked to the same session.')}/>;
   return <div className="academic">
     <section className="panel">
       <span className="eyebrow">CLASSROOM LEARNING · FICTIONAL RECORDS</span>

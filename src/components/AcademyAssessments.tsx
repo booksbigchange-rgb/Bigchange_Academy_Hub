@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { DEMO_COURSES, visibleDemoClasses } from '../lib/operations.mjs';
 import {
-  createDemoAssessment, submitDemoProject, submitDemoQuiz, gradeDemoProject,
+  createDemoAssessment, reviseDemoAssessment, submitDemoProject, submitDemoQuiz, gradeDemoProject,
   visibleDemoTasks, demoGradeRows, demoProgress
 } from '../lib/assessments.mjs';
 import type { ClassRoom, Person } from './AcademyOperations';
@@ -61,6 +61,22 @@ function RubricEditor({task,submission,onGrade}:{task:Assessment;submission:Demo
     <button className="primary-btn" type="submit">{submission.status==='graded'?'Update sample grade':'Save sample grade'}</button>
   </form>;
 }
+
+function AssessmentEditor({task,term,onSave}:{task:Assessment;term:Term;
+  onSave:(title:string,instructions:string,dueDate:string)=>void}){
+  const [title,setTitle]=useState(task.title);
+  const [instructions,setInstructions]=useState(task.instructions);
+  const [dueDate,setDueDate]=useState(task.dueDate);
+  return <form className="assessment-form assessment-edit" onSubmit={e=>{e.preventDefault();onSave(title,instructions,dueDate);}}>
+    <label>Task title<input value={title} onChange={e=>setTitle(e.target.value)} minLength={5} maxLength={90} required/></label>
+    <label>Instructions<textarea value={instructions} onChange={e=>setInstructions(e.target.value)}
+      minLength={15} maxLength={500} rows={3} required/></label>
+    <label>Due date<input type="date" value={dueDate} min={term.start} max={term.end}
+      onChange={e=>setDueDate(e.target.value)} required/></label>
+    <p className="quiet">This edits the title, instructions and deadline only. Existing rubric scores, quiz answers and submissions remain unchanged.</p>
+    <button className="primary-btn" type="submit">Save task changes</button>
+  </form>;
+}
 export default function AcademyAssessments({view,role,classes,learners,terms,state,onUpdate,teacherId='teacher-a',learnerId='learner-a'}:Props){
   const learnerName=(id:string)=>learners.find(x=>x.id===id)?.name??'Sample learner';
   const groupList=useMemo(()=>visibleDemoClasses(classes,role,{teacherId,learnerId}),[classes,role,teacherId,learnerId]);
@@ -73,6 +89,7 @@ export default function AcademyAssessments({view,role,classes,learners,terms,sta
   const [termId,setTermId]=useState('term-autumn-2026');
   const [message,setMessage]=useState('');
   const [showGradeHistory,setShowGradeHistory]=useState(false);
+  const [editingTask,setEditingTask]=useState(false);
   const educator=role!=='Student';
   const selectedClass=groupList.find(c=>c.id===classChoice)??groupList[0];
   const kind=view==='Quizzes'?'quiz':'project';
@@ -87,10 +104,11 @@ export default function AcademyAssessments({view,role,classes,learners,terms,sta
   const gradeRows: GradeRow[]=(demoGradeRows(state,classes,role,{teacherId,learnerId}) as GradeRow[]).filter(row=>row.classId===selectedClass?.id);
   const stats=demoProgress(gradeRows);
   const term=terms.find(t=>t.id===termId)??terms[0];
+  const selectedTaskTerm=terms.find(t=>t.id===selectedTask?.termId);
   const scoreValue=(points:number|null,max:number)=>points===null?'Pending':points+' / '+max;
-  function apply(fn:()=>AssessmentState,success:string){
-    try{onUpdate(fn());setMessage(success);}
-    catch(e){setMessage(e instanceof Error?e.message:'Unable to update the fictional exercise');}
+  function apply(fn:()=>AssessmentState,success:string):boolean{
+    try{onUpdate(fn());setMessage(success);return true;}
+    catch(e){setMessage(e instanceof Error?e.message:'Unable to update the fictional exercise');return false;}
   }
   function createTask(e:FormEvent<HTMLFormElement>){
     e.preventDefault();
@@ -99,6 +117,13 @@ export default function AcademyAssessments({view,role,classes,learners,terms,sta
       kind,title,instructions,dueDate,teacherId}),'Created a fictional '+kind+'. Select it to continue.');
     setTaskChoice('');
   }
+  function saveTask(nextTitle:string,nextInstructions:string,nextDueDate:string){
+    if(!selectedTask)return;
+    const saved=apply(()=>reviseDemoAssessment(state,{classes,terms,role,taskId:selectedTask.id,
+      title:nextTitle,instructions:nextInstructions,dueDate:nextDueDate,teacherId}),
+      'Updated fictional task details. Existing submissions and grades were preserved.');
+    if(saved)setEditingTask(false);
+  }
   return <div className="assessment-workspace">
     <section className="panel">
       <span className="eyebrow">ACADEMY ASSESSMENTS · FICTIONAL DEMO</span>
@@ -106,7 +131,7 @@ export default function AcademyAssessments({view,role,classes,learners,terms,sta
       <p>Activities belong to a specific class group. Submissions and scores live only in this browser tab.</p>
       <div className="assessment-header">
         <label>Class group
-          <select value={selectedClass?.id??''} onChange={e=>{setClassChoice(e.target.value);setTaskChoice('');setLearnerChoice('');setMessage('');}}>
+          <select value={selectedClass?.id??''} onChange={e=>{setClassChoice(e.target.value);setTaskChoice('');setLearnerChoice('');setEditingTask(false);setMessage('');}}>
             {!groupList.length&&<option value="">No assigned class</option>}
             {groupList.map(c=><option value={c.id} key={c.id}>{courseName(c.courseId)} · {c.id.toUpperCase()}</option>)}
           </select>
@@ -122,7 +147,7 @@ export default function AcademyAssessments({view,role,classes,learners,terms,sta
         <div><strong>{stats.percentage===null?'—':stats.percentage+'%'}</strong><small>Average graded score</small></div>
       </div>:<div className="assessment-task-list">
         {filtered.map(t=><button type="button" key={t.id} aria-pressed={t.id===selectedTask?.id}
-          onClick={()=>{setTaskChoice(t.id);setLearnerChoice('');setMessage('');}}
+          onClick={()=>{setTaskChoice(t.id);setLearnerChoice('');setEditingTask(false);setMessage('');}}
           className={'assessment-task '+(t.id===selectedTask?.id?'selected':'')}>
           <strong>{t.title}</strong>
           <small>Due {t.dueDate} · {t.kind==='quiz'?t.questions.length+' questions':t.rubric.reduce((sum,r)=>sum+r.max,0)+' rubric points'}</small>
@@ -161,6 +186,12 @@ export default function AcademyAssessments({view,role,classes,learners,terms,sta
               learnerId,previewLearnerId:learnerId,answers}),'Quiz submitted and automatically scored (demo only).')}/>}
       </>}
       {educator&&<>
+        <div className="assessment-edit-actions">
+          <button type="button" className="small-btn" aria-expanded={editingTask}
+            onClick={()=>setEditingTask(value=>!value)}>{editingTask?'Cancel task editing':'Edit task details'}</button>
+        </div>
+        {editingTask&&selectedTaskTerm&&<AssessmentEditor key={selectedTask.id} task={selectedTask}
+          term={selectedTaskTerm} onSave={saveTask}/>}
         <h3>{selectedTask.kind==='project'?'Sample submissions and review':'Automatically marked sample quiz responses'}</h3>
         <div className="assessment-sub-list">
           {selectedSubmissions.map(s=><button type="button" key={s.learnerId}

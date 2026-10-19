@@ -4,6 +4,7 @@ import {
   createDemoClass, enrollDemoLearner, enrollDemoLearnerForRole, removeDemoLearner, assignDemoTeacher,updateDemoClass,transferDemoLearner,
   visibleDemoClasses, enrolledClassCount
 } from '../lib/operations.mjs';
+import type {CourseRecord} from './AcademyCourseCatalog';
 
 export type ClassRoom = {
   id: string; courseId: string; teacherId: string; slot: string; capacity: number; learnerIds: string[];
@@ -17,7 +18,6 @@ type Props = { view: View; role: Role; classes: ClassRoom[]; courses:CourseRecor
 export default function AcademyOperations({view,role,classes,courses,onUpdate,teachers,learners,guardians=[],teacherId='teacher-a',learnerId='learner-a',sessions=[],focusPerson,onTeachers,onLearners}:Props){
   const courseName=(id:string)=>courses.find(c=>c.id===id)?.name??'Unknown course';
   const activeCourses=courses.filter(c=>c.active!==false);
-  const selectedCourseId=activeCourses.some(c=>c.id===courseId)?courseId:(activeCourses[0]?.id??'');
   const teacherInput=useRef<HTMLInputElement>(null);
   const studentInput=useRef<HTMLInputElement>(null);
   useEffect(()=>{
@@ -31,6 +31,7 @@ export default function AcademyOperations({view,role,classes,courses,onUpdate,te
   const activeTeachers=activeDemoPeople(teachers) as Person[];
   const activeLearners=activeDemoPeople(learners) as Person[];
   const [courseId,setCourseId]=useState('computer');
+  const selectedCourseId=activeCourses.some(c=>c.id===courseId)?courseId:(activeCourses[0]?.id??'');
   const [assignedTeacherId,setAssignedTeacherId]=useState('teacher-a');
   const [slot,setSlot]=useState('Tue + Thu · 16:00');
   const [capacity,setCapacity]=useState(10);

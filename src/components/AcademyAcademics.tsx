@@ -2,14 +2,14 @@ import { useState, type FormEvent } from 'react';
 import { visibleDemoClasses } from '../lib/operations.mjs';
 import type {CourseRecord} from './AcademyCourseCatalog';
 import {
-  ATTENDANCE_STATUSES, availableSyllabus, createDemoSession,
+  ATTENDANCE_STATUSES, availableSyllabus, createDemoSession, curriculumProgress, setDemoSessionStatus,
   createDemoTerm, markDemoSessionAttendance, reviseDemoSession, updateDemoSession, sessionSummary
 } from '../lib/academics.mjs';
 import type { ClassRoom, Person } from './AcademyOperations';
 
 type Role = 'Student'|'Teacher'|'Administrator';
 export type Term = {id:string;label:string;start:string;end:string};
-export type Lesson = {id:string;classId:string;termId:string;date:string;topic:string;objective:string};
+export type Lesson = {id:string;classId:string;termId:string;date:string;topic:string;objective:string;moduleName?:string;status?:'planned'|'completed'};
 export type AttendanceRecord = {sessionId:string;learnerId:string;status:string};
 export type AttendanceChange = {sequence:number;sessionId:string;learnerId:string;before:string;after:string};
 export type AcademicState = {terms:Term[];sessions:Lesson[];attendance:AttendanceRecord[];history:AttendanceChange[]};
@@ -49,8 +49,12 @@ export default function AcademyAcademics({view,role,classes,courses,learners,aca
   const lessons=academic.sessions.filter(s=>s.classId===currentClass?.id&&s.termId===currentTerm?.id)
     .sort((a,b)=>a.date.localeCompare(b.date));
   const selected=lessons.find(s=>s.id===lessonChoice)??lessons[0];
+  const selectedStatus=selected?.status==='completed'?'completed':'planned';
   const editable=role==='Administrator'||role==='Teacher';
   const syllabus: string[]=currentClass?availableSyllabus(currentClass.courseId,courses):[];
+  const moduleProgress=currentClass&&currentTerm?curriculumProgress(academic.sessions,{classId:currentClass.id,termId:currentTerm.id,syllabus}):[];
+  const completedModules=moduleProgress.filter(item=>item.status==='Complete').length;
+  const progressPercent=moduleProgress.length?Math.round(completedModules/moduleProgress.length*100):0;
   const summary=selected&&currentClass?sessionSummary(academic.attendance,selected.id,currentClass.learnerIds):null;
   const currentHistory=academic.history.filter(h=>h.sessionId===selected?.id).slice(-10).reverse();
   function change(action:()=>AcademicState,success:string){
@@ -63,7 +67,7 @@ export default function AcademyAcademics({view,role,classes,courses,learners,aca
   function addLesson(e:FormEvent<HTMLFormElement>){
     e.preventDefault();
     change(()=>({...academic,sessions:createDemoSession(classes,academic.terms,academic.sessions,{
-      classId:currentClass?.id??'',termId:currentTerm?.id??'',date,topic,objective
+      classId:currentClass?.id??'',termId:currentTerm?.id??'',date,topic,objective,moduleName:syllabus.includes(topic)?topic:''
     })}),'Lesson planned for this sample class. Nothing was stored.');
   }
   const editingLesson=selected&&currentTerm&&<LessonEditor key={selected.id} lesson={selected} canEdit={editable} term={currentTerm}
@@ -90,7 +94,7 @@ export default function AcademyAcademics({view,role,classes,courses,learners,aca
         <div className="academic-sessions">
           {lessons.map(s=><button key={s.id} className={'academic-session '+(s.id===selected?.id?'selected':'')}
             type="button" aria-pressed={s.id===selected?.id} onClick={()=>{setLessonChoice(s.id);setFeedback('');}}>
-            <strong>{formatDate(s.date)}</strong><span>{s.topic}</span>
+            <strong>{formatDate(s.date)}</strong><span>{s.topic}</span><span className={'academic-session-status '+(s.status==='completed'?'is-complete':'is-planned')}>{s.status==='completed'?'Completed':'Planned'}</span>
           </button>)}
           {!lessons.length&&<p className="quiet">No sessions are planned for this class in this term yet.</p>}
         </div>
@@ -102,6 +106,11 @@ export default function AcademyAcademics({view,role,classes,courses,learners,aca
       {view==='Lessons'?<>
         <p>The lesson plan is specific to {courseName(currentClass.courseId)} in {currentClass.id.toUpperCase()}.</p>
         {editingLesson}
+        {view==='Lessons'&&<div className="lesson-delivery">
+          <div><span className={'lesson-status-tag '+(selectedStatus==='completed'?'is-complete':'is-planned')}>{selectedStatus==='completed'?'Completed':'Planned'}</span>
+            <p>{selectedStatus==='completed'?'This lesson is marked complete in the current browser session.':'Mark this lesson complete after teaching and reviewing the planned activity.'}</p></div>
+          {editable&&<button type="button" className="small-btn" onClick={()=>change(()=>({...academic,sessions:setDemoSessionStatus(academic.sessions,selected.id,selectedStatus==='completed'?'planned':'completed')}),selectedStatus==='completed'?'Lesson reopened as planned.':'Lesson marked completed. Progress updated.')}>{selectedStatus==='completed'?'Reopen lesson':'Mark lesson completed'}</button>}
+        </div>}
         <p className="quiet">Teacher previews may edit only the selected instructor’s groups. This is not server authorization.</p>
       </>:<>
         <div className="academic-summary">
@@ -133,6 +142,22 @@ export default function AcademyAcademics({view,role,classes,courses,learners,aca
         </div>}
         <p className="quiet">Excused marks also count as recorded. Unmarked means no attendance decision has been entered.</p>
       </>}
+    </section>}
+    {view==='Lessons'&&currentClass&&currentTerm&&<section className="panel curriculum-progress-panel">
+      <div className="panel-head"><div><span className="eyebrow">COURSE SEQUENCE · FICTIONAL PROGRESS</span><h2>Module progress</h2>
+        <p>Progress is calculated for this class and term from planned lesson sessions.</p></div>
+        <strong className="curriculum-progress-summary">{completedModules} of {moduleProgress.length} modules complete</strong>
+      </div>
+      <div className="curriculum-progress-track" role="progressbar" aria-label="Course module completion" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
+        <span className="curriculum-progress-fill" style={{width:`${progressPercent}%`}}/>
+      </div>
+      <ol className="curriculum-module-list">
+        {moduleProgress.map(item=><li key={item.module}>
+          <span className="curriculum-module-number">{item.order}</span>
+          <div className="curriculum-module-copy"><strong>{item.module}</strong><small>{item.total?item.completed+' of '+item.total+' lesson sessions completed':'No lesson planned yet'}</small></div>
+          <span className={'curriculum-module-status '+item.status.toLowerCase().replace(/ /g,'-')}>{item.status}</span>
+        </li>)}
+      </ol>
     </section>}
     {view==='Lessons'&&editable&&currentClass&&currentTerm&&<div className="operations-grid">
       <section className="panel">

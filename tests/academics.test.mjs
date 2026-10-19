@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {INITIAL_DEMO_CLASSES,createDemoClass} from '../src/lib/operations.mjs';
 import {
   INITIAL_DEMO_TERMS,INITIAL_DEMO_SESSIONS,INITIAL_DEMO_ACADEMICS,INITIAL_DEMO_ATTENDANCE,
-  createDemoTerm,createDemoSession,reviseDemoSession,markDemoSessionAttendance,sessionSummary,availableSyllabus
+  createDemoTerm,createDemoSession,reviseDemoSession,updateDemoSession,markDemoSessionAttendance,sessionSummary,availableSyllabus,
+  setDemoSessionStatus,curriculumProgress
 } from '../src/lib/academics.mjs';
 const groups=()=>structuredClone(INITIAL_DEMO_CLASSES);
 const academic=()=>structuredClone(INITIAL_DEMO_ACADEMICS);
@@ -88,4 +89,31 @@ test('new M1 classes can also schedule sessions in M2',()=>{
     topic:'Spreadsheet inputs',objective:'Identify three cells in a fictional spreadsheet.'
   });
   assert.ok(sessions.some(s=>s.classId===created.at(-1).id));
+});
+
+test('lesson completion status is validated, immutable, and preserves session and attendance links',()=>{
+  const state=academic();
+  const completed=setDemoSessionStatus(state.sessions,'session-1','completed');
+  assert.equal(completed.find(s=>s.id==='session-1').status,'completed');
+  assert.equal(state.sessions.find(s=>s.id==='session-1').status,undefined);
+  assert.equal(completed.find(s=>s.id==='session-1').classId,'class-1');
+  assert.deepEqual(state.attendance,INITIAL_DEMO_ATTENDANCE);
+  assert.throws(()=>setDemoSessionStatus(state.sessions,'missing','completed'),/Select a planned lesson/);
+  assert.throws(()=>setDemoSessionStatus(state.sessions,'session-1','done'),/valid lesson status/);
+});
+test('curriculum progress follows syllabus order and survives lesson-title edits through module labels',()=>{
+  const state=academic();
+  const first=createDemoSession(groups(),state.terms,state.sessions,{classId:'class-1',termId:'term-autumn-2026',date:'2026-10-26',topic:'Digital safety',objective:'Explain one safe response to a suspicious message.',moduleName:'Digital safety'});
+  const two=createDemoSession(groups(),state.terms,first,{classId:'class-1',termId:'term-autumn-2026',date:'2026-10-28',topic:'Digital safety practice',objective:'Practice identifying one unsafe website.',moduleName:'Digital safety'});
+  const withCompletion=setDemoSessionStatus(setDemoSessionStatus(two,'session-1','completed'),'session-6','completed');
+  const renamed=updateDemoSession(withCompletion,'session-6',{topic:'Safe browsing practice',objective:'Practice identifying one unsafe website.',date:'2026-10-26'},{classes:groups(),terms:state.terms});
+  const progress=curriculumProgress(renamed,{classId:'class-1',termId:'term-autumn-2026',syllabus:availableSyllabus('computer')});
+  assert.deepEqual(progress.map(({module,status,total,completed})=>({module,status,total,completed})),[
+    {module:'Computer parts & care',status:'Complete',total:1,completed:1},
+    {module:'Files and folders',status:'Planned',total:1,completed:0},
+    {module:'Internet basics',status:'Not planned',total:0,completed:0},
+    {module:'Digital safety',status:'In progress',total:2,completed:1},
+    {module:'Hardware mini project',status:'Not planned',total:0,completed:0}
+  ]);
+  assert.equal(state.sessions.find(s=>s.id==='session-1').status,undefined);
 });

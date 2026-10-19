@@ -81,7 +81,7 @@ export function createDemoTerm(terms,{label,start,end}){
   return [...terms,{id:'term-'+n,label:label.trim(),start,end}].sort((a,b)=>a.start.localeCompare(b.start));
 }
 /** @param {Array} classes @param {Array} terms @param {Array} sessions */
-export function createDemoSession(classes,terms,sessions,{classId,termId,date,topic,objective}){
+export function createDemoSession(classes,terms,sessions,{classId,termId,date,topic,objective,moduleName}){
   const classroom=classById(classes,classId), term=termById(terms,termId);
   const d=assertTermDate(term,date);
   if(!slotDays(classroom.slot).includes(d.getUTCDay()))throw Error('Date does not match this class’s two weekly meeting days');
@@ -90,7 +90,7 @@ export function createDemoSession(classes,terms,sessions,{classId,termId,date,to
   if(sessions.filter(s=>s.classId===classId&&s.termId===termId).length>=30)throw Error('Sample term limit: 30 class sessions');
   const used=new Set(sessions.map(s=>s.id));
   let n=1;while(used.has('session-'+n))n++;
-  return [...sessions,{id:'session-'+n,classId,termId,date,topic:topic.trim(),objective:objective.trim()}]
+  return [...sessions,{id:'session-'+n,classId,termId,date,topic:topic.trim(),objective:objective.trim(),moduleName:typeof moduleName==='string'?moduleName.trim():'',status:/** @type {'planned'|'completed'} */ ('planned')}]
     .sort((a,b)=>a.date.localeCompare(b.date)||a.classId.localeCompare(b.classId));
 }
 export function reviseDemoSession(sessions,sessionId,{topic,objective}){
@@ -155,4 +155,36 @@ export function availableSyllabus(courseId,courses=DEMO_COURSES){
   const course=courses.find(c=>c.id===courseId);
   if(!course)throw Error('Invalid course');
   return Array.isArray(course.syllabus)?course.syllabus:(DEMO_SYLLABUS[courseId]??[]);
+}
+
+
+/**
+ * Change delivery status without changing the session ID or attendance references.
+ * @template {{id:string}} T
+ * @param {T[]} sessions
+ * @param {string} sessionId
+ * @param {'planned'|'completed'} status
+ * @returns {T[]}
+ */
+export function setDemoSessionStatus(sessions,sessionId,status){
+  if(!['planned','completed'].includes(status))throw Error('Choose a valid lesson status');
+  if(!sessions.some(s=>s.id===sessionId))throw Error('Select a planned lesson');
+  return sessions.map(s=>s.id===sessionId?{...s,status}:s);
+}
+
+/**
+ * Summarize the selected class/term against the current course syllabus, in syllabus order.
+ * Older sample sessions are matched by topic; new sessions keep a separate module label when titles change.
+ * @param {Array<{id:string,classId:string,termId:string,topic:string,moduleName?:string,status?:'planned'|'completed'}>} sessions
+ * @param {{classId:string,termId:string,syllabus:string[]}} options
+ */
+export function curriculumProgress(sessions,{classId,termId,syllabus}){
+  if(!Array.isArray(syllabus))return [];
+  return syllabus.map((module,index)=>{
+    const matching=sessions.filter(s=>s.classId===classId&&s.termId===termId&&(s.moduleName||s.topic)===module);
+    const completed=matching.filter(s=>s.status==='completed').length;
+    const total=matching.length;
+    const status=total===0?'Not planned':completed===0?'Planned':completed===total?'Complete':'In progress';
+    return {module,order:index+1,total,completed,status};
+  });
 }

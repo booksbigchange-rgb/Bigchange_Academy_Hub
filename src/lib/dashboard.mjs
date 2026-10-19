@@ -31,6 +31,21 @@ export function demoVisibleCourses(role,classes,identity={}){
       statNote:role==='Administrator'?'Current groups':'Linked fictional classes'};
   });
 }
+/**
+ * Current class highlight, not a claim that this is the next lesson by date.
+ * Follows the selected fictional identity and existing group roster.
+ */
+export function demoOverviewHighlight(role,classes,identity={}){
+ const groups=visibleDemoClasses(classes,role,identity);
+ const first=groups[0];
+ if(!first)return {label:role==='Administrator'?'Academy class groups':'My class groups',
+  subject:'No fictional groups assigned',schedule:'Add or enroll in a sample class to begin',
+  practice:'No class activity is available yet'};
+ const course=DEMO_COURSES.find(c=>c.id===first.courseId);
+ return {label:role==='Administrator'?'Academy class group':'My class group',
+  subject:(course?.name??'Sample course')+' · '+first.id.toUpperCase(),
+  schedule:first.slot,practice:descriptors[first.courseId]?.activity??'Practice with a fictional course example'};
+}
 function attendanceForLearner(classes,academic,learnerId){
  const ids=new Set(classes.filter(c=>c.learnerIds.includes(learnerId)).map(c=>c.id));
  const sessions=academic.sessions.filter(s=>ids.has(s.classId));

@@ -95,6 +95,8 @@ export function enrollDemoLearner(classes,classId,learnerId,learners=DEMO_LEARNE
   if(target.learnerIds.length>=target.capacity)throw Error('Class is at capacity');
   if(classes.some(c=>c.courseId===target.courseId && c.learnerIds.includes(learnerId)))
     throw Error('Learner is already enrolled in another group for this course');
+  if(classes.some(c=>c.id!==classId && c.slot===target.slot && c.learnerIds.includes(learnerId)))
+    throw Error('Learner already attends a different sample class at this same weekly time');
   return classes.map(c=>c.id===classId?{...c,learnerIds:[...c.learnerIds,learnerId]}:c);
 }
 /**

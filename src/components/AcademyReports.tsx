@@ -6,7 +6,7 @@ import type {AcademicState} from './AcademyAcademics';
 import type {AssessmentState} from './AcademyAssessments';
 
 type Ledger={student:string;learnerId:string;guardian:string;guardianId:string;due:number;recorded:number;period:string};
-type Change={sequence:number;previous:number;next:number;delta:number};
+type Change={sequence:number;previous:number;next:number;delta:number;kind?:'payment'|'adjustment';student?:string;period?:string;receiptNo?:string;previousPeriod?:string};
 type Props={classes:ClassRoom[];courses:CourseRecord[];academic:AcademicState;assessments:AssessmentState;ledger:Ledger[];teachers:Person[];financeChanges:Change[]};
 type Summary={classes:number;enrollments:number;capacity:number;uniqueLearners:number;utilization:number;activeTeachers:number;activeCourses:number;plannedSessions:number};
 type Attendance={opportunities:number;present:number;late:number;absent:number;excused:number;unmarked:number;markedRate:number|null};
@@ -140,8 +140,10 @@ export default function AcademyReports({classes,courses,academic,assessments,led
     <h3>Browser-only changes</h3>
     <p>These examples show Finance clicks in this tab, not verified transactions or immutable accounting records.</p>
     {financeChanges.length?<ol className="report-history">{financeChanges.slice(-8).reverse().map(h=><li key={h.sequence}>
-     Recorded {price(h.delta)} in a fictional fee row: {price(h.previous)} → {price(h.next)}
-    </li>)}</ol>:<p className="quiet">No fictional payment updates have been made this session.</p>}
+     {h.kind==='adjustment'
+      ?'Adjusted expected fee for '+(h.student??'sample learner')+': '+price(h.previous)+' → '+price(h.next)+' ('+(h.previousPeriod??'previous month')+' → '+(h.period??'new month')+')'
+      :'Recorded '+price(h.delta)+' in a fictional fee row for '+(h.student??'sample learner')+' ('+(h.period??'sample period')+')'+(h.receiptNo?' · '+h.receiptNo:'')+': '+price(h.previous)+' → '+price(h.next)}
+    </li>)}</ol>:<p className="quiet">No fictional payment or fee adjustments have been made this session.</p>}
    </>}
   </section>
   <p className="quiet">This is an aggregate-only fictional preview. The CSV contains no learner/guardian records or individual payments. Refresh resets changes.</p>

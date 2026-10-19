@@ -17,7 +17,8 @@ export function demoGuardianChildren(guardianId,guardians=DEMO_GUARDIANS){
 }
 /**
  * @param {{guardianId:string,learnerId:string,classes:Array,
- * academic:{sessions:Array,attendance:Array},assessment:{tasks:Array,submissions:Array},ledger:Array}} opts
+ * academic:{sessions:Array,attendance:Array},assessment:{tasks:Array,submissions:Array},ledger:Array,
+ * guardians?:Array<{id:string,name:string,learnerIds:string[],active?:boolean}>}} opts
  */
 export function demoFamilyReport({guardianId,learnerId,classes,academic,assessment,ledger,guardians=DEMO_GUARDIANS}){
   const guardian=demoGuardianProfile(guardianId,guardians);

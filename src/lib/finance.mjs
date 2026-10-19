@@ -34,7 +34,13 @@ export function addDemoFeeObligation(ledger,{learnerId,guardianId,period,due},le
     throw Error('Choose a valid Gregorian fee month');
   if(!Number.isSafeInteger(due)||due<1||due>1_000_000)
     throw Error('Fee must be a positive whole ETB amount up to 1,000,000');
-  if(ledger.some(row=>row.learnerId===learnerId&&row.period===period))
+  const names=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const samePeriod=value=>{
+    if(value===period)return true;
+    const old=/^([A-Za-z]+) (20\d{2})$/.exec(value);
+    return old&&old[2]===period.slice(0,4)&&names[Number(period.slice(5,7))-1]===old[1];
+  };
+  if(ledger.some(row=>row.learnerId===learnerId&&samePeriod(row.period)))
     throw Error('A sample fee already exists for this student in that month');
   if(ledger.length>=3000)throw Error('Sample ledger row limit reached');
   return [...ledger,{

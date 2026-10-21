@@ -70,3 +70,33 @@ export function updateDemoFeeObligation(ledger,index,{period,due}){
  if(due===row.due&&samePeriod(row.period))throw Error('Change the amount or month before saving');
  return ledger.map((item,i)=>i===index?{...item,due,period}:item);
 }
+
+const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+/** Normalise a fee period ('2026-10' or legacy 'October 2026') to 'YYYY-MM', or null. */
+export function normalizeFeePeriod(value){
+  if(typeof value!=='string')return null;
+  if(/^20\d{2}-(0[1-9]|1[0-2])$/.test(value))return value;
+  const old=/^([A-Za-z]+) (20\d{2})$/.exec(value);
+  const index=old?MONTH_NAMES.indexOf(old[1]):-1;
+  return old&&index>=0?old[2]+'-'+String(index+1).padStart(2,'0'):null;
+}
+
+/**
+ * Tracking status for a fee row: Paid, Partial, Unpaid or Overdue.
+ * Overdue = not fully paid and the fee month ended before the month of `today`
+ * (a policy assumption: the school has not yet defined an exact due date).
+ */
+export function feeStatus(row,today=new Date()){
+  const base=paymentStatus(row.due,row.recorded);
+  if(base==='Paid')return base;
+  const period=normalizeFeePeriod(row.period);
+  const current=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
+  return period&&period<current?'Overdue':base;
+}
+
+/** Plain-text reminder for staff to send manually; this app never sends it. */
+export function reminderText(row){
+  const remaining=outstandingBalance(row.due-row.recorded);
+  return `Dear ${row.guardian}, this is a reminder from BigChange Academy that ETB ${remaining.toLocaleString('en-US')} remains outstanding for ${row.student} (${row.period}). Payments are made outside this system. Please contact the school office if you have already paid.`;
+}

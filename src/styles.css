@@ -527,6 +527,11 @@ button, a, select, input { -webkit-tap-highlight-color: transparent; }
   background: var(--success-bg);
   color: var(--success-text);
 }
+.tag.red {
+  border-color: #d9a3a0;
+  background: #f8e4e2;
+  color: #8a2a24;
+}
 .quiet { margin-top: 20px !important; font-size: 12px !important; }
 .attendance strong { flex: 1; font-size: 13px; }
 .attendance > span:first-child { min-width: 46px; color: var(--text-muted); font-size: 11px; }

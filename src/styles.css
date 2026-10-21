@@ -1026,3 +1026,7 @@ footer {
 .curriculum-module-copy small{font-size:11px;color:var(--text-secondary);}
 @media(max-width:600px){.lesson-delivery{align-items:stretch}.lesson-delivery button{width:100%}.curriculum-module-list li{align-items:flex-start;flex-wrap:wrap}.curriculum-module-status{margin-left:42px}.curriculum-progress-summary{white-space:normal}}
 @media(prefers-reduced-motion:reduce){.curriculum-progress-fill{transition:none;}}
+.detail-list { display: grid; gap: 8px; margin: 12px 0; }
+.detail-list div { display: flex; flex-wrap: wrap; gap: 8px; }
+.detail-list dt { min-width: 130px; font-weight: 600; color: var(--text-muted); }
+.detail-list dd { margin: 0; }

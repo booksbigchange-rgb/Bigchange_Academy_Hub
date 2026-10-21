@@ -5,15 +5,16 @@ import {
   visibleDemoClasses, enrolledClassCount
 } from '../lib/operations.mjs';
 import type {CourseRecord} from './AcademyCourseCatalog';
+import AcademyPersonProfile from './AcademyPersonProfile';
 
 export type ClassRoom = {
   id: string; courseId: string; teacherId: string; slot: string; capacity: number; learnerIds: string[];
 };
-export type Person = {id:string;name:string;active?:boolean};
+export type Person = {id:string;name:string;active?:boolean;gradeLevel?:string;specialty?:string;note?:string};
 type Role = 'Student' | 'Teacher' | 'Administrator';
 type View = 'Classes' | 'Directory' | 'Timetable';
 type Props = { view: View; role: Role; classes: ClassRoom[]; courses:CourseRecord[]; onUpdate: (next: ClassRoom[]) => void;
-  teachers: Person[]; learners: Person[]; guardians?:{id:string;learnerIds:string[]}[]; teacherId?:string;learnerId?:string; sessions?:{classId:string;date:string}[]; focusPerson?:'teacher'|'student'|null;
+  teachers: Person[]; learners: Person[]; guardians?:{id:string;name?:string;learnerIds:string[]}[]; teacherId?:string;learnerId?:string; sessions?:{classId:string;date:string}[]; focusPerson?:'teacher'|'student'|null;
   onTeachers:(list:Person[])=>void; onLearners:(list:Person[])=>void };
 export default function AcademyOperations({view,role,classes,courses,onUpdate,teachers,learners,guardians=[],teacherId='teacher-a',learnerId='learner-a',sessions=[],focusPerson,onTeachers,onLearners}:Props){
   const courseName=(id:string)=>courses.find(c=>c.id===id)?.name??'Unknown course';
@@ -155,6 +156,10 @@ export default function AcademyOperations({view,role,classes,courses,onUpdate,te
           <small>{classes.filter(c=>c.teacherId===teacher.id).length} fictional groups · {teacher.id}</small>
         </div>
       </div>)}</div>
+    </>}
+    {canManage&&<>
+      <AcademyPersonProfile role="teacher" people={teachers} classes={classes} courses={courses} guardians={guardians} canEdit onChange={onTeachers}/>
+      <AcademyPersonProfile role="learner" people={learners} classes={classes} courses={courses} guardians={guardians} canEdit onChange={onLearners}/>
     </>}
     {canManage&&<div className="people-enroll">
       <h3>Edit or deactivate an added fictional person</h3>

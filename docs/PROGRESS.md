@@ -7,6 +7,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - Finance → **Reminder queue**: lists outstanding fees, copies reminder text for staff to send manually. Shows "Not sent · no integration". Nothing is sent. `src/components/AcademyReminders.tsx`.
 - Tests: 102/102 pass; typecheck and build pass.
 
+- Access-rules migration `20261031_0002` written and tested locally on PostgreSQL 16 (37/37 isolation checks); see `docs/ACCESS_RULES.md`. Not yet applied to Supabase.
+
 ## Remaining (needs owner input or credentials)
 1. Persistence and real auth: Supabase project key, migrations, RLS tests.
 2. Email/WhatsApp provider, parent contact and consent records.

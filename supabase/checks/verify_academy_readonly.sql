@@ -1,7 +1,8 @@
 -- READ-ONLY Academy security verification.
 -- Run only in the NEW BigChange Academy Supabase project.
--- Expected AFTER both setup SQL scripts: 14 tables, 0 without RLS,
--- 0 without FORCE RLS, 3 policies and 0 unexpected policies.
+-- Expected AFTER migrations 0001 and 0002: 14 tables, 0 without RLS, 0 without FORCE RLS,
+-- 40 policies, and 0 tables with no policy. (If you applied the older profile-policy file
+-- only, expect 3 policies and a nonzero unexpected_policy_count.)
 with academy_tables as (
   select c.relname, c.relrowsecurity, c.relforcerowsecurity
   from pg_class c join pg_namespace n on n.oid=c.relnamespace
@@ -18,11 +19,8 @@ select
   (select count(*) from academy_tables where not relrowsecurity) as missing_rls,
   (select count(*) from academy_tables where not relforcerowsecurity) as missing_force_rls,
   (select count(*) from academy_policies) as policy_count,
-  (select count(*) from academy_policies
-     where policyname not in (
-       'academy_staff_self_select',
-       'academy_learner_self_select',
-       'academy_guardian_self_select'
-     )) as unexpected_policy_count;
+  (select count(*) from academy_tables t
+     where not exists (select 1 from academy_policies p where p.tablename=t.relname)) as tables_without_policy,
+  (select count(*) from academy_policies where roles::text like '%anon%' or roles::text like '%public%') as anon_or_public_policies;
 -- WARNING: This query checks schema configuration, not actual user authorization.
 -- Full multi-user RLS and child-data privacy tests are still mandatory.

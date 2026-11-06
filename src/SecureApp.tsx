@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import LiveApp from './live/LiveApp';
 
 type AcademyRole = 'admin' | 'teacher' | 'finance' | 'learner' | 'guardian';
 type GateState = 'checking' | 'signed-out' | 'set-password' | 'verified' | 'not-enrolled' | 'error';
@@ -111,6 +112,10 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
     if (error) setMessage('Unable to sign out. Please try again.');
     else { setInviteFlow(false); setState('signed-out'); setRole(null); setMessage(''); }
     setWorking(false);
+  }
+
+  if (state === 'verified' && role) {
+    return <LiveApp client={client} role={role} email={userEmail} onSignOut={() => void signOut()} />;
   }
 
   return <main className="auth-shell">

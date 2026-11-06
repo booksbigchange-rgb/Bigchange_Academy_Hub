@@ -27,7 +27,6 @@ chk "guardian sees only own child" $G1 "select count(*) from academy_learners" 1
 chk "guardian sees only own child's fee" $G1 "select count(*) from academy_fee_obligations" 1
 chk "guardian cannot write fees" $G1 "update academy_fee_obligations set amount_due=1" "UPDATE 0"
 chk "admin sees both learners" $A "select count(*) from academy_learners" 2
-chk "finance sees both fees" $F "select count(*) from academy_fee_obligations" 2
 chk "finance cannot change classes" $F "update academy_classes set title='x'" "UPDATE 0"
 chk "teacherA records attendance in own class" $TA "insert into academy_attendance(session_id,learner_id,status,recorded_by_staff_id) values ('60000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-000000000001','present','10000000-0000-0000-0000-0000000000b1')" "INSERT 0 1"
 chk "duplicate attendance is rejected" $TA "insert into academy_attendance(session_id,learner_id,status,recorded_by_staff_id) values ('60000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-000000000001','absent','10000000-0000-0000-0000-0000000000b1')" ERR
@@ -37,21 +36,46 @@ chk "attendance cannot be attributed to another staff" $TB "insert into academy_
 chk "learner cannot edit attendance" $L1 "update academy_attendance set status='present'" "UPDATE 0"
 chk "guardian sees own child's attendance" $G1 "select count(*) from academy_attendance" 1
 chk "teacherB cannot see teacherA attendance" $TB "select count(*) from academy_attendance" 0
-chk "finance records payment" $F "insert into academy_external_payments(obligation_id,amount,method,recorded_by_staff_id) values ('70000000-0000-0000-0000-000000000001',500,'bank','10000000-0000-0000-0000-0000000000c1')" "INSERT 0 1"
-chk "payment cannot be pre-verified" $F "insert into academy_external_payments(obligation_id,amount,method,recorded_by_staff_id,verified_by_staff_id) values ('70000000-0000-0000-0000-000000000001',5,'bank','10000000-0000-0000-0000-0000000000c1','10000000-0000-0000-0000-0000000000c1')" ERR
-chk "finance cannot verify payments" $F "update academy_external_payments set verified_by_staff_id='10000000-0000-0000-0000-0000000000c1'" "UPDATE 0"
-chk "guardian sees own child's payment" $G1 "select count(*) from academy_external_payments" 1
-chk "teacher cannot see payments" $TA "select count(*) from academy_external_payments" 0
-chk "payments cannot be deleted" $A "delete from academy_external_payments" ERR
-chk "fee status overdue (past month, partial paid)" $F "select status from academy_fee_status where period='2020-01'" overdue
-chk "fee status unpaid (future month)" $F "select status from academy_fee_status where period='2099-01'" unpaid
-chk "guardian fee view limited to own child" $G1 "select count(*) from academy_fee_status" 1
-chk "duplicate fee month rejected" $F "insert into academy_fee_obligations(learner_id,term,amount_due,period) values ('20000000-0000-0000-0000-000000000001','t',1,'2020-01')" ERR
 chk "audit visible to admin only" $F "select count(*) from academy_audit_events" 0
-chk "audit has payment + attendance rows for admin" $A "select count(*)>=2 from academy_audit_events" t
 chk "audit rows cannot be altered by admin" $A "update academy_audit_events set action='x'" ERR
 chk "teacher cannot enroll" $TA "insert into academy_enrollments values ('50000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-000000000002')" ERR
 chk "teacher cannot change own role" $TA "update academy_staff set role='admin'" ERR
 chk "admin can enroll" $A "insert into academy_enrollments values ('50000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-000000000002')" "INSERT 0 1"
 [ -n "${VERBOSE:-}" ] && true
+F1=70000000-0000-0000-0000-000000000001
+chk "finance sees both fee rows" $F "select count(*) from academy_fee_obligations" 2
+chk "guardian sees only own child's fee" $G1 "select count(*) from academy_fee_obligations" 1
+chk "overdue: past quarter not approved paid" $F "select status from academy_fee_status where period='2020-01'" overdue
+chk "unpaid: future quarter" $F "select status from academy_fee_status where period='2099-01'" unpaid
+chk "duplicate fee for same student/course/quarter rejected" $F "insert into academy_fee_obligations(learner_id,course_id,term,amount_due,period) values ('20000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000001','x',100,'2020-01')" ERR
+chk "fee period must start a quarter" $F "insert into academy_fee_obligations(learner_id,course_id,term,amount_due,period) values ('20000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000001','x',100,'2026-02')" ERR
+chk "finance cannot insert a pre-approved fee" $F "insert into academy_fee_obligations(learner_id,course_id,term,amount_due,period,approved_status,recorded_status) values ('20000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000001','x',100,'2026-07','paid','paid')" ERR
+chk "finance records paid" $F "update academy_fee_obligations set recorded_status='paid' where id='$F1'" "UPDATE 1"
+chk "recording is attributed to finance staff" $F "select recorded_by_staff_id='10000000-0000-0000-0000-0000000000c1' from academy_fee_obligations where id='$F1'" t
+chk "finance cannot approve" $F "update academy_fee_obligations set approved_status='paid' where id='$F1'" ERR
+chk "finance cannot change the amount" $F "update academy_fee_obligations set amount_due=1 where id='$F1'" ERR
+chk "status still overdue until admin approves" $F "select status from academy_fee_status where obligation_id='$F1'" overdue
+chk "admin cannot approve a status finance did not record" $A "update academy_fee_obligations set approved_status='partial' where id='$F1'" ERR
+chk "admin approves what finance recorded" $A "update academy_fee_obligations set approved_status='paid' where id='$F1'" "UPDATE 1"
+chk "approval attributed to admin" $A "select approved_by_staff_id='10000000-0000-0000-0000-0000000000a1' from academy_fee_obligations where id='$F1'" t
+chk "approved paid shows as paid" $F "select status from academy_fee_status where obligation_id='$F1'" paid
+chk "guardian sees approved paid for own child" $G1 "select status from academy_fee_status" paid
+chk "teacherA sees status for own student/course via RPC" $TA "select status from academy_teacher_fee_status() where learner_id='20000000-0000-0000-0000-000000000001'" paid
+chk "teacherB sees no status for other teacher's student" $TB "select count(*) from academy_teacher_fee_status() where learner_id='20000000-0000-0000-0000-000000000001'" 0
+chk "teacher cannot read fee table directly" $TA "select count(*) from academy_fee_obligations" 0
+chk "teacher cannot update fees" $TA "update academy_fee_obligations set recorded_status='paid'" "UPDATE 0"
+chk "learner cannot call teacher status" $L1 "select count(*) from academy_teacher_fee_status()" 0
+chk "anon cannot call fee RPC" anon "select count(*) from academy_teacher_fee_status()" ERR
+chk "finance can read enrollments" $F "select count(*)>=2 from academy_enrollments" t
+chk "teacherA adds guardian for own student" $TA "select count(*) from (select academy_add_guardian('20000000-0000-0000-0000-000000000001','Sample Parent','new@example.com','+251911000000',true,false)) x" 1
+chk "teacher cannot add guardian for another teacher's student" $TB "select academy_add_guardian('20000000-0000-0000-0000-000000000001','Sample Parent','x@example.com',null,false,false)" ERR
+chk "finance cannot add guardians" $F "select academy_add_guardian('20000000-0000-0000-0000-000000000001','Sample Parent','y@example.com',null,false,false)" ERR
+chk "invalid phone rejected" $TA "select academy_add_guardian('20000000-0000-0000-0000-000000000001','Sample Parent',null,'0911',false,false)" ERR
+chk "contact required" $TA "select academy_add_guardian('20000000-0000-0000-0000-000000000001','Sample Parent',null,null,false,false)" ERR
+chk "teacher-added link is unverified" $TA "select count(*) from academy_guardians_for_learner('20000000-0000-0000-0000-000000000001') where not verified" 1
+chk "teacher sees no contacts for another teacher's student" $TB "select count(*) from academy_guardians_for_learner('20000000-0000-0000-0000-000000000001')" 0
+chk "teacher cannot read guardians table" $TA "select count(*) from academy_guardians" 0
+chk "same email reuses the guardian (siblings)" $A "select count(*) from (select academy_add_guardian('20000000-0000-0000-0000-000000000002','Sample Parent','NEW@example.com',null,false,false)) x" 1
+chk "no duplicate guardian was created" $A "select count(*) from academy_guardians where lower(email)='new@example.com'" 1
+chk "audit has fee, attendance and guardian events" $A "select count(distinct entity_type)>=3 from academy_audit_events" t
 echo "RLS tests: $pass passed, $fail failed"; [ $fail = 0 ]

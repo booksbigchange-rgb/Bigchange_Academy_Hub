@@ -79,3 +79,25 @@ export function attendanceSummary(records) {
   const marked = count.present + count.late + count.absent;
   return { ...count, marked, rate: marked ? Math.round(((count.present + count.late) / marked) * 100) : null };
 }
+
+/** Normalise a phone number to E.164. Accepts Ethiopian local formats (09…/07…) and international (+…). */
+export function normalizePhone(input) {
+  const raw = clean(input).replace(/[\s().-]/g, '');
+  if (!raw) return null;
+  if (/^0[79]\d{8}$/.test(raw)) return '+251' + raw.slice(1);
+  if (/^251[79]\d{8}$/.test(raw)) return '+' + raw;
+  if (/^\+[1-9]\d{7,14}$/.test(raw)) return raw;
+  throw Error('Enter the phone as 09XXXXXXXX or with country code, e.g. +2519XXXXXXXX');
+}
+
+export function validateGuardian({ name, email = '', phone = '', emailOptIn = false, whatsappOptIn = false }) {
+  const n = clean(name), e = clean(email).toLowerCase();
+  if (n.length < 2 || n.length > 80) throw Error('Enter the guardian’s name (2 to 80 characters)');
+  if (unsafe.test(n)) throw Error('Names cannot contain < or >');
+  if (e && !/^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$/.test(e)) throw Error('Enter a valid email address');
+  const p = normalizePhone(phone);
+  if (!e && !p) throw Error('Enter a phone number or an email address');
+  if (emailOptIn && !e) throw Error('Add an email address before ticking email permission');
+  if (whatsappOptIn && !p) throw Error('Add a phone number before ticking WhatsApp permission');
+  return { p_name: n, p_email: e || null, p_phone: p, p_email_opt: Boolean(emailOptIn), p_whatsapp_opt: Boolean(whatsappOptIn) };
+}

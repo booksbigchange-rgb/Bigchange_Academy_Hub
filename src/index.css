@@ -1,0 +1,14 @@
+:root {
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color: #1a1a1a;
+  background: #fafafa;
+}
+main { max-width: 32rem; margin: 3rem auto; padding: 0 1rem; }
+form { display: grid; gap: 0.5rem; }
+input, button { font: inherit; padding: 0.6rem 0.8rem; border-radius: 6px; border: 1px solid #bbb; }
+button { background: #1f5fbf; color: #fff; border: none; cursor: pointer; }
+@media (prefers-color-scheme: dark) {
+  :root { color: #eee; background: #161616; }
+  input { background: #222; color: #eee; border-color: #444; }
+}

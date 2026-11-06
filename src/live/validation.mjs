@@ -42,3 +42,40 @@ export function enrollmentProblem({ learnerId, classId, enrollments, learners })
   if (enrollments.some(e => e.class_id === classId && e.learner_id === learnerId)) return 'Already enrolled in this class';
   return '';
 }
+
+export const ATTENDANCE_STATUSES = Object.freeze(['present', 'late', 'absent', 'excused']);
+
+/** Validate a lesson date (YYYY-MM-DD, real calendar date) and time (HH:MM). Returns an ISO timestamp. */
+export function validateSession({ date, time }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) throw Error('Choose a lesson date');
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time || '')) throw Error('Choose a lesson time');
+  const when = new Date(date + 'T' + time);
+  if (Number.isNaN(when.getTime())) throw Error('Choose a valid date');
+  const check = new Date(date + 'T00:00:00Z');
+  if (Number.isNaN(check.getTime()) || check.toISOString().slice(0, 10) !== date) throw Error('Choose a valid date');
+  const year = Number(date.slice(0, 4));
+  if (year < 2020 || year > 2100) throw Error('Choose a date between 2020 and 2100');
+  return when.toISOString();
+}
+
+/** Local calendar day (YYYY-MM-DD) of an ISO timestamp. */
+export function localDay(iso) {
+  const d = new Date(iso);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/** True if the class already has a session on that local day. */
+export function duplicateSession(sessions, classId, date) {
+  return sessions.some(s => s.class_id === classId && localDay(s.starts_at) === date);
+}
+
+/**
+ * Attendance summary. Rate = (present + late) / (present + late + absent); excused and unmarked are excluded.
+ * @param {Array<{status:string}>} records
+ */
+export function attendanceSummary(records) {
+  const count = { present: 0, late: 0, absent: 0, excused: 0 };
+  for (const r of records) if (r.status in count) count[r.status]++;
+  const marked = count.present + count.late + count.absent;
+  return { ...count, marked, rate: marked ? Math.round(((count.present + count.late) / marked) * 100) : null };
+}

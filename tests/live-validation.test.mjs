@@ -27,3 +27,25 @@ test('search and enrollment guards', () => {
   assert.match(enrollmentProblem({ learnerId: 'zz', classId: 'c1', enrollments, learners }), /Choose a student/);
   assert.equal(enrollmentProblem({ learnerId: 'l1', classId: 'c2', enrollments, learners }), '');
 });
+import { validateSession, duplicateSession, attendanceSummary, localDay } from '../src/live/validation.mjs';
+test('lesson date and time validation', () => {
+  assert.match(validateSession({ date: '2026-11-10', time: '16:00' }), /^2026-11-1\d/);
+  assert.throws(() => validateSession({ date: '2026-02-30', time: '16:00' }), /valid date/);
+  assert.throws(() => validateSession({ date: '', time: '16:00' }), /date/);
+  assert.throws(() => validateSession({ date: '2026-11-10', time: '25:00' }), /time/);
+  assert.throws(() => validateSession({ date: '1999-01-01', time: '10:00' }), /2020/);
+});
+test('duplicate lesson detection is per class and local day', () => {
+  const iso = new Date('2026-11-10T16:00').toISOString();
+  const sessions = [{ id: 's1', class_id: 'c1', starts_at: iso }];
+  assert.equal(localDay(iso), '2026-11-10');
+  assert.ok(duplicateSession(sessions, 'c1', '2026-11-10'));
+  assert.ok(!duplicateSession(sessions, 'c2', '2026-11-10'));
+  assert.ok(!duplicateSession(sessions, 'c1', '2026-11-11'));
+});
+test('attendance summary excludes excused from the rate', () => {
+  const s = attendanceSummary([{ status: 'present' }, { status: 'late' }, { status: 'absent' }, { status: 'excused' }, { status: 'present' }]);
+  assert.deepEqual([s.present, s.late, s.absent, s.excused, s.marked, s.rate], [2, 1, 1, 1, 4, 75]);
+  assert.equal(attendanceSummary([]).rate, null);
+  assert.equal(attendanceSummary([{ status: 'excused' }]).rate, null);
+});

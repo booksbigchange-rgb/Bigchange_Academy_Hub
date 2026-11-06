@@ -1030,3 +1030,5 @@ footer {
 .detail-list div { display: flex; flex-wrap: wrap; gap: 8px; }
 .detail-list dt { min-width: 130px; font-weight: 600; color: var(--text-muted); }
 .detail-list dd { margin: 0; }
+.live .operations label { display: block; margin: 10px 0; }
+.live .operations input:not([type="checkbox"]), .live .operations select { display: block; margin-top: 4px; min-height: 36px; padding: 6px 10px; border: 1px solid #d8c7a4; border-radius: 8px; background: #fffaf2; font: inherit; max-width: 100%; }

@@ -2,18 +2,18 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   addClass, addCourse, addLearner, enroll, listClasses, listCourses, listEnrollments, listLearners, listStaff,
-  unenroll, updateLearner, type ClassRow, type Course, type Enrollment, type Learner, type Staff
+  unenroll, updateLearner, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
 } from './api';
-import { GRADE_LEVELS, enrollmentProblem, matchesSearch } from './validation.mjs';
+import { ATTENDANCE_STATUSES, GRADE_LEVELS, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
 
 type Role = 'admin' | 'teacher' | 'finance' | 'learner' | 'guardian';
-type Section = 'Students' | 'Courses' | 'Classes';
-type Data = { learners: Learner[]; courses: Course[]; staff: Staff[]; classes: ClassRow[]; enrollments: Enrollment[] };
-const EMPTY: Data = { learners: [], courses: [], staff: [], classes: [], enrollments: [] };
+type Section = 'Students' | 'Courses' | 'Classes' | 'Attendance';
+type Data = { learners: Learner[]; courses: Course[]; staff: Staff[]; classes: ClassRow[]; enrollments: Enrollment[]; sessions: Session[]; attendance: AttendanceRow[] };
+const EMPTY: Data = { learners: [], courses: [], staff: [], classes: [], enrollments: [], sessions: [], attendance: [] };
 
 export default function LiveApp({ client, role, email, onSignOut }: { client: SupabaseClient; role: Role; email: string; onSignOut: () => void }) {
   const isAdmin = role === 'admin';
-  const sections: Section[] = isAdmin ? ['Students', 'Courses', 'Classes'] : role === 'teacher' ? ['Students', 'Classes'] : [];
+  const sections: Section[] = isAdmin ? ['Students', 'Courses', 'Classes', 'Attendance'] : role === 'teacher' ? ['Students', 'Classes', 'Attendance'] : [];
   const [section, setSection] = useState<Section>('Students');
   const [data, setData] = useState<Data>(EMPTY);
   const [loading, setLoading] = useState(true);
@@ -22,10 +22,10 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
   const reload = useCallback(async () => {
     setLoadError('');
     try {
-      const [learners, courses, staff, classes, enrollments] = await Promise.all([
+      const [learners, courses, staff, classes, enrollments, sessions, attendance] = await Promise.all([
         listLearners(client), listCourses(client), isAdmin ? listStaff(client) : Promise.resolve([] as Staff[]),
-        listClasses(client), listEnrollments(client)]);
-      setData({ learners, courses, staff, classes, enrollments });
+        listClasses(client), listEnrollments(client), listSessions(client), listAttendance(client)]);
+      setData({ learners, courses, staff, classes, enrollments, sessions, attendance });
     } catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not load data'); }
     finally { setLoading(false); }
   }, [client, isAdmin]);
@@ -46,7 +46,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
         <nav className="crumb" aria-label="Breadcrumb">BigChange Academy <span aria-hidden="true">/</span> <span aria-current="page">{sections.length ? section : 'Account'}</span></nav>
         <div className="top-actions"><span>{email}</span> <button className="small-btn" onClick={onSignOut}>Sign out</button></div>
       </header>
-      <main className="content" id="main-content" tabIndex={-1}>
+      <main className="content live" id="main-content" tabIndex={-1}>
         <div role="note" className="notice"><strong>Live database</strong> — use test data only until the privacy and safeguarding checklist is complete. Changes are saved to the Academy database.</div>
         {!sections.length && <section className="panel"><h2>No screens yet for your role</h2>
           <p>Screens for the <strong>{role}</strong> role have not been built yet. Your account is verified, but nothing is available to you here for now.</p></section>}
@@ -56,6 +56,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
           {section === 'Students' && <Students data={data} client={client} isAdmin={isAdmin} reload={reload} />}
           {section === 'Courses' && isAdmin && <Courses data={data} client={client} reload={reload} />}
           {section === 'Classes' && <Classes data={data} client={client} isAdmin={isAdmin} reload={reload} />}
+          {section === 'Attendance' && <Attendance data={data} client={client} reload={reload} />}
         </>}
       </main>
     </div>
@@ -202,6 +203,70 @@ function Classes({ data, client, isAdmin, reload }: PanelProps & { isAdmin: bool
           {data.learners.filter(l => l.active).map(l => <option key={l.id} value={l.id}>{l.display_name}</option>)}</select></label>
         <button className="primary-btn" type="submit" disabled={busy}>+ Enroll</button></form>}
     </div>}
+    <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
+  </section>;
+}
+
+const STATUS_LABEL: Record<AttendanceStatus, string> = { present: 'Present', late: 'Late', absent: 'Absent', excused: 'Excused' };
+
+function Attendance({ data, client, reload }: PanelProps) {
+  const { message, busy, run } = useAction(reload);
+  const [classId, setClassId] = useState('');
+  const [sessionId, setSessionId] = useState('');
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('16:00');
+  const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
+  const classSessions = data.sessions.filter(s => s.class_id === classId);
+  const roster = data.enrollments.filter(e => e.class_id === classId)
+    .map(e => data.learners.find(l => l.id === e.learner_id)).filter((l): l is Learner => Boolean(l));
+  const saved = (learnerId: string) => data.attendance.find(a => a.session_id === sessionId && a.learner_id === learnerId)?.status;
+  function chooseClass(id: string) { setClassId(id); setSessionId(''); setMarks({}); }
+  function chooseSession(id: string) {
+    setSessionId(id);
+    const existing: Record<string, AttendanceStatus> = {};
+    for (const a of data.attendance) if (a.session_id === id) existing[a.learner_id] = a.status;
+    setMarks(existing);
+  }
+  async function createLesson(event: FormEvent) {
+    event.preventDefault();
+    if (duplicateSession(data.sessions, classId, date)) return void run(async () => { throw Error('This class already has a lesson on that date'); }, '');
+    await run(() => addSession(client, classId, { date, time }), 'Lesson added. Select it below to take attendance.');
+  }
+  async function save() {
+    const missing = roster.filter(l => !marks[l.id]).length;
+    if (missing) return void run(async () => { throw Error('Mark every student (' + missing + ' left) before saving'); }, '');
+    await run(() => saveAttendance(client, sessionId, marks), 'Attendance saved.');
+  }
+  const classRecords = data.attendance.filter(a => classSessions.some(s => s.id === a.session_id));
+  const overall = attendanceSummary(classRecords);
+  return <section className="panel operations" aria-label="Attendance">
+    <span className="eyebrow">ATTENDANCE</span><h2>Take and review attendance</h2>
+    {data.classes.length === 0 ? <p className="quiet">No classes available yet.</p> : <>
+      <label>Class<select value={classId} onChange={e => chooseClass(e.target.value)}><option value="">Choose a class</option>
+        {data.classes.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select></label>
+      {classId && <form className="ops-form" onSubmit={createLesson}>
+        <h3>Add a lesson</h3>
+        <label>Date<input type="date" required value={date} onChange={e => setDate(e.target.value)} /></label>
+        <label>Time<input type="time" required value={time} onChange={e => setTime(e.target.value)} /></label>
+        <button className="small-btn" type="submit" disabled={busy}>+ Add lesson</button>
+      </form>}
+      {classId && (classSessions.length === 0 ? <p className="quiet">No lessons yet for this class. Add one above.</p> :
+        <label>Lesson<select value={sessionId} onChange={e => chooseSession(e.target.value)}><option value="">Choose a lesson</option>
+          {classSessions.map(s => <option key={s.id} value={s.id}>{localDay(s.starts_at)} · {new Date(s.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</option>)}</select></label>)}
+      {sessionId && (roster.length === 0 ? <p className="quiet">No students are enrolled in this class. Enroll students under Classes first.</p> :
+        <div className="table-wrap"><table><thead><tr><th>Student</th><th>Status</th><th>Saved</th></tr></thead><tbody>
+          {roster.map(l => <tr key={l.id}><td>{l.display_name}</td>
+            <td><select aria-label={'Attendance for ' + l.display_name} value={marks[l.id] ?? ''} onChange={e => setMarks({ ...marks, [l.id]: e.target.value as AttendanceStatus })}>
+              <option value="">Not marked</option>{ATTENDANCE_STATUSES.map((st: string) => <option key={st} value={st}>{STATUS_LABEL[st as AttendanceStatus]}</option>)}</select></td>
+            <td>{saved(l.id) ? STATUS_LABEL[saved(l.id) as AttendanceStatus] : '—'}</td></tr>)}
+        </tbody></table>
+        <button className="primary-btn" type="button" disabled={busy} onClick={() => void save()}>Save attendance</button></div>)}
+      {classId && <div className="people-enroll"><h3>Class summary</h3>
+        {overall.marked + overall.excused === 0 ? <p className="quiet">No attendance recorded for this class yet.</p> :
+          <p>Present {overall.present} · Late {overall.late} · Absent {overall.absent} · Excused {overall.excused}
+            {overall.rate !== null && <> · Attendance rate <strong>{overall.rate}%</strong></>} <span className="quiet">(excused lessons are not counted)</span></p>}
+      </div>}
+    </>}
     <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
   </section>;
 }

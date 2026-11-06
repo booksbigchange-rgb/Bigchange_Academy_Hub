@@ -7,10 +7,10 @@
 BEGIN;
 DO $$
 DECLARE
-  target_email text := 'hermonbigchange@gmail.com';
+  target_email text := 'REPLACE_WITH_CONFIRMED_ADULT_TEST_EMAIL@example.com';
   target_id uuid;
 BEGIN
-  IF target_email = 'hermonbigchange@gmail.com'
+  IF target_email = 'REPLACE_WITH_CONFIRMED_ADULT_TEST_EMAIL@example.com'
       OR position('@' in target_email) = 0
   THEN RAISE EXCEPTION 'Set a specific confirmed adult test email before running'; END IF;
 

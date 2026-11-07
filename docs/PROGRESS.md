@@ -16,6 +16,7 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - Browser smoke test `tests/e2e/live-smoke.mjs` (Playwright, fake Supabase): 27/27 at first, 38/38 after the items below — admin course → student → class → enroll → attendance → guardian → fee period → report → check → approve; teacher and finance views; no horizontal scroll at 390px; no runtime errors.
 - Parent directory (admin/finance: search, pending-verification filter, verify in place), edit course title/description, rename class, per-student attendance history (admin and teacher). Browser smoke test now 38/38; 122 unit tests.
 - Self-review: fixed a guardian-contact privacy gap (migration 0004, 79/79 DB checks). Automated axe accessibility scan of all live screens: one contrast issue (breadcrumb) fixed; 50/50 browser checks incl. axe. **Owner must run migration 0004.**
+- Real project (txwremmzgnmlnklpeton) probed from this session, not signed in: all 16 tables/views and every Academy function refuse anonymous access; migration 0003 is applied. **Public sign-up is ON** — owner should turn it off. `tests/live-project-check.mjs` checks admin/teacher/finance rules on the real project with the owner's test logins (run locally).
 
 ## Remaining (needs owner input or credentials)
 1. Persistence and real auth: Supabase project key, migrations, RLS tests.

@@ -95,6 +95,15 @@ Open http://127.0.0.1:5173 and sign in. Stop with Ctrl+C. After changing `.env`,
 
 ---
 
+### 8. Check the roles on your real project (optional, test accounts only)
+In the project folder, set the test logins for this window only, then run the check. It reads, and tries a few things that must be refused; it changes nothing.
+```
+set ADMIN_EMAIL=you@example.com&& set ADMIN_PASSWORD=...
+set TEACHER_EMAIL=teacher@example.com&& set TEACHER_PASSWORD=...
+node tests/live-project-check.mjs
+```
+Close the window afterwards. Also in Supabase: **Authentication → Sign In / Providers → turn off "Allow new users to sign up"** (staff add users themselves).
+
 ## Development
 
 ```

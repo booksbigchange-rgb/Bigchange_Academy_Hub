@@ -50,7 +50,8 @@ Use a **dedicated** Supabase project for the Academy. In the project: **SQL Edit
 2. [`supabase/migrations/20261015_0001_locked_schema.sql`](supabase/migrations/20261015_0001_locked_schema.sql) — tables, everything locked.
 3. [`supabase/migrations/20261031_0002_access_rules.sql`](supabase/migrations/20261031_0002_access_rules.sql) — who may see and do what.
 4. [`supabase/migrations/20261107_0003_fees_and_guardians.sql`](supabase/migrations/20261107_0003_fees_and_guardians.sql) — parent payment periods and guardian contacts.
-5. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 15 tables, 0 missing RLS, 0 missing force RLS, 42 policies, 0 tables without policy, 0 anon/public policies.
+5. [`supabase/migrations/20261108_0004_guardian_privacy.sql`](supabase/migrations/20261108_0004_guardian_privacy.sql) — teachers cannot see a parent's contact details until an admin verifies the link.
+6. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 15 tables, 0 missing RLS, 0 missing force RLS, 42 policies, 0 tables without policy, 0 anon/public policies.
 
 Each migration is safe to run again. Do **not** run `supabase/policies/academy_profile_access.sql` (superseded by 0002).
 
@@ -101,7 +102,7 @@ npm run typecheck   # TypeScript
 npm test            # unit tests (node --test)
 npm run build       # production build
 ```
-The live screens have a browser smoke test against a fake in-memory Supabase (admin, teacher and finance flows, phone-width layout): see the header of [`tests/e2e/live-smoke.mjs`](tests/e2e/live-smoke.mjs). Database access rules have their own test against a throwaway PostgreSQL (needs PostgreSQL 16 locally; never point it at the real project): see the header of [`tests/sql/run_rls_tests.sh`](tests/sql/run_rls_tests.sh).
+The live screens have a browser smoke test against a fake in-memory Supabase (admin, teacher and finance flows, phone-width layout): see the header of [`tests/e2e/live-smoke.mjs`](tests/e2e/live-smoke.mjs); set `AXE_PATH` to an `axe.min.js` to add an accessibility scan of every screen. Database access rules have their own test against a throwaway PostgreSQL (needs PostgreSQL 16 locally; never point it at the real project): see the header of [`tests/sql/run_rls_tests.sh`](tests/sql/run_rls_tests.sh).
 
 | Path | What |
 |---|---|

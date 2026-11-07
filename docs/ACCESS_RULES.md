@@ -33,3 +33,6 @@ File: `supabase/migrations/20261107_0003_fees_and_guardians.sql` (run after 0001
 - **Guardians:** contacts via `academy_add_guardian()` (admin or the student's teacher); one guardian per phone number and per email, so a parent with several children is one record. Teacher-added links are unverified until an admin verifies; guardians see a child only when verified.
 - **Staff logins** are created in the dashboard, then `supabase/manual/provision_staff.sql` (teacher/finance) or `provision_test_admin.sql` (admin).
 - The older `academy_fee_obligations` and `academy_external_payments` tables from migration 0001 stay locked and unused. Nothing here moves money or sends messages.
+
+## Migration 0004 — guardian contact privacy
+File: `supabase/migrations/20261108_0004_guardian_privacy.sql`. Teachers see a parent's name, phone and email only once an admin has verified the link; for pending links they see "Parent (waiting for verification)". Admin and finance are unaffected. Closes a gap where a teacher could type a known phone number and read that parent's details before verification. Local DB checks: 79/79.

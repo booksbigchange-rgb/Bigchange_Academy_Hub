@@ -193,7 +193,7 @@ button, a, select, input { -webkit-tap-highlight-color: transparent; }
   background: #f4e9d8;
 }
 .crumb { color: #665b4d; font-size: 13px; font-weight: 650; }
-.crumb span { margin: 0 9px; color: #ad9267; }
+.crumb span { margin: 0 9px; color: #7d5313; }
 .top-actions { display: flex; align-items: center; gap: 17px; }
 .prototype {
   display: inline-flex;

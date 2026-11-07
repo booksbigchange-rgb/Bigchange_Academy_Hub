@@ -43,6 +43,8 @@ chk "finance cannot add guardians" $F "select academy_add_guardian('20000000-000
 chk "invalid phone rejected" $TA "select academy_add_guardian('20000000-0000-0000-0000-000000000001','Sample Parent',null,'0911',false,false)" ERR
 chk "contact required" $TA "select academy_add_guardian('20000000-0000-0000-0000-000000000001','Sample Parent',null,null,false,false)" ERR
 chk "teacher-added link is unverified" $TA "select count(*) from academy_guardians_for_learner('20000000-0000-0000-0000-000000000001') where not verified" 1
+chk "teacher sees no email/phone/name for a pending link" $TA "select count(*) from academy_guardians_for_learner('20000000-0000-0000-0000-000000000001') where not verified and (email is not null or phone_e164 is not null or display_name <> 'Parent (waiting for verification)')" 0
+chk "admin still sees pending contact details" $A "select count(*) from academy_guardians_for_learner('20000000-0000-0000-0000-000000000001') where not verified and email is not null" 1
 chk "teacher sees no contacts for another teacher's student" $TB "select count(*) from academy_guardians_for_learner('20000000-0000-0000-0000-000000000001')" 0
 chk "teacher cannot read guardians table" $TA "select count(*) from academy_guardians" 0
 chk "same email reuses the guardian (siblings)" $A "select count(*) from (select academy_add_guardian('20000000-0000-0000-0000-000000000002','Sample Parent','NEW@example.com',null,false,false)) x" 1

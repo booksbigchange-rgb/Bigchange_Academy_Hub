@@ -1,60 +1,19 @@
 /**
- * Quarterly course-fee planning. School policy (from the owner): parents pay every 3 months per course.
- * A family with exactly one course in total pays 150; a family with two or more courses pays 100 per course.
- * "Family" = the paying guardian, counted across all of that guardian's children. Payments happen outside the app.
+ * Parent payment periods. School policy (from the owner): each parent pays once per 3-month period for all of their
+ * children's courses: USD 150 if the family has one course in total, otherwise USD 100 per course. The amount is
+ * computed by the database (academy_family_fee); these constants are only for explanatory text.
+ * Payments happen outside the app; the app only tracks who reported, checked and approved them.
  */
-export const FEE_RATES = Object.freeze({ single: 150, multi: 100 });
+export const FEE_TEXT = Object.freeze({ single: 150, multi: 100, currency: 'USD' });
+export const METHODS = Object.freeze([['cash', 'Cash'], ['bank', 'Bank'], ['mobile_money', 'Mobile money'], ['other', 'Other']]);
+export const STATUS_LABEL = Object.freeze({ paid: 'Paid', partial: 'Partly paid', unpaid: 'Unpaid', overdue: 'Overdue' });
+export const STAGE_LABEL = Object.freeze({ none: 'Nothing reported', reported: 'Reported, awaiting finance check', checked: 'Checked, awaiting admin approval', approved: 'Approved' });
 
-/** First month of the quarter containing `date`, as 'YYYY-MM' (Jan/Apr/Jul/Oct). */
-export function quarterStart(date = new Date()) {
-  const m = Math.floor(date.getMonth() / 3) * 3 + 1;
-  return date.getFullYear() + '-' + String(m).padStart(2, '0');
+/** '2026-08-10' -> '10/08/2026' (day first, as the school writes dates). */
+export function formatDate(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(iso || '')) return '—';
+  return iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4);
 }
-/** '2026-10' -> '2026 Q4'. */
-export function quarterLabel(period) {
-  if (!/^\d{4}-(01|04|07|10)$/.test(period)) throw Error('Invalid quarter');
-  return period.slice(0, 4) + ' Q' + ((Number(period.slice(5)) - 1) / 3 + 1);
-}
-/** Quarters from last year to next year, newest first, for a picker. */
-export function quarterOptions(date = new Date()) {
-  const out = [];
-  for (let y = date.getFullYear() + 1; y >= date.getFullYear() - 1; y--)
-    for (const m of [10, 7, 4, 1]) out.push(y + '-' + String(m).padStart(2, '0'));
-  return out;
-}
-
-/**
- * Work out which fee rows to create for a quarter.
- * @param {{period:string, learners:Array<{id:string,active:boolean}>, links:Array<{learner_id:string,guardian_id:string,verified:boolean}>,
- *   enrollments:Array<{class_id:string,learner_id:string}>, classes:Array<{id:string,course_id:string}>,
- *   existing:Array<{learner_id:string,course_id:string|null,period:string|null}>}} input
- */
-export function planQuarterFees({ period, learners, links, enrollments, classes, existing }) {
-  const label = quarterLabel(period);
-  const courseOfClass = new Map(classes.map(c => [c.id, c.course_id]));
-  const active = new Set(learners.filter(l => l.active).map(l => l.id));
-  const payer = new Map(); // learner -> lowest-id verified guardian
-  for (const l of links) if (l.verified && (!payer.has(l.learner_id) || l.guardian_id < payer.get(l.learner_id))) payer.set(l.learner_id, l.guardian_id);
-  const pairs = new Map(); // "learner|course" -> pair
-  for (const e of enrollments) {
-    const course = courseOfClass.get(e.class_id);
-    if (course && active.has(e.learner_id)) pairs.set(e.learner_id + '|' + course, { learner_id: e.learner_id, course_id: course });
-  }
-  const skippedNoGuardian = new Set();
-  const perFamily = new Map();
-  for (const p of pairs.values()) {
-    const g = payer.get(p.learner_id);
-    if (!g) { skippedNoGuardian.add(p.learner_id); continue; }
-    p.guardian_id = g;
-    perFamily.set(g, (perFamily.get(g) ?? 0) + 1);
-  }
-  const have = new Set(existing.filter(x => x.period === period).map(x => x.learner_id + '|' + x.course_id));
-  const toCreate = [], alreadyExist = [];
-  for (const p of pairs.values()) {
-    if (!p.guardian_id) continue;
-    if (have.has(p.learner_id + '|' + p.course_id)) { alreadyExist.push(p); continue; }
-    toCreate.push({ learner_id: p.learner_id, course_id: p.course_id, guardian_id: p.guardian_id, period, term: label,
-      amount_due: perFamily.get(p.guardian_id) === 1 ? FEE_RATES.single : FEE_RATES.multi });
-  }
-  return { toCreate, alreadyExist, skippedNoGuardian: [...skippedNoGuardian], total: toCreate.reduce((s, r) => s + r.amount_due, 0) };
-}
+export const todayIso = (now = new Date()) =>
+  now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+export const usd = n => 'USD ' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });

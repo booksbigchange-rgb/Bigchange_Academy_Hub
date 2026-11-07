@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { validateClass, validateCourse, validateGuardian, validateLearner, validateSession } from './validation.mjs';
+import { validateClass, validateCourse, validateGuardian, validateLearner, validateReport, validateSession } from './validation.mjs';
 
 export type Learner = { id: string; display_name: string; active: boolean; grade_level: string | null; note: string | null };
 export type Course = { id: string; title: string; description: string | null };
@@ -96,9 +96,11 @@ export type Guardian = { id: string; display_name: string; email: string | null;
 export type GuardianLink = { learner_id: string; guardian_id: string; verified: boolean };
 export type GuardianContact = { guardian_id: string; display_name: string; email: string | null; phone_e164: string | null; email_opt_in: boolean; whatsapp_opt_in: boolean; verified: boolean };
 export type FeeStatus = 'unpaid' | 'partial' | 'paid';
-export type FeeRow = { obligation_id: string; learner_id: string; course_id: string | null; guardian_id: string | null; period: string | null; term: string; amount_due: number;
-  recorded_status: FeeStatus; approved_status: FeeStatus; status: 'unpaid' | 'partial' | 'paid' | 'overdue'; pending_approval: boolean };
-export type TeacherFee = { learner_id: string; course_id: string; period: string; status: 'unpaid' | 'partial' | 'paid' | 'overdue' };
+export type PeriodRow = { id: string; guardian_id: string; period_start: string; period_end: string; course_count: number; amount_due: number; currency_code: string;
+  reported_status: FeeStatus; paid_on: string | null; paid_method: string | null; paid_note: string | null; checked_status: FeeStatus; approved_status: FeeStatus;
+  status: 'unpaid' | 'partial' | 'paid' | 'overdue'; stage: 'none' | 'reported' | 'checked' | 'approved' };
+export type TeacherPeriod = { period_id: string; guardian_id: string; guardian_name: string; guardian_phone: string | null; period_start: string; period_end: string; amount_due: number;
+  status: PeriodRow['status']; stage: PeriodRow['stage']; reported_status: FeeStatus; paid_on: string | null; paid_method: string | null; paid_note: string | null; students: string[]; courses: string[] };
 
 export const listGuardians = (c: SupabaseClient) =>
   rows<Guardian>(c.from('academy_guardians').select('id,display_name,email,phone_e164,email_opt_in,whatsapp_opt_in').order('display_name'), 'load guardians');
@@ -107,10 +109,10 @@ export async function listLinks(c: SupabaseClient): Promise<GuardianLink[]> {
     c.from('academy_guardian_links').select('learner_id,guardian_id,verified_by_staff_id'), 'load guardian links');
   return data.map(l => ({ learner_id: l.learner_id, guardian_id: l.guardian_id, verified: l.verified_by_staff_id !== null }));
 }
-export const listFees = (c: SupabaseClient) =>
-  rows<FeeRow>(c.from('academy_fee_status').select('*').order('period', { ascending: false }), 'load fees');
-export async function teacherFees(c: SupabaseClient): Promise<TeacherFee[]> {
-  return rows<TeacherFee>(c.rpc('academy_teacher_fee_status') as unknown as PromiseLike<{ data: TeacherFee[] | null; error: { message: string; code?: string } | null }>, 'load payment status');
+export const listPeriods = (c: SupabaseClient) =>
+  rows<PeriodRow>(c.from('academy_fee_period_status').select('*').order('period_start', { ascending: false }), 'load payment periods');
+export async function teacherPeriods(c: SupabaseClient): Promise<TeacherPeriod[]> {
+  return rows<TeacherPeriod>(c.rpc('academy_teacher_fee_periods') as unknown as PromiseLike<{ data: TeacherPeriod[] | null; error: { message: string; code?: string } | null }>, 'load payment status');
 }
 export async function guardiansForLearner(c: SupabaseClient, learnerId: string): Promise<GuardianContact[]> {
   return rows<GuardianContact>(c.rpc('academy_guardians_for_learner', { p_learner: learnerId }) as unknown as PromiseLike<{ data: GuardianContact[] | null; error: { message: string; code?: string } | null }>, 'load guardian contacts');
@@ -130,22 +132,36 @@ export async function verifyLink(c: SupabaseClient, learnerId: string, guardianI
   if (error) fail(error, 'verify the guardian');
   if (!data?.length) throw Error('You are not allowed to verify this guardian');
 }
-export async function createFees(c: SupabaseClient, fees: Array<{ learner_id: string; course_id: string; guardian_id: string; period: string; term: string; amount_due: number }>) {
-  if (!fees.length) throw Error('There are no new fees to create');
-  const { error } = await c.from('academy_fee_obligations').insert(fees);
-  if (error) fail(error, 'create the fees');
+/** Messages raised deliberately by the database workflow rules are safe to show. */
+const WORKFLOW = /^(Not allowed|Enter|Choose|The payment|Note|This parent|Check only|Approve only|Only finance|Only an administrator|Payment period|Period details)/;
+function workflowFail(error: { message: string; code?: string }, action: string): never {
+  if (error.code === '42501') throw Error('You are not allowed to ' + action);
+  if (WORKFLOW.test(error.message)) throw Error(error.message);
+  fail(error, action);
 }
-/** Finance (or admin) records what the parent has paid; an admin must still approve it. */
-export async function recordFeeStatus(c: SupabaseClient, obligationId: string, status: FeeStatus) {
-  const { data, error } = await c.from('academy_fee_obligations').update({ recorded_status: status }).eq('id', obligationId).select('id');
-  if (error) fail(error, 'record the payment status');
-  if (!data?.length) throw Error('You are not allowed to record this payment status');
+export async function familyFee(c: SupabaseClient, guardianId: string): Promise<{ course_count: number; amount_due: number }> {
+  const { data, error } = await c.rpc('academy_family_fee', { p_guardian: guardianId });
+  if (error) workflowFail(error, 'work out the fee');
+  const row = (data as Array<{ course_count: number; amount_due: number }> | null)?.[0];
+  if (!row) throw Error('Could not work out the fee');
+  return row;
 }
-export async function approveFeeStatus(c: SupabaseClient, obligationId: string, status: FeeStatus) {
-  const { data, error } = await c.from('academy_fee_obligations').update({ approved_status: status }).eq('id', obligationId).select('id');
-  if (error) {
-    if (/Approve only|Only an administrator/.test(error.message)) throw Error(error.message);
-    fail(error, 'approve the payment status');
-  }
-  if (!data?.length) throw Error('You are not allowed to approve this payment status');
+export async function createPeriod(c: SupabaseClient, guardianId: string, start: string) {
+  const { error } = await c.rpc('academy_create_fee_period', { p_guardian: guardianId, p_start: start });
+  if (error) workflowFail(error, 'start the payment period');
+}
+/** Report what a parent paid. A form teacher of any of the parent's children, finance or admin may do this; finance then checks and an admin approves. */
+export async function reportPayment(c: SupabaseClient, periodId: string, input: { status: FeeStatus; paidOn?: string; method?: string; note?: string }, today: string, periodStart: string) {
+  const { error } = await c.rpc('academy_report_payment', { p_period: periodId, ...validateReport(input, today, periodStart) });
+  if (error) workflowFail(error, 'report this payment');
+}
+export async function checkPeriod(c: SupabaseClient, periodId: string, status: FeeStatus) {
+  const { data, error } = await c.from('academy_fee_periods').update({ checked_status: status }).eq('id', periodId).select('id');
+  if (error) workflowFail(error, 'check this payment');
+  if (!data?.length) throw Error('You are not allowed to check this payment');
+}
+export async function approvePeriod(c: SupabaseClient, periodId: string, status: FeeStatus) {
+  const { data, error } = await c.from('academy_fee_periods').update({ approved_status: status }).eq('id', periodId).select('id');
+  if (error) workflowFail(error, 'approve this payment');
+  if (!data?.length) throw Error('You are not allowed to approve this payment');
 }

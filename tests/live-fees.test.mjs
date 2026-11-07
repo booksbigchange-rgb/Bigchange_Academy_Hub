@@ -1,51 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FEE_RATES, planQuarterFees, quarterLabel, quarterStart, quarterOptions } from '../src/live/fees.mjs';
-import { normalizePhone, validateGuardian } from '../src/live/validation.mjs';
+import { formatDate, usd, todayIso } from '../src/live/fees.mjs';
+import { normalizePhone, validateGuardian, validateReport } from '../src/live/validation.mjs';
 
-test('quarters start in Jan/Apr/Jul/Oct and are labelled', () => {
-  assert.equal(quarterStart(new Date(2026, 10, 6)), '2026-10');
-  assert.equal(quarterStart(new Date(2026, 0, 1)), '2026-01');
-  assert.equal(quarterStart(new Date(2026, 5, 30)), '2026-04');
-  assert.equal(quarterLabel('2026-07'), '2026 Q3');
-  assert.throws(() => quarterLabel('2026-02'), /Invalid/);
-  assert.ok(quarterOptions(new Date(2026, 10, 6)).includes('2026-10'));
+test('dates are shown day first and money in dollars', () => {
+  assert.equal(formatDate('2026-08-10'), '10/08/2026');
+  assert.equal(formatDate(null), '—');
+  assert.equal(usd(150), 'USD 150');
+  assert.equal(usd(1200.5), 'USD 1,200.5');
+  assert.equal(todayIso(new Date(2026, 10, 7)), '2026-11-07');
 });
 
-const classes = [{ id: 'cA', course_id: 'c1' }, { id: 'cB', course_id: 'c2' }, { id: 'cC', course_id: 'c1' }];
-const learners = [{ id: 'k1', active: true }, { id: 'k2', active: true }, { id: 'k3', active: true }, { id: 'k4', active: false }];
-const v = (l, g) => ({ learner_id: l, guardian_id: g, verified: true });
-const base = { period: '2026-10', learners, classes, existing: [] };
-
-test('one child in one course pays 150', () => {
-  const p = planQuarterFees({ ...base, links: [v('k1', 'g1')], enrollments: [{ class_id: 'cA', learner_id: 'k1' }] });
-  assert.deepEqual(p.toCreate.map(r => r.amount_due), [150]);
-  assert.equal(p.total, FEE_RATES.single);
-});
-test('one child in two courses pays 100 per course', () => {
-  const p = planQuarterFees({ ...base, links: [v('k1', 'g1')], enrollments: [{ class_id: 'cA', learner_id: 'k1' }, { class_id: 'cB', learner_id: 'k1' }] });
-  assert.deepEqual(p.toCreate.map(r => r.amount_due), [100, 100]);
-});
-test('two children, one course each, same parent: 100 each', () => {
-  const p = planQuarterFees({ ...base, links: [v('k1', 'g1'), v('k2', 'g1')], enrollments: [{ class_id: 'cA', learner_id: 'k1' }, { class_id: 'cA', learner_id: 'k2' }] });
-  assert.deepEqual(p.toCreate.map(r => r.amount_due), [100, 100]);
-});
-test('separate families are priced separately', () => {
-  const p = planQuarterFees({ ...base, links: [v('k1', 'g1'), v('k2', 'g2')], enrollments: [{ class_id: 'cA', learner_id: 'k1' }, { class_id: 'cA', learner_id: 'k2' }] });
-  assert.deepEqual(p.toCreate.map(r => r.amount_due), [150, 150]);
-});
-test('two classes of the same course count once; inactive and unverified are skipped; existing fees are not repeated', () => {
-  const enrollments = [{ class_id: 'cA', learner_id: 'k1' }, { class_id: 'cC', learner_id: 'k1' }, { class_id: 'cA', learner_id: 'k4' }, { class_id: 'cA', learner_id: 'k3' }];
-  const links = [v('k1', 'g1'), v('k4', 'g4'), { learner_id: 'k3', guardian_id: 'g3', verified: false }];
-  const p = planQuarterFees({ ...base, links, enrollments });
-  assert.equal(p.toCreate.length, 1);
-  assert.deepEqual(p.skippedNoGuardian, ['k3']);
-  const again = planQuarterFees({ ...base, links, enrollments, existing: [{ learner_id: 'k1', course_id: 'c1', period: '2026-10' }] });
-  assert.equal(again.toCreate.length, 0);
-  assert.equal(again.alreadyExist.length, 1);
-  const other = planQuarterFees({ ...base, links, enrollments, existing: [{ learner_id: 'k1', course_id: 'c1', period: '2026-07' }] });
-  assert.equal(other.toCreate.length, 1);
+test('payment report validation mirrors the database rules', () => {
+  const today = '2026-11-07';
+  assert.deepEqual(validateReport({ status: 'paid', paidOn: '2026-11-01', method: 'cash', note: ' ref 9 ' }, today, '2026-08-10'),
+    { p_status: 'paid', p_paid_on: '2026-11-01', p_method: 'cash', p_note: 'ref 9' });
+  assert.deepEqual(validateReport({ status: 'unpaid' }, today), { p_status: 'unpaid', p_paid_on: null, p_method: null, p_note: null });
+  assert.throws(() => validateReport({ status: 'paid', method: 'cash' }, today), /date the parent paid/);
+  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-11-08', method: 'cash' }, today), /future/);
+  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-11-01' }, today), /how the parent paid/);
+  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-06-01', method: 'bank' }, today, '2026-08-10'), /too far before/);
+  assert.throws(() => validateReport({ status: 'partial', paidOn: '2026-11-01', method: 'wire' }, today), /how the parent paid/);
+  assert.throws(() => validateReport({ status: 'weird' }, today), /unpaid, partly paid or paid/);
+  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-11-01', method: 'cash', note: '<b>' }, today), /cannot contain/);
 });
 
 test('phone and guardian validation', () => {
@@ -68,7 +46,10 @@ test('migration 0003 keeps functions locked down and approval admin-only', () =>
   assert.ok(defs.length >= 5);
   for (const d of defs) if (/security definer/i.test(d)) assert.match(d, /set search_path = ''/);
   assert.match(code, /revoke execute on function public\.academy_add_guardian[\s\S]*from public, anon;/);
-  assert.match(code, /Only an administrator can approve payment status/);
+  assert.match(code, /Only an administrator can approve a payment/);
+  assert.match(code, /currency_code = 'USD'/);
+  assert.match(code, /course_count integer not null check \(course_count >= 1\)/);
+  assert.doesNotMatch(code, /create policy \w+ on public\.academy_fee_periods for (insert|delete)/);
   assert.doesNotMatch(code, /user_metadata|service_role|using\s*\(\s*true\s*\)/i);
   assert.match(code, /security_invoker = true/);
 });

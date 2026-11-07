@@ -23,12 +23,13 @@ Run it yourself: create a scratch database, load the auth stubs described in the
 ## Still required before real data
 Test with separate real admin/teacher/finance/learner/guardian **test** accounts in the app; privacy and consent review; backups.
 
-## Migration 0003 — fees and guardian contacts
-File: `supabase/migrations/20261107_0003_fees_and_guardians.sql` (run after 0001 and 0002; safe to re-run). Tested locally on PostgreSQL 16 with `tests/sql/run_rls_tests.sh` (60/60).
+## Migration 0003 — parent payment periods and guardian contacts
+File: `supabase/migrations/20261107_0003_fees_and_guardians.sql` (run after 0001 and 0002; safe to re-run). Tested locally on PostgreSQL 16 with `tests/sql/run_rls_tests.sh` (77/77).
 
-- **Fees:** one row per student + course + quarter (period = first month: Jan/Apr/Jul/Oct). Rates in `src/live/fees.mjs`: 150 per course for a family with one course in total, 100 per course for families with two or more (counted across the paying guardian's children).
-- **Workflow:** finance records unpaid / partly paid / paid; only an admin can approve it (approved status must equal what finance recorded). Approved status is what the view and teachers see. Overdue = not approved as paid after the quarter ends (UTC).
-- **Teachers:** read-only status of their own students in their own courses via `academy_teacher_fee_status()`. No amounts, no contacts of other students.
-- **Guardian contacts:** `academy_add_guardian()` lets an admin or the student's teacher add a guardian (phone E.164, email, opt-in flags). A parent with the same email or phone is reused, so siblings share one guardian. Teacher-added links are unverified until an admin verifies; guardians see a child only when verified.
+- **One record per parent per 3-month period** (`academy_fee_periods`), with that parent's own start and end dates. Currency USD. The amount is computed in SQL (`academy_family_fee`): USD 150 if the family has exactly one course in total, otherwise USD 100 per course; courses are counted per child, once per course, over active children with an admin-verified link. Periods are created only through `academy_create_fee_period` (finance/admin); overlapping periods for a parent are refused.
+- **Workflow:** a form teacher of any of the parent's children (or finance/admin) reports status, payment date, method and a note via `academy_report_payment`; finance checks it; only an admin approves it. Each step must match the one before; changing the report resets the check and approval. Dates cannot be in the future.
+- **One record, every teacher:** teachers read the parent's record through `academy_teacher_fee_periods()` (only parents of their own students; their own students' and courses' names only). Teachers cannot read or update the table directly.
+- **Overdue** = not approved as paid after the period ended (UTC).
+- **Guardians:** contacts via `academy_add_guardian()` (admin or the student's teacher); one guardian per phone number and per email, so a parent with several children is one record. Teacher-added links are unverified until an admin verifies; guardians see a child only when verified.
 - **Staff logins** are created in the dashboard, then `supabase/manual/provision_staff.sql` (teacher/finance) or `provision_test_admin.sql` (admin).
-- Currency is shown as ETB. Payments happen outside the app; nothing here moves money or sends messages.
+- The older `academy_fee_obligations` and `academy_external_payments` tables from migration 0001 stay locked and unused. Nothing here moves money or sends messages.

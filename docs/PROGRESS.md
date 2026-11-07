@@ -11,7 +11,7 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - Live slice 1 (`src/live/`): after sign-in, admin gets Students (add/search/edit/deactivate), Courses, Classes (create, roster, enroll/remove); teacher gets read-only own students/classes. Tested: validation unit tests only; **not yet exercised against the real Supabase project** (network blocked here).
 
-- Live slice 2: attendance. Live slice 3: guardian contacts and quarterly fees with finance-records/admin-approves workflow, teacher read-only status (migration 0003, 60/60 local DB checks, 122 JS tests). Not yet run against the real Supabase project.
+- Live slice 2: attendance. Live slice 3: guardian contacts and parent-level 3-month payment periods in USD (teacher reports, finance checks, admin approves; migration 0003, 77/77 local DB checks, 118 JS tests). Not yet run against the real Supabase project; migration 0003 not yet applied by the owner.
 
 ## Remaining (needs owner input or credentials)
 1. Persistence and real auth: Supabase project key, migrations, RLS tests.

@@ -165,3 +165,9 @@ export async function approvePeriod(c: SupabaseClient, periodId: string, status:
   if (error) workflowFail(error, 'approve this payment');
   if (!data?.length) throw Error('You are not allowed to approve this payment');
 }
+
+export async function setClassTeacher(c: SupabaseClient, classId: string, staffId: string) {
+  const { data, error } = await c.from('academy_classes').update({ teacher_staff_id: staffId || null }).eq('id', classId).select('id');
+  if (error) fail(error, 'change the teacher');
+  if (!data?.length) throw Error('You are not allowed to change this class');
+}

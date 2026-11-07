@@ -120,3 +120,19 @@ export function validateReport({ status, paidOn = '', method = '', note = '' }, 
   if (!PAYMENT_METHODS.includes(method)) throw Error('Choose how the parent paid');
   return { p_status: status, p_paid_on: paidOn, p_method: method, p_note: n || null };
 }
+
+/** Dashboard counts from already-loaded, role-filtered data. Pure. */
+export function overviewCounts({ learners, classes, guardians, links, periods, teacherPeriods, enrollments }) {
+  const active = learners.filter(l => l.active).length;
+  const pendingLinks = links.filter(l => !l.verified).length;
+  const rows = periods.length ? periods : teacherPeriods.map(p => ({ status: p.status, stage: p.stage }));
+  const unassigned = classes.filter(c => !c.teacher_staff_id).length;
+  const empty = classes.filter(c => !enrollments.some(e => e.class_id === c.id)).length;
+  return {
+    activeStudents: active, inactiveStudents: learners.length - active, classes: classes.length, guardians: guardians.length,
+    pendingLinks, unassignedClasses: unassigned, emptyClasses: empty,
+    overdue: rows.filter(r => r.status === 'overdue').length,
+    awaitingCheck: rows.filter(r => r.stage === 'reported').length,
+    awaitingApproval: rows.filter(r => r.stage === 'checked').length
+  };
+}

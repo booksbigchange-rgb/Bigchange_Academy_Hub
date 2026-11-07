@@ -17,3 +17,9 @@ export function formatDate(iso) {
 export const todayIso = (now = new Date()) =>
   now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
 export const usd = n => 'USD ' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+/** Plain-text reminder for staff to send themselves; this app never sends messages. */
+export function reminderText({ guardian, students, amount, start, end }) {
+  const who = students.length ? students.join(', ') : 'your child';
+  return `Dear ${guardian}, this is a reminder from BigChange Academy that the payment of ${usd(amount)} for ${who} for the period ${formatDate(start)} to ${formatDate(end)} is still outstanding. Payments are made outside this system. Please contact the school office if you have already paid.`;
+}

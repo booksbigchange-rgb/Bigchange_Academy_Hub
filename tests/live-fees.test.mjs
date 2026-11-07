@@ -53,3 +53,19 @@ test('migration 0003 keeps functions locked down and approval admin-only', () =>
   assert.doesNotMatch(code, /user_metadata|service_role|using\s*\(\s*true\s*\)/i);
   assert.match(code, /security_invoker = true/);
 });
+
+import { reminderText } from '../src/live/fees.mjs';
+import { overviewCounts } from '../src/live/validation.mjs';
+test('reminder text states amount, period and that payment is outside the system', () => {
+  const t = reminderText({ guardian: 'Ms A', students: ['Kid One', 'Kid Two'], amount: 200, start: '2026-08-10', end: '2026-11-10' });
+  assert.match(t, /USD 200/); assert.match(t, /10\/08\/2026 to 10\/11\/2026/); assert.match(t, /Kid One, Kid Two/); assert.match(t, /outside this system/);
+  assert.match(reminderText({ guardian: 'G', students: [], amount: 150, start: '2026-01-01', end: '2026-04-01' }), /your child/);
+});
+test('overview counts', () => {
+  const c = overviewCounts({
+    learners: [{ active: true }, { active: false }], classes: [{ id: 'a', teacher_staff_id: null }, { id: 'b', teacher_staff_id: 's' }],
+    guardians: [{}], links: [{ verified: false }, { verified: true }], enrollments: [{ class_id: 'b' }],
+    periods: [{ status: 'overdue', stage: 'reported' }, { status: 'paid', stage: 'checked' }], teacherPeriods: [] });
+  assert.deepEqual([c.activeStudents, c.inactiveStudents, c.classes, c.unassignedClasses, c.emptyClasses, c.pendingLinks, c.overdue, c.awaitingCheck, c.awaitingApproval], [1, 1, 2, 1, 1, 1, 1, 1, 1]);
+  assert.equal(overviewCounts({ learners: [], classes: [], guardians: [], links: [], enrollments: [], periods: [], teacherPeriods: [{ status: 'overdue', stage: 'none' }] }).overdue, 1);
+});

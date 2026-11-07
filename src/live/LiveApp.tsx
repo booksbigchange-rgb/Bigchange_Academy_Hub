@@ -2,22 +2,25 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   addClass, addCourse, addLearner, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
-  unenroll, updateLearner, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
+  unenroll, updateLearner, setClassTeacher, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
 } from './api';
 import { EMPTY, useAction, type Data, type PanelProps, type Role } from './shared';
 import LiveGuardians from './LiveGuardians';
 import LiveFees from './LiveFees';
+import LiveOverview from './LiveOverview';
+import LiveFamily, { LivePayments } from './LiveFamily';
 import { ATTENDANCE_STATUSES, GRADE_LEVELS, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
 
-type Section = 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees';
+type Section = 'Overview' | 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees' | 'My children' | 'My classes' | 'Payments';
 
 export default function LiveApp({ client, role, email, onSignOut }: { client: SupabaseClient; role: Role; email: string; onSignOut: () => void }) {
   const isAdmin = role === 'admin';
-  const sections: Section[] = isAdmin ? ['Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees']
-    : role === 'teacher' ? ['Students', 'Guardians', 'Classes', 'Attendance', 'Fees']
-    : role === 'finance' ? ['Fees', 'Guardians', 'Students'] : [];
+  const sections: Section[] = isAdmin ? ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees']
+    : role === 'teacher' ? ['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees']
+    : role === 'finance' ? ['Fees', 'Overview', 'Guardians', 'Students']
+    : role === 'guardian' ? ['My children', 'Payments'] : role === 'learner' ? ['My classes'] : [];
   const isFinance = role === 'finance';
-  const [section, setSection] = useState<Section>(role === 'finance' ? 'Fees' : 'Students');
+  const [section, setSection] = useState<Section>(sections[0] ?? 'Overview');
   const [data, setData] = useState<Data>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -31,7 +34,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
         listClasses(client), listEnrollments(client), listSessions(client), listAttendance(client),
         staffView ? listGuardians(client) : Promise.resolve([] as Guardian[]),
         staffView ? listLinks(client) : Promise.resolve([] as GuardianLink[]),
-        staffView ? listPeriods(client) : Promise.resolve([] as PeriodRow[]),
+        staffView || role === 'guardian' ? listPeriods(client) : Promise.resolve([] as PeriodRow[]),
         role === 'teacher' ? teacherPeriods(client) : Promise.resolve([] as TeacherPeriod[])]);
       setData({ learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriods: teacherPeriodRows });
     } catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not load data'); }
@@ -61,6 +64,9 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
         {sections.length > 0 && loading && <p role="status">Loading…</p>}
         {sections.length > 0 && loadError && <p className="ops-feedback" role="alert">{loadError} <button className="small-btn" onClick={() => void reload()}>Retry</button></p>}
         {sections.length > 0 && !loading && !loadError && <>
+          {section === 'Overview' && <LiveOverview data={data} role={role} go={s => setSection(s as Section)} />}
+          {(section === 'My children' || section === 'My classes') && <LiveFamily data={data} role={role} />}
+          {section === 'Payments' && <LivePayments data={data} />}
           {section === 'Students' && <Students data={data} client={client} isAdmin={isAdmin} reload={reload} />}
           {section === 'Courses' && isAdmin && <Courses data={data} client={client} reload={reload} />}
           {section === 'Classes' && <Classes data={data} client={client} isAdmin={isAdmin} reload={reload} />}
@@ -185,7 +191,9 @@ function Classes({ data, client, isAdmin, reload }: PanelProps & { isAdmin: bool
     </form>}
     {data.classes.length === 0 ? <p className="quiet">{isAdmin ? 'No classes yet.' : 'You have no classes assigned yet.'}</p> :
       <div className="table-wrap"><table><thead><tr><th>Class</th><th>Course</th><th>Teacher</th><th>Students</th><th>Roster</th></tr></thead><tbody>
-        {data.classes.map(c => <tr key={c.id}><td>{c.title}</td><td>{course(c.course_id)}</td><td>{teacher(c.teacher_staff_id)}</td>
+        {data.classes.map(c => <tr key={c.id}><td>{c.title}</td><td>{course(c.course_id)}</td><td>{isAdmin ? <select aria-label={'Teacher for ' + c.title} value={c.teacher_staff_id ?? ''} disabled={busy}
+            onChange={e => void run(() => setClassTeacher(client, c.id, e.target.value), 'Teacher updated.')}><option value="">Unassigned</option>
+            {teachers.map(t => <option key={t.id} value={t.id}>{t.display_name ?? 'Unnamed teacher'}</option>)}</select> : teacher(c.teacher_staff_id)}</td>
           <td>{data.enrollments.filter(e => e.class_id === c.id).length}</td>
           <td><button className="small-btn" onClick={() => setOpenId(c.id === openId ? '' : c.id)}>{c.id === openId ? 'Hide' : 'View'}</button></td></tr>)}
       </tbody></table></div>}

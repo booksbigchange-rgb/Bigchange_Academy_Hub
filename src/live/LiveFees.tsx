@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { approvePeriod, checkPeriod, createPeriod, familyFee, reportPayment, type FeeStatus } from './api';
-import { FEE_TEXT, METHODS, STAGE_LABEL, STATUS_LABEL, formatDate, todayIso, usd } from './fees.mjs';
+import { FEE_TEXT, METHODS, STAGE_LABEL, STATUS_LABEL, formatDate, reminderText, todayIso, usd } from './fees.mjs';
 import { useAction, type PanelProps, type Role } from './shared';
 
 const tagClass = (s: string) => 'tag ' + (s === 'paid' ? 'green' : s === 'overdue' ? 'red' : 'amber');
@@ -62,6 +62,7 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
   const [guardianId, setGuardianId] = useState('');
   const [start, setStart] = useState(todayIso());
   const [preview, setPreview] = useState('');
+  const [note, setNote] = useState('');
   const guardian = (id: string) => data.guardians.find(g => g.id === id);
   const info = useMemo(() => {
     const map = new Map<string, { students: string[]; courses: string[] }>();
@@ -83,6 +84,12 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
   const rows = data.periods.filter(p => filter === 'all' || p.status === filter || (filter === 'review' && p.stage === 'reported') || (filter === 'approval' && p.stage === 'checked'));
   const eligible = data.guardians.filter(g => data.links.some(l => l.guardian_id === g.id && l.verified));
 
+  async function copyReminder(p: (typeof data.periods)[number]) {
+    const g = guardian(p.guardian_id);
+    const text = reminderText({ guardian: g?.display_name ?? 'Parent', students: info.get(p.guardian_id)?.students ?? [], amount: p.amount_due, start: p.period_start, end: p.period_end });
+    try { await navigator.clipboard.writeText(text); setNote('Reminder for ' + (g?.display_name ?? 'the parent') + ' copied. Nothing was sent; paste it into your own message.'); }
+    catch { setNote('Copying was blocked by the browser. Nothing was sent.'); }
+  }
   async function showFee() {
     setPreview('');
     try { const f = await familyFee(client, guardianId); setPreview(f.course_count + ' course' + (f.course_count === 1 ? '' : 's') + ' in total → ' + usd(f.amount_due) + ' for this 3-month period.'); }
@@ -119,11 +126,12 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
           <td><span className={tagClass(p.status)}>{label(STATUS_LABEL, p.status)}</span><br /><small>{label(STAGE_LABEL, p.stage)}</small></td>
           <td><button className="small-btn" onClick={() => setOpen({ id: p.id, periodStart: p.period_start, status: p.reported_status, paidOn: p.paid_on, method: p.paid_method, note: p.paid_note, title: g?.display_name ?? 'Parent' })}>Report</button>
             {p.stage === 'reported' && <> <button className="small-btn" disabled={busy} onClick={() => void run(() => checkPeriod(client, p.id, p.reported_status), 'Checked. An administrator can now approve it.')}>Check “{label(STATUS_LABEL, p.reported_status)}”</button></>}
+            {p.status === 'overdue' && <> <button className="small-btn" type="button" onClick={() => void copyReminder(p)}>Copy reminder</button>{g && !g.email_opt_in && !g.whatsapp_opt_in && <small> (no contact permission recorded)</small>}</>}
             {p.stage === 'checked' && role === 'admin' && <> <button className="small-btn" disabled={busy} onClick={() => void run(() => approvePeriod(client, p.id, p.checked_status), 'Approved.')}>Approve “{label(STATUS_LABEL, p.checked_status)}”</button></>}
           </td></tr>; })}
       </tbody></table></div>}
     {open && <ReportForm key={open.id} target={open} busy={busy} onCancel={() => setOpen(null)}
       onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart), 'Payment reported. It now needs a finance check.')) setOpen(null); }} />}
-    <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
+    <p className="ops-feedback" role="status" aria-live="polite">{message || note}</p>
   </section>;
 }

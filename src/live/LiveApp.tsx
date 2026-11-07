@@ -2,14 +2,14 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   addClass, addCourse, addLearner, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
-  unenroll, updateLearner, setClassTeacher, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
+  unenroll, updateLearner, setClassTeacher, updateCourse, renameClass, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
 } from './api';
 import { EMPTY, useAction, type Data, type PanelProps, type Role } from './shared';
 import LiveGuardians from './LiveGuardians';
 import LiveFees from './LiveFees';
 import LiveOverview from './LiveOverview';
 import LiveFamily, { LivePayments } from './LiveFamily';
-import { ATTENDANCE_STATUSES, GRADE_LEVELS, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
+import { ATTENDANCE_STATUSES, GRADE_LEVELS, studentHistory, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
 
 type Section = 'Overview' | 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees' | 'My children' | 'My classes' | 'Payments';
 
@@ -89,6 +89,7 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
   const [editName, setEditName] = useState('');
   const [editGrade, setEditGrade] = useState('');
   const [editNote, setEditNote] = useState('');
+  const [historyId, setHistoryId] = useState('');
   const shown = data.learners.filter(l => matchesSearch(l.display_name, search));
   const editing = data.learners.find(l => l.id === editId);
   const classCount = (id: string) => data.enrollments.filter(e => e.learner_id === id).length;
@@ -112,11 +113,13 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
     </form>}
     <label>Search students<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name" /></label>
     {shown.length === 0 ? <p className="quiet">{data.learners.length === 0 ? (isAdmin ? 'No students yet. Add the first one above.' : 'No students are in your classes yet.') : 'No students match your search.'}</p> :
-      <div className="table-wrap"><table><thead><tr><th>Name</th><th>Grade</th><th>Status</th><th>Classes</th>{isAdmin && <th>Action</th>}</tr></thead><tbody>
+      <div className="table-wrap"><table><thead><tr><th>Name</th><th>Grade</th><th>Status</th><th>Classes</th><th>Action</th></tr></thead><tbody>
         {shown.map(l => <tr key={l.id}><td>{l.display_name}</td><td>{l.grade_level ?? '—'}</td>
           <td><span className={'tag ' + (l.active ? 'green' : 'amber')}>{l.active ? 'Active' : 'Inactive'}</span></td><td>{classCount(l.id)}</td>
-          {isAdmin && <td><button className="small-btn" onClick={() => startEdit(l)}>Edit</button></td>}</tr>)}
+          <td><button className="small-btn" onClick={() => setHistoryId(historyId === l.id ? '' : l.id)}>{historyId === l.id ? 'Hide history' : 'Attendance'}</button>
+            {isAdmin && <> <button className="small-btn" onClick={() => startEdit(l)}>Edit</button></>}</td></tr>)}
       </tbody></table></div>}
+    {historyId && <History name={data.learners.find(l => l.id === historyId)?.display_name ?? ''} {...studentHistory(historyId, data)} />}
     {isAdmin && editing && <form className="ops-form" onSubmit={save}>
       <h3>Edit {editing.display_name}</h3>
       <label>Name<input required maxLength={80} value={editName} onChange={e => setEditName(e.target.value)} /></label>
@@ -136,9 +139,16 @@ function Courses({ data, client, reload }: PanelProps) {
   const { message, busy, run } = useAction(reload);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [editId, setEditId] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
   async function create(event: FormEvent) {
     event.preventDefault();
     if (await run(() => addCourse(client, { title, description }), 'Course added.')) { setTitle(''); setDescription(''); }
+  }
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    if (await run(() => updateCourse(client, editId, { title: editTitle, description: editDescription }), 'Course updated.')) setEditId('');
   }
   return <section className="panel operations" aria-label="Courses">
     <span className="eyebrow">COURSES</span><h2>Courses ({data.courses.length})</h2>
@@ -148,8 +158,16 @@ function Courses({ data, client, reload }: PanelProps) {
       <button className="primary-btn" type="submit" disabled={busy}>+ Add course</button>
     </form>
     {data.courses.length === 0 ? <p className="quiet">No courses yet. Add one to start creating classes.</p> :
-      <div className="table-wrap"><table><thead><tr><th>Title</th><th>Description</th></tr></thead><tbody>
-        {data.courses.map(c => <tr key={c.id}><td>{c.title}</td><td>{c.description ?? '—'}</td></tr>)}</tbody></table></div>}
+      <div className="table-wrap"><table><thead><tr><th>Title</th><th>Description</th><th>Action</th></tr></thead><tbody>
+        {data.courses.map(c => <tr key={c.id}><td>{c.title}</td><td>{c.description ?? '—'}</td>
+          <td><button className="small-btn" onClick={() => { setEditId(c.id); setEditTitle(c.title); setEditDescription(c.description ?? ''); }}>Edit</button></td></tr>)}</tbody></table></div>}
+    {editId && <form className="ops-form" onSubmit={save}>
+      <h3>Edit course</h3>
+      <label>New course title<input required maxLength={80} value={editTitle} onChange={e => setEditTitle(e.target.value)} /></label>
+      <label>New description<input maxLength={300} value={editDescription} onChange={e => setEditDescription(e.target.value)} /></label>
+      <button className="primary-btn" type="submit" disabled={busy}>Save course</button>
+      <button className="text-btn" type="button" onClick={() => setEditId('')}>Close</button>
+    </form>}
     <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
   </section>;
 }
@@ -161,6 +179,7 @@ function Classes({ data, client, isAdmin, reload }: PanelProps & { isAdmin: bool
   const [teacherId, setTeacherId] = useState('');
   const [openId, setOpenId] = useState('');
   const [learnerId, setLearnerId] = useState('');
+  const [newTitle, setNewTitle] = useState('');
   const course = (id: string) => data.courses.find(c => c.id === id)?.title ?? '—';
   const teacher = (id: string | null) => id ? (data.staff.find(s => s.id === id)?.display_name ?? 'Assigned teacher') : 'Unassigned';
   const teachers = data.staff.filter(s => s.role === 'teacher');
@@ -195,7 +214,7 @@ function Classes({ data, client, isAdmin, reload }: PanelProps & { isAdmin: bool
             onChange={e => void run(() => setClassTeacher(client, c.id, e.target.value), 'Teacher updated.')}><option value="">Unassigned</option>
             {teachers.map(t => <option key={t.id} value={t.id}>{t.display_name ?? 'Unnamed teacher'}</option>)}</select> : teacher(c.teacher_staff_id)}</td>
           <td>{data.enrollments.filter(e => e.class_id === c.id).length}</td>
-          <td><button className="small-btn" onClick={() => setOpenId(c.id === openId ? '' : c.id)}>{c.id === openId ? 'Hide' : 'View'}</button></td></tr>)}
+          <td><button className="small-btn" onClick={() => { setOpenId(c.id === openId ? '' : c.id); setNewTitle(c.title); }}>{c.id === openId ? 'Hide' : 'View'}</button></td></tr>)}
       </tbody></table></div>}
     {open && <div className="people-enroll"><h3>Roster · {open.title}</h3>
       {roster.length === 0 ? <p className="quiet">No students enrolled yet.</p> :
@@ -205,6 +224,9 @@ function Classes({ data, client, isAdmin, reload }: PanelProps & { isAdmin: bool
         <label>Enroll a student<select value={learnerId} onChange={e => setLearnerId(e.target.value)}><option value="">Choose a student</option>
           {data.learners.filter(l => l.active).map(l => <option key={l.id} value={l.id}>{l.display_name}</option>)}</select></label>
         <button className="primary-btn" type="submit" disabled={busy}>+ Enroll</button></form>}
+      {isAdmin && <form className="ops-form" onSubmit={e => { e.preventDefault(); void run(() => renameClass(client, open.id, newTitle), 'Class renamed.'); }}>
+        <label>Rename class<input required maxLength={80} value={newTitle} onChange={e => setNewTitle(e.target.value)} /></label>
+        <button className="small-btn" type="submit" disabled={busy}>Save name</button></form>}
     </div>}
     <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
   </section>;
@@ -272,4 +294,18 @@ function Attendance({ data, client, reload }: PanelProps) {
     </>}
     <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
   </section>;
+}
+
+const MARK: Record<string, string> = { present: 'Present', late: 'Late', absent: 'Absent', excused: 'Excused' };
+
+function History({ name, rows, summary }: { name: string; rows: Array<{ date: string; classTitle: string; status: string }>; summary: ReturnType<typeof attendanceSummary> }) {
+  return <div className="people-enroll" aria-label={'Attendance history for ' + name}>
+    <h3>Attendance history · {name}</h3>
+    {rows.length === 0 ? <p className="quiet">No attendance recorded yet.</p> : <>
+      <p>Present {summary.present} · Late {summary.late} · Absent {summary.absent} · Excused {summary.excused}
+        {summary.rate !== null && <> · Attendance rate <strong>{summary.rate}%</strong></>}</p>
+      <div className="table-wrap"><table><thead><tr><th>Date</th><th>Class</th><th>Mark</th></tr></thead><tbody>
+        {rows.map((r, i) => <tr key={i}><td>{r.date.slice(8, 10) + '/' + r.date.slice(5, 7) + '/' + r.date.slice(0, 4)}</td><td>{r.classTitle}</td><td>{MARK[r.status] ?? r.status}</td></tr>)}
+      </tbody></table></div></>}
+  </div>;
 }

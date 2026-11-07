@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { addGuardian, guardiansForLearner, verifyLink, type GuardianContact } from './api';
 import { useAction, type PanelProps, type Role } from './shared';
+import { parentDirectory } from './validation.mjs';
 
 export default function LiveGuardians({ data, client, role, reload }: PanelProps & { role: Role }) {
   const { message, busy, run } = useAction(reload);
@@ -14,6 +15,10 @@ export default function LiveGuardians({ data, client, role, reload }: PanelProps
   const [waOk, setWaOk] = useState(false);
   const canAdd = role === 'admin' || role === 'teacher';
   const learner = data.learners.find(l => l.id === learnerId);
+  const [dirQuery, setDirQuery] = useState('');
+  const [pendingOnly, setPendingOnly] = useState(false);
+  const directory = parentDirectory(data, dirQuery).filter(g => !pendingOnly || g.pending.length > 0);
+  const pendingTotal = data.links.filter(l => !l.verified).length;
 
   const loadContacts = useCallback(async () => {
     if (!learnerId) { setContacts([]); return; }
@@ -31,6 +36,21 @@ export default function LiveGuardians({ data, client, role, reload }: PanelProps
   return <section className="panel operations" aria-label="Guardians">
     <span className="eyebrow">GUARDIANS</span><h2>Guardian contacts</h2>
     <p className="quiet">Phone numbers and emails are personal data. Use them only for school business. This app does not send messages; it only stores contacts and whether the parent agreed.</p>
+    {(role === 'admin' || role === 'finance') && <div className="people-enroll" aria-label="All parents">
+      <h3>All parents ({data.guardians.length}){pendingTotal > 0 && <> · <span className="tag amber">{pendingTotal} link{pendingTotal === 1 ? '' : 's'} waiting for verification</span></>}</h3>
+      <label>Search parents<input type="search" value={dirQuery} onChange={e => setDirQuery(e.target.value)} placeholder="Name, phone, email or child" /></label>
+      <label><input type="checkbox" checked={pendingOnly} onChange={e => setPendingOnly(e.target.checked)} /> Only parents waiting for verification</label>
+      {directory.length === 0 ? <p className="quiet">{data.guardians.length === 0 ? 'No parents recorded yet. Choose a student below to add one.' : 'No parents match.'}</p> :
+        <div className="table-wrap"><table><thead><tr><th>Parent</th><th>Phone</th><th>Email</th><th>Permission</th><th>Children</th></tr></thead><tbody>
+          {directory.map(g => <tr key={g.id}><td>{g.display_name}</td><td>{g.phone_e164 ?? '—'}</td><td>{g.email ?? '—'}</td>
+            <td>{[g.email_opt_in && 'Email', g.whatsapp_opt_in && 'WhatsApp'].filter(Boolean).join(', ') || 'None given'}</td>
+            <td>{g.verified.map(c => c.name).join(', ')}
+              {g.pending.map(c => <span key={c.learnerId}>{g.verified.length ? ', ' : ''}{c.name} <span className="tag amber">Pending</span>
+                {role === 'admin' && <> <button className="small-btn" disabled={busy}
+                  onClick={() => void run(() => verifyLink(client, c.learnerId, g.id), 'Verified ' + g.display_name + ' for ' + c.name + '.').then(loadContacts)}>Verify</button></>}</span>)}
+              {!g.verified.length && !g.pending.length && '—'}</td></tr>)}
+        </tbody></table></div>}
+    </div>}
     {data.learners.length === 0 ? <p className="quiet">No students available yet.</p> : <>
       <label>Student<select value={learnerId} onChange={e => setLearnerId(e.target.value)}><option value="">Choose a student</option>
         {data.learners.map(l => <option key={l.id} value={l.id}>{l.display_name}</option>)}</select></label>

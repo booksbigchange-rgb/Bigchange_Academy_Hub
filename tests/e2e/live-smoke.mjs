@@ -220,6 +220,19 @@ await session(browser, db, 'admin', 1366, async page => {
   check('admin approves; status becomes Paid', await seen(page.locator('.tag.green', { hasText: 'Paid' }).first()));
   await nav(page, 'Overview');
   check('overview cards render', (await page.locator('.metric').count()) === 4);
+  await nav(page, 'Courses');
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByLabel('New course title').fill('English Level 2');
+  await page.getByRole('button', { name: 'Save course' }).click();
+  check('admin renames a course', await seen(page.getByRole('cell', { name: 'English Level 2' })));
+  await nav(page, 'Classes');
+  await page.getByRole('button', { name: 'View', exact: true }).click();
+  await page.getByLabel('Rename class').fill('Class Renamed');
+  await page.getByRole('button', { name: 'Save name' }).click();
+  check('admin renames a class', await seen(page.getByRole('cell', { name: 'Class Renamed' })));
+  await nav(page, 'Students');
+  await page.getByRole('row', { name: /Kid Test/ }).getByRole('button', { name: 'Attendance' }).click();
+  check('student attendance history shows the saved mark', await seen(page.getByRole('cell', { name: 'Present' })) && await seen(page.getByText(/Attendance rate 100%/)));
 });
 
 await session(browser, db, 'teacher', 390, async page => {
@@ -229,11 +242,30 @@ await session(browser, db, 'teacher', 390, async page => {
   await nav(page, 'Fees');
   check('teacher sees the parent payment with phone', await seen(page.getByText('+251911000000').first()));
   check('teacher has a Report payment button', await seen(page.getByRole('button', { name: 'Report payment' }).first()));
+  await nav(page, 'Guardians');
+  await page.getByRole('combobox', { name: /^Student/ }).selectOption({ label: 'Kid Test' });
+  await page.getByLabel('Guardian name').fill('Second Parent');
+  await page.getByLabel('Email', { exact: true }).fill('second@example.com');
+  await page.getByRole('button', { name: '+ Add guardian' }).click();
+  check('teacher-added parent starts as pending', await seen(page.getByText('Pending', { exact: true })));
+  check('teacher does not see the all-parents directory', (await page.getByLabel('All parents').count()) === 0);
 });
 
 await session(browser, db, 'finance', 390, async page => {
   check('finance lands on Fees', await seen(page.getByRole('heading', { name: 'Parent payment periods' })));
   check('finance has no Approve button', (await page.getByRole('button', { name: /^Approve/ }).count()) === 0);
+});
+
+await session(browser, db, 'admin', 1366, async page => {
+  await nav(page, 'Guardians');
+  check('admin sees the pending-verification count', await seen(page.getByText('1 link waiting for verification')));
+  await page.getByLabel('Only parents waiting for verification').check();
+  check('pending filter shows only the waiting parent', (await page.getByLabel('All parents').getByRole('row').count()) === 2);
+  await page.getByLabel('All parents').getByRole('button', { name: 'Verify' }).click();
+  check('admin verifies from the directory', await seen(page.getByText(/^Verified Second Parent/)));
+  await page.getByLabel('Search parents').fill('second@');
+  await page.getByLabel('Only parents waiting for verification').uncheck();
+  check('directory search by email', (await page.getByLabel('All parents').getByRole('row').count()) === 2);
 });
 
 await browser.close();

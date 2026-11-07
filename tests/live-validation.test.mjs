@@ -49,3 +49,24 @@ test('attendance summary excludes excused from the rate', () => {
   assert.equal(attendanceSummary([]).rate, null);
   assert.equal(attendanceSummary([{ status: 'excused' }]).rate, null);
 });
+import { studentHistory, parentDirectory } from '../src/live/validation.mjs';
+test('student attendance history is newest first with a summary', () => {
+  const sessions = [{ id: 's1', class_id: 'c1', starts_at: '2026-11-02T13:00:00.000Z' }, { id: 's2', class_id: 'c1', starts_at: '2026-11-04T13:00:00.000Z' }, { id: 's3', class_id: 'c2', starts_at: '2026-11-03T13:00:00.000Z' }];
+  const attendance = [{ session_id: 's1', learner_id: 'k', status: 'present' }, { session_id: 's2', learner_id: 'k', status: 'absent' }, { session_id: 's3', learner_id: 'other', status: 'late' }, { session_id: 'gone', learner_id: 'k', status: 'late' }];
+  const h = studentHistory('k', { attendance, sessions, classes: [{ id: 'c1', title: 'Maths 1' }] });
+  assert.deepEqual(h.rows.map(r => r.status), ['absent', 'present']);
+  assert.equal(h.rows[0].classTitle, 'Maths 1');
+  assert.equal(h.summary.rate, 50);
+  assert.equal(studentHistory('none', { attendance, sessions, classes: [] }).rows.length, 0);
+});
+test('parent directory groups verified and pending children and searches', () => {
+  const guardians = [{ id: 'g1', display_name: 'Almaz', phone_e164: '+251911', email: null }, { id: 'g2', display_name: 'Bereket', phone_e164: null, email: 'b@x.et' }];
+  const links = [{ guardian_id: 'g1', learner_id: 'k1', verified: true }, { guardian_id: 'g1', learner_id: 'k2', verified: false }];
+  const learners = [{ id: 'k1', display_name: 'Kid One' }, { id: 'k2', display_name: 'Kid Two' }];
+  const d = parentDirectory({ guardians, links, learners });
+  assert.deepEqual(d[0].verified.map(c => c.name), ['Kid One']);
+  assert.deepEqual(d[0].pending.map(c => c.name), ['Kid Two']);
+  assert.equal(d[1].verified.length + d[1].pending.length, 0);
+  assert.deepEqual(parentDirectory({ guardians, links, learners }, 'kid two').map(g => g.id), ['g1']);
+  assert.deepEqual(parentDirectory({ guardians, links, learners }, 'B@X').map(g => g.id), ['g2']);
+});

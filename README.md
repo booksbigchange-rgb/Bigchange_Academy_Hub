@@ -17,8 +17,8 @@ It is an independent React + TypeScript + Vite app backed by Supabase (Postgres 
 
 | Role | Screens |
 |---|---|
-| Admin | Overview · Students (add, search, edit, deactivate) · Guardians (add, verify) · Courses · Classes (create, assign teacher, roster, enroll/remove) · Attendance · Fees (start periods, report, check, **approve**) |
-| Teacher | Overview · their students · Guardians (add for their students) · their classes · Attendance (their classes) · Parent payments (**report** a payment) |
+| Admin | Overview · Students (add, search, edit, deactivate, attendance history) · Guardians (parent directory, add, verify) · Courses (add, edit) · Classes (create, rename, assign teacher, roster, enroll/remove) · Attendance · Fees (start periods, report, check, **approve**) |
+| Teacher | Overview · their students and their attendance history · Guardians (add for their students) · their classes · Attendance (their classes) · Parent payments (**report** a payment) |
 | Finance | Fees (start periods, report, **check**, copy reminders) · Overview · Guardians · Students |
 | Parent | Their verified children's classes and attendance · their payments |
 | Student | Their classes and attendance |

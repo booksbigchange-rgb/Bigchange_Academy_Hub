@@ -171,3 +171,16 @@ export async function setClassTeacher(c: SupabaseClient, classId: string, staffI
   if (error) fail(error, 'change the teacher');
   if (!data?.length) throw Error('You are not allowed to change this class');
 }
+
+export async function updateCourse(c: SupabaseClient, id: string, input: { title: string; description?: string }) {
+  const { data, error } = await c.from('academy_courses').update(validateCourse(input)).eq('id', id).select('id');
+  if (error) fail(error, 'update the course');
+  if (!data?.length) throw Error('You are not allowed to update this course');
+}
+export async function renameClass(c: SupabaseClient, id: string, title: string) {
+  const t = title.trim().replace(/\s+/g, ' ');
+  if (t.length < 2 || t.length > 80 || /[<>]/.test(t)) throw Error('Enter a class title (2 to 80 characters)');
+  const { data, error } = await c.from('academy_classes').update({ title: t }).eq('id', id).select('id');
+  if (error) fail(error, 'rename the class');
+  if (!data?.length) throw Error('You are not allowed to rename this class');
+}

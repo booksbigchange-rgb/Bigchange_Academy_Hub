@@ -136,3 +136,33 @@ export function overviewCounts({ learners, classes, guardians, links, periods, t
     awaitingApproval: rows.filter(r => r.stage === 'checked').length
   };
 }
+
+/**
+ * One student's attendance history, newest first, with a summary.
+ * @param {string} learnerId
+ * @param {{attendance:Array<{session_id:string,learner_id:string,status:string}>, sessions:Array<{id:string,class_id:string,starts_at:string}>, classes:Array<{id:string,title:string}>}} data
+ * @returns {{rows:Array<{date:string,startsAt:string,classTitle:string,status:string}>, summary:ReturnType<typeof attendanceSummary>}}
+ */
+export function studentHistory(learnerId, { attendance, sessions, classes }) {
+  const rows = attendance.filter(a => a.learner_id === learnerId).map(a => {
+    const s = sessions.find(x => x.id === a.session_id);
+    return s ? { date: localDay(s.starts_at), startsAt: s.starts_at, classTitle: classes.find(c => c.id === s.class_id)?.title ?? '—', status: a.status } : null;
+  }).filter(r => r !== null).sort((x, y) => (x.startsAt < y.startsAt ? 1 : -1));
+  return { rows, summary: attendanceSummary(rows) };
+}
+
+/**
+ * Parent directory rows with verified and pending children.
+ * @template {{id:string,display_name:string,phone_e164:string|null,email:string|null}} G
+ * @param {{guardians:G[], links:Array<{guardian_id:string,learner_id:string,verified:boolean}>, learners:Array<{id:string,display_name:string}>}} data
+ * @returns {Array<G & {verified:Array<{learnerId:string,name:string}>, pending:Array<{learnerId:string,name:string}>}>}
+ */
+export function parentDirectory({ guardians, links, learners }, query = '') {
+  const q = clean(query).toLowerCase();
+  const name = id => learners.find(l => l.id === id)?.display_name ?? 'Unknown student';
+  return guardians.map(g => ({
+    ...g,
+    verified: links.filter(l => l.guardian_id === g.id && l.verified).map(l => ({ learnerId: l.learner_id, name: name(l.learner_id) })),
+    pending: links.filter(l => l.guardian_id === g.id && !l.verified).map(l => ({ learnerId: l.learner_id, name: name(l.learner_id) }))
+  })).filter(g => !q || [g.display_name, g.phone_e164 ?? '', g.email ?? '', ...g.verified.map(c => c.name), ...g.pending.map(c => c.name)].some(t => t.toLowerCase().includes(q)));
+}

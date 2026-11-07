@@ -1,7 +1,7 @@
 name: CI — Student Hub
 on:
   push:
-    branches: [main, "feature/**"]
+    branches: [main, "feature/**", "ccr-**"]
   pull_request:
     branches: [main]
 permissions:

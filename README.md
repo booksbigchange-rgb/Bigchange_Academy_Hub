@@ -101,7 +101,7 @@ npm run typecheck   # TypeScript
 npm test            # unit tests (node --test)
 npm run build       # production build
 ```
-Database access rules have their own test against a throwaway PostgreSQL (needs PostgreSQL 16 locally; never point it at the real project): see the header of [`tests/sql/run_rls_tests.sh`](tests/sql/run_rls_tests.sh).
+The live screens have a browser smoke test against a fake in-memory Supabase (admin, teacher and finance flows, phone-width layout): see the header of [`tests/e2e/live-smoke.mjs`](tests/e2e/live-smoke.mjs). Database access rules have their own test against a throwaway PostgreSQL (needs PostgreSQL 16 locally; never point it at the real project): see the header of [`tests/sql/run_rls_tests.sh`](tests/sql/run_rls_tests.sh).
 
 | Path | What |
 |---|---|

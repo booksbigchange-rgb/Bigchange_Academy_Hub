@@ -13,6 +13,7 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - Live slice 2: attendance. Live slice 3: guardian contacts and parent-level 3-month payment periods in USD (teacher reports, finance checks, admin approves; migration 0003, 77/77 local DB checks, 118 JS tests). Not yet run against the real Supabase project; migration 0003 not yet applied by the owner.
 - Live slice 4: role Overview dashboards, read-only parent (children, attendance, payments) and student views, copy-only overdue reminder texts, admin reassigns a class teacher, `supabase/manual/link_login.sql` to attach a parent/student login to their record (tested locally). 120 JS tests pass.
+- Browser smoke test `tests/e2e/live-smoke.mjs` (Playwright, fake Supabase): 27/27 — admin course → student → class → enroll → attendance → guardian → fee period → report → check → approve; teacher and finance views; no horizontal scroll at 390px; no runtime errors.
 
 ## Remaining (needs owner input or credentials)
 1. Persistence and real auth: Supabase project key, migrations, RLS tests.

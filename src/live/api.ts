@@ -30,9 +30,23 @@ export const listClasses = (c: SupabaseClient) =>
 export const listEnrollments = (c: SupabaseClient) =>
   rows<Enrollment>(c.from('academy_enrollments').select('class_id,learner_id'), 'load enrollments');
 
-export async function addLearner(c: SupabaseClient, input: { name: string; gradeLevel?: string; note?: string }) {
-  const { error } = await c.from('academy_learners').insert(validateLearner(input));
+export async function addLearner(c: SupabaseClient, input: { name: string; gradeLevel?: string; note?: string }): Promise<string> {
+  const { data, error } = await c.from('academy_learners').insert(validateLearner(input)).select('id').single();
   if (error) fail(error, 'add the student');
+  return (data as { id: string }).id;
+}
+type GuardianInput = { name: string; email?: string; phone?: string; emailOptIn?: boolean; whatsappOptIn?: boolean };
+/**
+ * Add a student and their parent in one step. Both are validated before anything is saved. If the parent's phone or
+ * email already exists, the student is linked to that same parent (siblings share one parent record).
+ * Returns a warning if the student was saved but the parent could not be.
+ */
+export async function addLearnerWithGuardian(c: SupabaseClient, learner: { name: string; gradeLevel?: string; note?: string }, guardian: GuardianInput): Promise<string> {
+  validateLearner(learner);
+  validateGuardian(guardian);
+  const id = await addLearner(c, learner);
+  try { await addGuardian(c, id, guardian); return ''; }
+  catch (error) { return 'Student added, but the parent was not saved: ' + (error instanceof Error ? error.message : 'unknown error') + '. Add the parent under Guardians.'; }
 }
 /** RLS can silently match zero rows; treat that as "not permitted". */
 export async function updateLearner(c: SupabaseClient, id: string, input: { name: string; gradeLevel?: string; note?: string; active?: boolean }) {

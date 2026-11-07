@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  addClass, addCourse, addLearner, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
+  addClass, addCourse, addLearnerWithGuardian, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
   unenroll, updateLearner, setClassTeacher, updateCourse, renameClass, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
 } from './api';
 import { EMPTY, useAction, type Data, type PanelProps, type Role } from './shared';
@@ -85,6 +85,12 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
   const [name, setName] = useState('');
   const [grade, setGrade] = useState('');
   const [note, setNote] = useState('');
+  const [parentName, setParentName] = useState('');
+  const [parentPhone, setParentPhone] = useState('');
+  const [parentEmail, setParentEmail] = useState('');
+  const [parentEmailOk, setParentEmailOk] = useState(false);
+  const [parentWaOk, setParentWaOk] = useState(false);
+  const [warning, setWarning] = useState('');
   const [editId, setEditId] = useState('');
   const [editName, setEditName] = useState('');
   const [editGrade, setEditGrade] = useState('');
@@ -95,7 +101,13 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
   const classCount = (id: string) => data.enrollments.filter(e => e.learner_id === id).length;
   async function create(event: FormEvent) {
     event.preventDefault();
-    if (await run(() => addLearner(client, { name, gradeLevel: grade, note }), 'Student added.')) { setName(''); setGrade(''); setNote(''); }
+    setWarning('');
+    const ok = await run(async () => {
+      const problem = await addLearnerWithGuardian(client, { name, gradeLevel: grade, note },
+        { name: parentName, phone: parentPhone, email: parentEmail, emailOptIn: parentEmailOk, whatsappOptIn: parentWaOk });
+      setWarning(problem);
+    }, 'Student and parent saved.');
+    if (ok) { setName(''); setGrade(''); setNote(''); setParentName(''); setParentPhone(''); setParentEmail(''); setParentEmailOk(false); setParentWaOk(false); }
   }
   function startEdit(l: Learner) { setEditId(l.id); setEditName(l.display_name); setEditGrade(l.grade_level ?? ''); setEditNote(l.note ?? ''); }
   async function save(event: FormEvent) {
@@ -109,7 +121,15 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
       <label>Name<input required maxLength={80} value={name} onChange={e => setName(e.target.value)} /></label>
       <label>Grade level<select value={grade} onChange={e => setGrade(e.target.value)}><option value="">Not set</option>{GRADE_LEVELS.map(g => <option key={g}>{g}</option>)}</select></label>
       <label>Note (max 120)<input maxLength={120} value={note} onChange={e => setNote(e.target.value)} /></label>
+      <h3>Parent or guardian</h3>
+      <p className="quiet">If this phone or email is already recorded (for example a brother or sister is enrolled), the student is linked to the same parent.</p>
+      <label>Parent name<input required maxLength={80} value={parentName} onChange={e => setParentName(e.target.value)} /></label>
+      <label>Parent phone (09XXXXXXXX or +251…)<input type="tel" value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></label>
+      <label>Parent email<input type="email" value={parentEmail} onChange={e => setParentEmail(e.target.value)} /></label>
+      <label><input type="checkbox" checked={parentEmailOk} onChange={e => setParentEmailOk(e.target.checked)} /> Parent agreed to be emailed</label>
+      <label><input type="checkbox" checked={parentWaOk} onChange={e => setParentWaOk(e.target.checked)} /> Parent agreed to be contacted on WhatsApp</label>
       <button className="primary-btn" type="submit" disabled={busy}>+ Add student</button>
+      {warning && <p className="ops-feedback" role="alert">{warning}</p>}
     </form>}
     <label>Search students<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name" /></label>
     {shown.length === 0 ? <p className="quiet">{data.learners.length === 0 ? (isAdmin ? 'No students yet. Add the first one above.' : 'No students are in your classes yet.') : 'No students match your search.'}</p> :

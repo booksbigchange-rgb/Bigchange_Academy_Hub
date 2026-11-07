@@ -86,9 +86,9 @@ Open http://127.0.0.1:5173 and sign in. Stop with Ctrl+C. After changing `.env`,
 
 ### 7. First-day checklist (as admin, fake names)
 1. **Courses** → add a course (put levels in the name, e.g. "English Level 2").
-2. **Students** → add a student.
+2. **Students** → add a student together with the parent's name, phone and/or email (a parent already on file by phone or email is reused for siblings).
 3. **Classes** → create a class, pick the teacher, **View** → enroll the student.
-4. **Guardians** → choose the student → add the parent (phone `09XXXXXXXX` or `+251…`, email). Teacher-added parents must be **Verified** by an admin.
+4. **Guardians** → check the parent is there; add a second parent here if needed. Teacher-added parents must be **Verified** by an admin.
 5. **Fees** → choose the parent → **Show fee** → **Start period**.
 6. Teacher reports the payment → finance **Check** → admin **Approve**.
 7. **Attendance** → choose class → add lesson → mark → **Save**.

@@ -98,7 +98,7 @@ async function install(page, db, role) {
           const row = { id: uid(seq++), active: true, grade_level: null, note: null, description: null, ...r }; rows.push(row); return row;
         });
         if (created.includes(null)) return json({ code: '23505', message: 'duplicate' }, 409);
-        return json(created, 201);
+        return single ? json(created[0], 201) : json(created, 201);
       }
       if (method === 'PATCH') {
         const patch = req.postDataJSON(); const hit = filterRows(rows, url.searchParams);
@@ -158,13 +158,18 @@ await session(browser, db, 'admin', 1366, async page => {
   await page.getByRole('cell', { name: 'Course Test' }).waitFor();
   check('admin adds a course', true);
   await nav(page, 'Students');
+  await page.getByLabel('Parent name').fill('Parent Test');
   await page.getByLabel('Name', { exact: true }).fill('K');
   await page.getByRole('button', { name: '+ Add student' }).click();
   check('student name too short is rejected', await seen(page.getByText(/2 to 80/)));
   await page.getByLabel('Name', { exact: true }).fill('Kid Test');
   await page.getByRole('button', { name: '+ Add student' }).click();
+  check('student without a parent phone or email is refused', await seen(page.getByText('Enter a phone number or an email address')));
+  check('nothing was saved when the parent was invalid', (await page.getByRole('cell', { name: 'Kid Test' }).count()) === 0);
+  await page.getByLabel(/^Parent phone/).fill('0911 000 000');
+  await page.getByRole('button', { name: '+ Add student' }).click();
   await page.getByRole('cell', { name: 'Kid Test' }).waitFor();
-  check('admin adds a student', true);
+  check('admin adds a student and parent in one step', await seen(page.getByText('Student and parent saved.')));
   await page.getByLabel('Search students').fill('zzz');
   check('search filters students', await seen(page.getByText('No students match your search.')));
   await nav(page, 'Classes');
@@ -195,12 +200,9 @@ await session(browser, db, 'admin', 1366, async page => {
   await page.getByRole('button', { name: '+ Add lesson' }).click();
   check('duplicate lesson on the same day is refused', await seen(page.getByText(/already has a lesson/)));
   await nav(page, 'Guardians');
-  await page.getByLabel('Student').selectOption({ label: 'Kid Test' });
-  await page.getByLabel('Guardian name').fill('Parent Test');
-  await page.getByLabel(/^Phone/).fill('0911 000 000');
-  await page.getByRole('button', { name: '+ Add guardian' }).click();
-  await page.getByRole('cell', { name: '+251911000000' }).waitFor();
-  check('admin adds a verified guardian (phone normalised)', await seen(page.getByText('Verified', { exact: true })));
+  await page.getByRole('combobox', { name: /^Student/ }).selectOption({ label: 'Kid Test' });
+  check('the parent from the student form is linked, verified, phone normalised',
+    await seen(page.getByRole('cell', { name: '+251911000000' })) && await seen(page.getByText('Verified', { exact: true })));
   await nav(page, 'Fees');
   await page.getByRole('combobox', { name: /^Parent/ }).selectOption({ index: 1 });
   await page.getByRole('button', { name: 'Show fee' }).click();

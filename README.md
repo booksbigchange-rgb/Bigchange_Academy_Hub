@@ -124,9 +124,12 @@ The live screens have a browser smoke test against a fake in-memory Supabase (ad
 
 GitHub Actions (`.github/workflows/`) type-checks, tests and builds on every push.
 
+## Putting it online
+So teachers can use it from their own devices and invitations work, host it (free plans exist on Netlify and Cloudflare Pages): see [docs/HOSTING.md](docs/HOSTING.md). Security headers ship in `public/_headers`.
+
 ## Known limits
 - No automatic email/WhatsApp: needs a provider and recorded parent consent. Fees has a **Copy reminder** button instead.
-- Staff, parent and student logins are created in the Supabase dashboard (above), not inside the app; doing that in-app needs a small server with a secret key.
+- Staff, parent and student logins are created in the Supabase dashboard (above), not inside the app; once hosted, use Supabase **Invite user** so people set their own password.
 - The free Supabase plan pauses inactive projects; restore from the dashboard.
 - Manual testing on Chromebooks, phones and screen readers has not been done yet.
 

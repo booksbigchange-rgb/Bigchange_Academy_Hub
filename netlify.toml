@@ -1,0 +1,7 @@
+# Netlify build settings. The two VITE_ACADEMY_* values are set in the Netlify site settings, not here.
+[build]
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"

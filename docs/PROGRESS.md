@@ -18,7 +18,7 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - Self-review: fixed a guardian-contact privacy gap (migration 0004, 79/79 DB checks). Automated axe accessibility scan of all live screens: one contrast issue (breadcrumb) fixed; 50/50 browser checks incl. axe. **Owner must run migration 0004.**
 - Real project (txwremmzgnmlnklpeton) probed from this session, not signed in: all 16 tables/views and every Academy function refuse anonymous access; migration 0003 is applied. **Public sign-up is ON** — owner should turn it off. `tests/live-project-check.mjs` checks admin/teacher/finance rules on the real project with the owner's test logins (run locally).
 - Hosting prepared (not deployed): `netlify.toml`, security headers `public/_headers` (strict CSP), `docs/HOSTING.md`. Production build served with these headers passes the full browser smoke test (40/40, no CSP errors) and the demo loads cleanly.
-- Owner checklist `docs/NEXT_STEPS.md` and `docs/MERGE_PLAN.md` written. Live project check on 2026-11-08: email sign-in OFF and public sign-up ON — owner to fix (step 0 of NEXT_STEPS).
+- Owner checklist `docs/NEXT_STEPS.md` and `docs/MERGE_PLAN.md` written. Live project re-checked on 2026-11-08 after the owner's changes: email sign-in ON, public sign-up OFF.
 
 ## Remaining (needs owner input or credentials)
 1. Persistence and real auth: Supabase project key, migrations, RLS tests.

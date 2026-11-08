@@ -2,11 +2,8 @@
 
 Files are on branch `ccr-7b420966-pk4uiw`: https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub/tree/ccr-7b420966-pk4uiw
 
-## 0. URGENT — turn email sign-in back on
-Checked on 2026-11-08: in the Supabase project **email sign-in is OFF**, so nobody can log in, and **public sign-up is still ON**.
-Supabase → **Authentication → Sign In / Providers**:
-1. **Auth Providers → Email → Enable Email provider: ON** → Save.
-2. **User Signups → Allow new users to sign up: OFF** → Save. (A different switch from the Email provider.)
+## 0. Sign-in settings — done
+Verified on 2026-11-08: email sign-in ON, public sign-up OFF.
 
 ## 1. Privacy fix (if not yet run)
 SQL Editor → run `supabase/migrations/20261108_0004_guardian_privacy.sql` → expect "Success".

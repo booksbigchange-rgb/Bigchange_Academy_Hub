@@ -5,8 +5,8 @@ Files are on branch `ccr-7b420966-pk4uiw`: https://github.com/booksbigchange-rgb
 ## 0. Sign-in settings — done
 Verified on 2026-11-08: email sign-in ON, public sign-up OFF.
 
-## 1. Privacy fix (if not yet run)
-SQL Editor → run `supabase/migrations/20261108_0004_guardian_privacy.sql` → expect "Success".
+## 1. Privacy fix — done
+Owner ran migration 0004 on 2026-11-08 (confirmed when a teacher sees "Parent (waiting for verification)" for a pending parent).
 
 ## 2. Teacher test account
 1. SQL Editor: `select email, email_confirmed_at from auth.users order by created_at desc;` — find the teacher's exact email.

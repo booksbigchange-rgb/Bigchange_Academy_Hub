@@ -8,7 +8,7 @@ Verified on 2026-11-08: email sign-in ON, public sign-up OFF.
 ## 1. Privacy fix — done
 Owner ran migration 0004 on 2026-11-08 (confirmed when a teacher sees "Parent (waiting for verification)" for a pending parent).
 
-## 1b. Migrations 0005, 0006 and 0007 (your decisions)
+## 1b. Migrations 0005, 0006 and 0007 (your decisions) — done (confirmed live 2026-11-11)
 SQL Editor → run, in order, `supabase/migrations/20261109_0005_reminders_and_grace.sql`, `supabase/migrations/20261110_0006_child_periods_and_amounts.sql`, `supabase/migrations/20261111_0007_class_level_dates.sql` → each "Success". Then the verify script should show 16 tables and 43 policies.
 
 ## 2. Teacher test account

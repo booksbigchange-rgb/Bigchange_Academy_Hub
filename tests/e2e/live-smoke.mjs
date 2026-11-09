@@ -25,7 +25,7 @@ function freshDb() {
     academy_attendance: [], academy_guardian_links: [], academy_fee_period_status: []
   };
 }
-const USERS = { admin: uid(901), teacher: uid(902), finance: uid(903), guardian: uid(904) };
+const USERS = { admin: uid(901), teacher: uid(902), finance: uid(903), guardian: uid(904), learner: uid(905) };
 
 function filterRows(rows, params) {
   return rows.filter(r => [...params].every(([k, v]) => {
@@ -347,6 +347,40 @@ await session(browser, db, 'admin', 1366, async page => {
 });
 
 // Optional accessibility scan with axe-core: AXE_PATH=/path/to/axe.min.js node tests/e2e/live-smoke.mjs ...
+// Parent and student (read-only views). The parent record is linked to the guardian login; the first student to the learner login.
+const parentLogin = db.academy_guardians.find(g => g.phone_e164 === '+251911000000');
+if (parentLogin) { db.academy_guardians.find(g => g.auth_user_id === USERS.guardian).auth_user_id = null; parentLogin.auth_user_id = USERS.guardian; }
+const kid = db.academy_learners.find(l => l.display_name === 'Kid Test');
+if (kid) kid.auth_user_id = USERS.learner;
+
+await session(browser, db, 'guardian', 390, async page => {
+  const sections = await page.getByRole('navigation', { name: 'Sections' }).getByRole('button').allInnerTexts();
+  check('parent sees only My children and Payments', JSON.stringify(sections) === JSON.stringify(['My children', 'Payments']), sections.join(','));
+  check('parent sees their child, classes and attendance', await seen(page.getByRole('heading', { name: 'Kid Test' })) && await seen(page.getByText(/Attendance rate/)));
+  check('parent has no add or edit buttons', (await page.getByRole('button', { name: /^\+|Edit|Save|Report|Approve|Check/ }).count()) === 0);
+  await nav(page, 'Payments');
+  check('parent sees their payments in dollars', await seen(page.getByRole('heading', { name: 'My payments' })) && await seen(page.getByText(/USD \d+/)));
+  if (process.env.AXE_PATH) for (const name of ['My children', 'Payments']) {
+    await nav(page, name); await page.waitForTimeout(300);
+    if (process.env.SCREENSHOTS) await page.screenshot({ path: `${process.env.SCREENSHOTS}/guardian-${name.toLowerCase().replace(' ', '-')}.png` });
+    await page.addScriptTag({ path: process.env.AXE_PATH });
+    const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+    check(`axe guardian ${name}: no serious/critical issues`, v.length === 0, v.join(' | '));
+  }
+});
+
+await session(browser, db, 'learner', 1366, async page => {
+  const sections = await page.getByRole('navigation', { name: 'Sections' }).getByRole('button').allInnerTexts();
+  check('student sees only My classes', JSON.stringify(sections) === JSON.stringify(['My classes']), sections.join(','));
+  check('student sees their classes and attendance', await seen(page.getByText(/English – Level 3/)) && await seen(page.getByText(/Attendance rate/)));
+  check('student sees no payments and no edit buttons', (await page.getByText(/USD/).count()) === 0 && (await page.getByRole('button', { name: /^\+|Edit|Save|Report/ }).count()) === 0);
+  if (process.env.AXE_PATH) {
+    await page.addScriptTag({ path: process.env.AXE_PATH });
+    const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+    check('axe student My classes: no serious/critical issues', v.length === 0, v.join(' | '));
+  }
+});
+
 if (process.env.AXE_PATH) {
   // Sign-in screen (before signing in), at phone and desktop width.
   for (const width of [390, 1366]) {

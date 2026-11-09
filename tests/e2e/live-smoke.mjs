@@ -66,6 +66,7 @@ async function install(page, db, role) {
           reported_status: 'unpaid', paid_on: null, paid_method: null, paid_note: null, checked_status: 'unpaid', approved_status: 'unpaid', status: 'unpaid', stage: 'none' });
         return json(uid(seq));
       }
+      if (fn === 'academy_set_class_level') { Object.assign(db.academy_classes.find(x => x.id === a.p_class), { title: a.p_title, level_start: a.p_start, level_end: a.p_end }); return route.fulfill({ status: 204 }); }
       if (fn === 'academy_set_period_amount') { db.academy_fee_period_status.find(x => x.id === a.p_period).amount_due = a.p_amount; return route.fulfill({ status: 204 }); }
       if (fn === 'academy_create_fee_period') {
         const end = new Date(a.p_start); end.setMonth(end.getMonth() + 3);
@@ -256,6 +257,26 @@ await session(browser, db, 'admin', 1366, async page => {
   await page.getByLabel('Rename class').fill('Class Renamed');
   await page.getByRole('button', { name: 'Save name' }).click();
   check('admin renames a class', await seen(page.getByRole('cell', { name: 'Class Renamed' })));
+  // Level dates: a level that started almost 3 months ago ends in about 5 days.
+  const iso = d => d.toISOString().slice(0, 10);
+  const startDay = new Date(); startDay.setMonth(startDay.getMonth() - 3); startDay.setDate(startDay.getDate() + 5);
+  await page.getByRole('button', { name: 'View', exact: true }).click().catch(() => {});
+  const levelForm = page.getByRole('form', { name: 'Level dates' });
+  await levelForm.getByLabel('Class name').fill('English – Level 2');
+  await levelForm.getByLabel('Level starts').fill(iso(startDay));
+  await levelForm.getByRole('button', { name: 'Save level dates' }).click();
+  check('level dates saved and shown with "Ends in … days"', await seen(page.getByText(/^Ends in \d+ days$/)));
+  await nav(page, 'Overview');
+  check('overview reminds that a level ends soon', await seen(page.getByRole('heading', { name: 'Levels ending soon (1)' })));
+  await page.getByRole('button', { name: 'Write notice to parents' }).click();
+  check('notice opens with the class and its end date filled in', await seen(page.getByText(/^Dear parents, English – Level 2 finishes on .* \(English – Level 3\) starts on/)));
+  await nav(page, 'Classes');
+  await page.getByRole('button', { name: 'View', exact: true }).click().catch(() => {});
+  await page.getByRole('button', { name: 'Move to next level' }).click();
+  check('next level name suggested', (await page.getByRole('form', { name: 'Level dates' }).getByLabel('Class name').inputValue()) === 'English – Level 3');
+  await page.getByRole('button', { name: 'Move class to next level' }).click();
+  check('class moved to the next level; students stay', await seen(page.getByRole('cell', { name: 'English – Level 3' })) && await seen(page.getByText('Class moved to the next level. The same students stay enrolled.')));
+  await page.getByRole('button', { name: 'Hide', exact: true }).click().catch(() => {});
   await nav(page, 'Students');
   await page.getByRole('row', { name: /Kid Test/ }).getByRole('button', { name: 'Attendance' }).click();
   check('student attendance history shows the saved mark', await seen(page.getByRole('cell', { name: 'Present' })) && await seen(page.getByText(/Attendance rate 100%/)));
@@ -291,7 +312,7 @@ await session(browser, db, 'teacher', 390, async page => {
   await nav(page, 'Notices');
   await page.getByRole('combobox', { name: /^Class/ }).selectOption({ index: 1 });
   await page.getByLabel('Last day of this level').fill('2026-11-10');
-  check('notice says the level ends, the one-week break and the next start', await seen(page.getByText(/finishes on 10\/11\/2026\. After that there is a one-week break\. The next level starts on 18\/11\/2026/)));
+  check('notice says the level ends, the one-week break and the next start', await seen(page.getByText(/finishes on 10\/11\/2026\. After that there is a one-week break\. The next level (\(English – Level 4\) )?starts on 18\/11\/2026/)));
   const share = await page.getByRole('link', { name: 'Share on WhatsApp' }).getAttribute('href');
   check('notice opens WhatsApp to choose the class group', (share ?? '').startsWith('https://wa.me/?text=Dear%20parents'), share ?? '');
   await nav(page, 'Guardians');

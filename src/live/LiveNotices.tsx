@@ -6,18 +6,21 @@ import type { Data } from './shared';
  * Teachers write a notice for a class and share it to the class WhatsApp group (or copy it). Nothing is sent by the app:
  * WhatsApp opens and asks which chat or group to send to. Free.
  */
-export default function LiveNotices({ data }: { data: Data }) {
-  const [classId, setClassId] = useState('');
+export default function LiveNotices({ data, initialClassId = '' }: { data: Data; initialClassId?: string }) {
+  const initial = data.classes.find(c => c.id === initialClassId);
+  const [classId, setClassId] = useState(initial ? initial.id : '');
   const [kind, setKind] = useState<'end' | 'general'>('end');
-  const [endDate, setEndDate] = useState(todayIso());
-  const [nextStart, setNextStart] = useState(addDays(todayIso(), 8));
-  const [nextLevel, setNextLevel] = useState('');
+  const [endDate, setEndDate] = useState(initial?.level_end ?? todayIso());
+  const [nextStart, setNextStart] = useState(addDays(initial?.level_end ?? todayIso(), 8));
+  const [nextLevel, setNextLevel] = useState(initial ? nextLevelName(initial.title) : '');
   const [general, setGeneral] = useState('');
   const [note, setNote] = useState('');
   const cls = data.classes.find(c => c.id === classId);
   function chooseClass(id: string) {
     setClassId(id); setNote('');
-    setNextLevel(nextLevelName(data.classes.find(c => c.id === id)?.title ?? ''));
+    const c = data.classes.find(x => x.id === id);
+    setNextLevel(nextLevelName(c?.title ?? ''));
+    if (c?.level_end) chooseEnd(c.level_end);
   }
   function chooseEnd(value: string) { setEndDate(value); if (/^\d{4}-\d{2}-\d{2}$/.test(value)) setNextStart(addDays(value, 8)); }
   const text = !cls ? '' : kind === 'end'

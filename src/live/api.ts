@@ -5,7 +5,7 @@ import { validateClass, validateCourse, validateGuardian, validateLearner, valid
 export type Learner = { id: string; display_name: string; active: boolean; grade_level: string | null; note: string | null };
 export type Course = { id: string; title: string; description: string | null };
 export type Staff = { id: string; role: 'admin' | 'teacher' | 'finance'; display_name: string | null };
-export type ClassRow = { id: string; title: string; course_id: string; teacher_staff_id: string | null };
+export type ClassRow = { id: string; title: string; course_id: string; teacher_staff_id: string | null; level_start: string | null; level_end: string | null };
 export type Enrollment = { class_id: string; learner_id: string };
 
 /** Turn a database error into a short, safe message (no internals). */
@@ -36,7 +36,7 @@ export const listCourses = (c: SupabaseClient) =>
 export const listStaff = (c: SupabaseClient) =>
   pages<Staff>(() => c.from('academy_staff').select('id,role,display_name').order('display_name').order('id'), 'load staff');
 export const listClasses = (c: SupabaseClient) =>
-  pages<ClassRow>(() => c.from('academy_classes').select('id,title,course_id,teacher_staff_id').order('title').order('id'), 'load classes');
+  pages<ClassRow>(() => c.from('academy_classes').select('id,title,course_id,teacher_staff_id,level_start,level_end').order('title').order('id'), 'load classes');
 export const listEnrollments = (c: SupabaseClient) =>
   pages<Enrollment>(() => c.from('academy_enrollments').select('class_id,learner_id').order('class_id').order('learner_id'), 'load enrollments');
 
@@ -157,7 +157,7 @@ export async function verifyLink(c: SupabaseClient, learnerId: string, guardianI
   if (!data?.length) throw Error('You are not allowed to verify this guardian');
 }
 /** Messages raised deliberately by the database workflow rules are safe to show. */
-const WORKFLOW = /^(Not allowed|Enter|Choose|The payment|Note|This parent|This child|Only an administrator can change|Add a phone|Add an email|Parent not found|Unknown reminder|Check only|Approve only|Only finance|Only an administrator|Payment period|Period details)/;
+const WORKFLOW = /^(Not allowed|Enter|Choose|Class not found|The level must|A level can|The payment|Note|This parent|This child|Only an administrator can change|Add a phone|Add an email|Parent not found|Unknown reminder|Check only|Approve only|Only finance|Only an administrator|Payment period|Period details)/;
 function workflowFail(error: { message: string; code?: string }, action: string): never {
   if (error.code === '42501') throw Error('You are not allowed to ' + action);
   if (WORKFLOW.test(error.message)) throw Error(error.message);
@@ -243,4 +243,12 @@ export async function setPeriodAmount(c: SupabaseClient, periodId: string, amoun
   if (reason.trim().length < 3) throw Error('Enter a reason (3 to 200 characters)');
   const { error } = await c.rpc('academy_set_period_amount', { p_period: periodId, p_amount: amount, p_reason: reason.trim() });
   if (error) workflowFail(error, 'change the amount');
+}
+
+/** Set a class's name and current level dates (admin or the class's own teacher). Also used to move a class to its next level. */
+export async function setClassLevel(c: SupabaseClient, classId: string, title: string, start: string | null, end: string | null) {
+  if ((start === null) !== (end === null)) throw Error('Enter both the start and the end date');
+  if (start && end && end <= start) throw Error('The level must end after it starts');
+  const { error } = await c.rpc('academy_set_class_level', { p_class: classId, p_title: title, p_start: start, p_end: end });
+  if (error) workflowFail(error, 'change this class');
 }

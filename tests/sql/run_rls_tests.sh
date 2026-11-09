@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local RLS isolation test. Usage: tests/sql/run_rls_tests.sh <psql connection args>, e.g. -h /var/tmp/pgtest -p 5544 -U postgres
-# Requires a database with the auth stubs, migrations 0001–0006 applied, and an empty seed target.
+# Requires a database with the auth stubs, migrations 0001–0007 applied, and an empty seed target.
 set -u
 PSQL="psql $* -At -v ON_ERROR_STOP=0"
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -138,5 +138,16 @@ chk "email permission set" $A "select academy_set_guardian_consent('$G1ID', true
 chk "recording WhatsApp permission alone keeps email permission" $TA "select academy_set_guardian_consent('$G1ID', null, true)" ""
 chk "email permission is still on" $A "select email_opt_in and whatsapp_opt_in from academy_guardians where id='$G1ID'" t
 chk "finance records an email reminder" $F "select academy_log_reminder($CP, 'email') is not null" t
+CA=50000000-0000-0000-0000-00000000000a
+chk "teacher sets level dates for own class" $TA "select academy_set_class_level('$CA', 'English – Level 2', date '2026-08-10', date '2026-11-10')" ""
+chk "level dates are stored" $A "select title||'|'||level_start||'|'||level_end from academy_classes where id='$CA'" "English – Level 2|2026-08-10|2026-11-10"
+chk "another teacher cannot change this class" $TB "select academy_set_class_level('$CA', 'Hijack', date '2026-08-10', date '2026-11-10')" ERR
+chk "finance cannot change a class" $F "select academy_set_class_level('$CA', 'X class', date '2026-08-10', date '2026-11-10')" ERR
+chk "end must be after start" $TA "select academy_set_class_level('$CA', 'English – Level 2', date '2026-11-10', date '2026-08-10')" ERR
+chk "both dates or none" $TA "select academy_set_class_level('$CA', 'English – Level 2', date '2026-11-10', null)" ERR
+chk "teacher moves the class to the next level; students stay" $TA "select academy_set_class_level('$CA', 'English – Level 3', date '2026-11-18', date '2027-02-18')" ""
+chk "same students still enrolled after moving up" $A "select count(*) from academy_enrollments where class_id='$CA'" 1
+chk "level changes are audited" $A "select count(*) from academy_audit_events where action='SET_CLASS_LEVEL'" 2
+chk "dates cannot bypass the rules by direct update" $A "update academy_classes set level_end = level_start - 1 where id='$CA'" ERR
 chk "admin can enroll" $A "insert into academy_enrollments values ('50000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-000000000002')" "INSERT 0 1"
 echo "RLS tests: $pass passed, $fail failed"; [ $fail = 0 ]

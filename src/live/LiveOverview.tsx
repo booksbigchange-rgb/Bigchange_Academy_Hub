@@ -1,9 +1,12 @@
 import { overviewCounts } from './validation.mjs';
+import { endingText, formatDate, levelsEndingSoon } from './fees.mjs';
 import type { Data, Role } from './shared';
 
 type Card = { title: string; value: number; note: string };
 
-export default function LiveOverview({ data, role, go }: { data: Data; role: Role; go: (section: string) => void }) {
+export default function LiveOverview({ data, role, go, onWriteNotice }: { data: Data; role: Role; go: (section: string) => void; onWriteNotice?: (classId: string) => void }) {
+  const ending = role === 'admin' || role === 'teacher' ? levelsEndingSoon(data.classes) : [];
+  const noDates = data.classes.filter(c => !c.level_end).length;
   const c = overviewCounts(data);
   const cards: Card[] = role === 'admin' ? [
     { title: 'Active students', value: c.activeStudents, note: c.inactiveStudents ? c.inactiveStudents + ' inactive' : 'No inactive students' },
@@ -29,6 +32,13 @@ export default function LiveOverview({ data, role, go }: { data: Data; role: Rol
     <div className="metric-grid">{cards.map(card => <div className="metric" key={card.title}>
       <div className="metric-value">{card.value}</div><div className="metric-title">{card.title}</div><div className="metric-subtitle">{card.note}</div></div>)}</div>
     {data.learners.length === 0 && data.classes.length === 0 && <p className="quiet">Nothing has been added yet. {role === 'admin' ? 'Start with a course, then a student and a class.' : 'Ask an administrator to add classes and students.'}</p>}
+    {(role === 'admin' || role === 'teacher') && <div className="people-enroll" aria-label="Levels ending soon">
+      <h3>Levels ending soon ({ending.length})</h3>
+      {ending.length === 0 ? <p className="quiet">No level ends in the next 14 days.{noDates > 0 && ` ${noDates} class${noDates === 1 ? ' has' : 'es have'} no level dates yet — set them under Classes → View.`}</p> :
+        <ul>{ending.map(c => <li key={c.id}><strong>{c.title}</strong> — {endingText(c.daysLeft)} ({formatDate(c.level_end ?? '')}){' '}
+          <button className="small-btn" type="button" onClick={() => onWriteNotice?.(c.id)}>Write notice to parents</button></li>)}</ul>}
+      {ending.length > 0 && <p className="quiet">After the one-week break, move the class to its next level under Classes → View.</p>}
+    </div>}
     <div className="quick-actions">{next.map(([section, text]) => <button key={section} className="small-btn" onClick={() => go(section)}>{text}</button>)}</div>
   </section>;
 }

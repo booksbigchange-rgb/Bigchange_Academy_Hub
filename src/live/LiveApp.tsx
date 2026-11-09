@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   addClass, addCourse, addLearnerWithGuardian, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, listReminders, type ReminderEvent, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
-  unenroll, updateLearner, setClassTeacher, updateCourse, renameClass, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
+  unenroll, updateLearner, setClassTeacher, updateCourse, renameClass, setClassLevel, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
 } from './api';
 import { EMPTY, useAction, type Data, type PanelProps, type Role } from './shared';
 import LiveGuardians from './LiveGuardians';
 import LiveFees from './LiveFees';
 import LiveOverview from './LiveOverview';
 import LiveNotices from './LiveNotices';
+import { addMonths, daysUntil, endingText, formatDate, nextLevelPlan, todayIso } from './fees.mjs';
 import LiveFamily, { LivePayments } from './LiveFamily';
 import { ATTENDANCE_STATUSES, GRADE_LEVELS, studentHistory, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
 
@@ -22,6 +23,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
     : role === 'guardian' ? ['My children', 'Payments'] : role === 'learner' ? ['My classes'] : [];
   const isFinance = role === 'finance';
   const [section, setSection] = useState<Section>(sections[0] ?? 'Overview');
+  const [noticeClassId, setNoticeClassId] = useState('');
   const [data, setData] = useState<Data>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -66,13 +68,14 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
         {sections.length > 0 && loading && <p role="status">Loading…</p>}
         {sections.length > 0 && loadError && <p className="ops-feedback" role="alert">{loadError} <button className="small-btn" onClick={() => void reload()}>Retry</button></p>}
         {sections.length > 0 && !loading && !loadError && <>
-          {section === 'Overview' && <LiveOverview data={data} role={role} go={s => setSection(s as Section)} />}
+          {section === 'Overview' && <LiveOverview data={data} role={role} go={s => setSection(s as Section)}
+            onWriteNotice={id => { setNoticeClassId(id); setSection('Notices'); }} />}
           {(section === 'My children' || section === 'My classes') && <LiveFamily data={data} role={role} />}
           {section === 'Payments' && <LivePayments data={data} />}
-          {section === 'Notices' && <LiveNotices data={data} />}
+          {section === 'Notices' && <LiveNotices key={noticeClassId} data={data} initialClassId={noticeClassId} />}
           {section === 'Students' && <Students data={data} client={client} isAdmin={isAdmin} reload={reload} />}
           {section === 'Courses' && isAdmin && <Courses data={data} client={client} reload={reload} />}
-          {section === 'Classes' && <Classes data={data} client={client} isAdmin={isAdmin} reload={reload} />}
+          {section === 'Classes' && <Classes data={data} client={client} isAdmin={isAdmin} canEditLevels={isAdmin || role === 'teacher'} reload={reload} />}
           {section === 'Attendance' && <Attendance data={data} client={client} reload={reload} />}
           {section === 'Guardians' && <LiveGuardians data={data} client={client} role={role} reload={reload} />}
           {section === 'Fees' && <LiveFees data={data} client={client} role={role} reload={reload} />}
@@ -195,7 +198,7 @@ function Courses({ data, client, reload }: PanelProps) {
   </section>;
 }
 
-function Classes({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boolean }) {
+function Classes({ data, client, isAdmin, canEditLevels, reload }: PanelProps & { isAdmin: boolean; canEditLevels: boolean }) {
   const { message, busy, run } = useAction(reload);
   const [title, setTitle] = useState('');
   const [courseId, setCourseId] = useState('');
@@ -232,10 +235,12 @@ function Classes({ data, client, isAdmin, reload }: PanelProps & { isAdmin: bool
       <button className="primary-btn" type="submit" disabled={busy || !data.courses.length}>+ Create class</button>
     </form>}
     {data.classes.length === 0 ? <p className="quiet">{isAdmin ? 'No classes yet.' : 'You have no classes assigned yet.'}</p> :
-      <div className="table-wrap"><table><thead><tr><th>Class</th><th>Course</th><th>Teacher</th><th>Students</th><th>Roster</th></tr></thead><tbody>
+      <div className="table-wrap"><table><thead><tr><th>Class</th><th>Course</th><th>Teacher</th><th>Current level</th><th>Students</th><th>Roster</th></tr></thead><tbody>
         {data.classes.map(c => <tr key={c.id}><td>{c.title}</td><td>{course(c.course_id)}</td><td>{isAdmin ? <select aria-label={'Teacher for ' + c.title} value={c.teacher_staff_id ?? ''} disabled={busy}
             onChange={e => void run(() => setClassTeacher(client, c.id, e.target.value), 'Teacher updated.')}><option value="">Unassigned</option>
             {teachers.map(t => <option key={t.id} value={t.id}>{t.display_name ?? 'Unnamed teacher'}</option>)}</select> : teacher(c.teacher_staff_id)}</td>
+          <td>{c.level_start && c.level_end ? <>{formatDate(c.level_start)} – {formatDate(c.level_end)}
+            {daysUntil(c.level_end) <= 14 && <><br /><span className={'tag ' + (daysUntil(c.level_end) < 0 ? 'red' : 'amber')}>{endingText(daysUntil(c.level_end))}</span></>}</> : <span className="quiet">Dates not set</span>}</td>
           <td>{data.enrollments.filter(e => e.class_id === c.id).length}</td>
           <td><button className="small-btn" onClick={() => { setOpenId(c.id === openId ? '' : c.id); setNewTitle(c.title); }}>{c.id === openId ? 'Hide' : 'View'}</button></td></tr>)}
       </tbody></table></div>}
@@ -250,6 +255,9 @@ function Classes({ data, client, isAdmin, reload }: PanelProps & { isAdmin: bool
       {isAdmin && <form className="ops-form" onSubmit={e => { e.preventDefault(); void run(() => renameClass(client, open.id, newTitle), 'Class renamed.'); }}>
         <label>Rename class<input required maxLength={80} value={newTitle} onChange={e => setNewTitle(e.target.value)} /></label>
         <button className="small-btn" type="submit" disabled={busy}>Save name</button></form>}
+      {canEditLevels && <LevelEditor key={open.id + (open.level_end ?? '')} cls={open} busy={busy}
+        onSave={(title, start, end, moving) => run(() => setClassLevel(client, open.id, title, start, end),
+          moving ? 'Class moved to the next level. The same students stay enrolled.' : 'Level dates saved.')} />}
     </div>}
     <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
   </section>;
@@ -331,4 +339,23 @@ function History({ name, rows, summary }: { name: string; rows: Array<{ date: st
         {rows.map((r, i) => <tr key={i}><td>{r.date.slice(8, 10) + '/' + r.date.slice(5, 7) + '/' + r.date.slice(0, 4)}</td><td>{r.classTitle}</td><td>{MARK[r.status] ?? r.status}</td></tr>)}
       </tbody></table></div></>}
   </div>;
+}
+
+/** Current level dates for a class, and "Move to next level" (new name and dates after a one-week break; the same students stay). */
+function LevelEditor({ cls, busy, onSave }: { cls: ClassRow; busy: boolean; onSave: (title: string, start: string, end: string, moving: boolean) => Promise<boolean> }) {
+  const [title, setTitle] = useState(cls.title);
+  const [start, setStart] = useState(cls.level_start ?? todayIso());
+  const [end, setEnd] = useState(cls.level_end ?? addMonths(todayIso(), 3));
+  const [moving, setMoving] = useState(false);
+  function planNext() { const n = nextLevelPlan(cls); setTitle(n.title); setStart(n.start); setEnd(n.end); setMoving(true); }
+  return <form className="ops-form" aria-label="Level dates" onSubmit={e => { e.preventDefault(); void onSave(title, start, end, moving).then(ok => { if (ok) setMoving(false); }); }}>
+    <h3>{moving ? 'Move to the next level' : 'Current level dates'}</h3>
+    {!moving && cls.level_end && <p><button className="small-btn" type="button" onClick={planNext}>Move to next level</button>
+      <span className="quiet"> Fills in the next level's name and dates after a one-week break.</span></p>}
+    <label>Class name<input required maxLength={80} value={title} onChange={e => setTitle(e.target.value)} /></label>
+    <label>Level starts<input type="date" required value={start} onChange={e => { setStart(e.target.value); if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) setEnd(addMonths(e.target.value, 3)); }} /></label>
+    <label>Level ends (3 months later by default; change it for 6-month computer stages)<input type="date" required value={end} onChange={e => setEnd(e.target.value)} /></label>
+    <button className="primary-btn" type="submit" disabled={busy}>{moving ? 'Move class to next level' : 'Save level dates'}</button>
+    {moving && <> <button className="text-btn" type="button" onClick={() => { setTitle(cls.title); setStart(cls.level_start ?? todayIso()); setEnd(cls.level_end ?? addMonths(todayIso(), 3)); setMoving(false); }}>Cancel</button></>}
+  </form>;
 }

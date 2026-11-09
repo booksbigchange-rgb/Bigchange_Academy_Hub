@@ -90,7 +90,11 @@ test('end-of-level notice: one-week break and next start date', () => {
   assert.equal(addDays('2026-11-10', 8), '2026-11-18');
   assert.equal(addDays('2026-12-28', 8), '2027-01-05');
   assert.equal(nextLevelName('English – Level 2'), 'English – Level 3');
-  assert.equal(nextLevelName('Computer – Canva'), '');
+  assert.equal(nextLevelName('Computer – Canva'), 'Computer – Wix');
+  assert.equal(nextLevelName('Computer – Basic computer'), 'Computer – Canva');
+  assert.equal(nextLevelName('Computer – AI'), 'Computer – CapCut');
+  assert.equal(nextLevelName('Computer – CapCut'), '');
+  assert.equal(nextLevelName('Art club'), '');
   const t = levelEndNotice({ classTitle: 'English – Level 2', endDate: '2026-11-10', nextStart: '2026-11-18', nextLevel: 'English – Level 3' });
   assert.match(t, /finishes on 10\/11\/2026/); assert.match(t, /one-week break/); assert.match(t, /\(English – Level 3\) starts on 18\/11\/2026/);
   assert.match(levelEndNotice({ classTitle: 'Canva', endDate: '2026-11-10', nextStart: '2026-11-18', nextLevel: '' }), /The next level starts on 18\/11\/2026/);
@@ -103,4 +107,23 @@ test('bulk email: BCC groups, no duplicates, invalid addresses dropped', () => {
   assert.ok(b[0].href.startsWith('mailto:?bcc=p0%40x.et,p1%40x.et'));
   assert.match(b[0].href, /&subject=Reminder&body=Dear%20parent/);
   assert.deepEqual(emailBatches([], {}), []);
+});
+
+import { addMonths, daysUntil, levelsEndingSoon, nextLevelPlan, endingText } from '../src/live/fees.mjs';
+test('level dates: months, days, ending soon, next level', () => {
+  assert.equal(addMonths('2026-08-10', 3), '2026-11-10');
+  assert.equal(addMonths('2026-11-30', 3), '2027-02-28');
+  assert.equal(addMonths('2027-11-30', 3), '2028-02-29');
+  assert.equal(daysUntil('2026-11-15', '2026-11-10'), 5);
+  assert.equal(daysUntil('2026-11-05', '2026-11-10'), -5);
+  const classes = [
+    { id: 'a', level_end: '2026-11-20' }, { id: 'b', level_end: '2026-11-12' }, { id: 'c', level_end: '2026-12-30' },
+    { id: 'd', level_end: '2026-11-05' }, { id: 'e', level_end: '2026-10-01' }, { id: 'f', level_end: null }];
+  assert.deepEqual(levelsEndingSoon(classes, '2026-11-10').map(c => [c.id, c.daysLeft]), [['d', -5], ['b', 2], ['a', 10]]);
+  assert.deepEqual(nextLevelPlan({ title: 'English – Level 2', level_start: '2026-08-10', level_end: '2026-11-10' }),
+    { title: 'English – Level 3', start: '2026-11-18', end: '2027-02-18' });
+  assert.deepEqual(nextLevelPlan({ title: 'Computer – Canva', level_start: '2026-01-10', level_end: '2026-07-10' }),
+    { title: 'Computer – Wix', start: '2026-07-18', end: '2027-01-18' });
+  assert.equal(endingText(5), 'Ends in 5 days'); assert.equal(endingText(1), 'Ends tomorrow'); assert.equal(endingText(0), 'Ends today');
+  assert.equal(endingText(-3), 'Ended 3 days ago (break week)');
 });

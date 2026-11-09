@@ -35,9 +35,7 @@ Follow `docs/HOSTING.md` (Netlify or Cloudflare Pages), then set Supabase **URL 
 See `docs/MERGE_PLAN.md`. One pull request replaces the 18 stacked drafts.
 
 ## 7. Decisions only you can make
-- Child joining mid-period: full fee (current) or reduced?
-- Course levels: keep in the course name (current) or a separate field?
-- Email/WhatsApp sending: which provider, if any (may cost money; needs recorded parent consent)?
+Answer the five questions in `docs/DECISIONS.md` (one line each).
 
 ## 8. Before real families
 Complete `docs/PRIVACY_LEGAL_RELEASE_CHECKLIST.md`. Until then, test data only.

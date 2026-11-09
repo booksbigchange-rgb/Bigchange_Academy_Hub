@@ -1,7 +1,7 @@
 # Questions for the owner
 
 **How to answer:** reply with one short line per question, for example:
-`Q1: start · Q2: A · Q3: A · Q4: B, school phone, yes · Q5: weekly copy, second admin = <name>`
+`Q1: start, 14 days · Q2: A · Q3: A · Q4: B, finance/admin only, school phone, yes · Q5: weekly copy by <name>, second admin = <name>`
 
 Nothing below is decided yet. "Our suggestion" is only a suggestion.
 
@@ -11,9 +11,9 @@ Nothing below is decided yet. "Our suggestion" is only a suggestion.
 
 ## Do these before real families use the app
 
-### Q5. Backups and a second admin
+### Q5. Backups and a second admin (asked first because it is urgent)
 - **Backups:** Supabase (the service that stores the app's data) keeps only a few days of copies on the free plan. Choose one:
-  - **Weekly copy** (free): someone downloads a copy of the data every week (about 10 minutes; we will write the steps).
+  - **Weekly copy** (free): a named staff member downloads a copy of the data every week (about 10 minutes; we will write the steps). The copy contains families' names and phone numbers, so keep it somewhere safe and private (for example a school computer or a school Google Drive), not on a personal phone. Tell us who will do it.
   - **Paid plan**: automatic daily copies (check the current price on supabase.com).
 - **Second admin:** name one more trusted person who should have full admin access, in case you lose your phone or password.
 
@@ -25,13 +25,13 @@ Nothing below is decided yet. "Our suggestion" is only a suggestion.
 
 ### Q1. When is the payment due: at the **start** or at the **end** of the 3 months?
 Today the app marks a family **Overdue** only after their 3 months have **ended** without an approved payment. If parents are supposed to pay at the **start**, the app should mark them overdue earlier (for example after the first 2 weeks).
-- **start**: overdue after a grace period at the start (tell us how many days)
+- **start**: overdue if not paid within a number of days after the start (tell us how many days, e.g. 14)
 - **end**: keep today's rule
 
 ### Q2. Course levels
 In the app, a **course** is the subject (for example English) and a **class** is one group of students with a teacher and a time. Students also have a school **grade** (Grade 5–10); that is something different and stays as it is.
 
-Today the app has no special place for a level. Staff type it into a name.
+Today the app has no special place for a level; staff type it into the course or class name. If you have already created separate courses for each level (for example "English Level 1" and "English Level 2"), those need to be merged into one "English" course when you choose A or B; we can help with that.
 
 | Option | What it means | Time to build |
 |---|---|---|
@@ -44,13 +44,13 @@ When moving a student up a level: **enroll them in the new class first, then rem
 
 ### Q3. A child or course added in the middle of a family's 3 months
 **Today:** nothing extra is charged for the rest of the 3 months; the new course counts from the family's **next** 3 months.
-Example: a family pays 150 for one course. A sister joins another course halfway through. The family would now pay 200 (2 × 100). Under today's rule they keep paying 150 until their next 3 months, so the school misses **at most 50 USD** for that period. (A completely new family is not affected; they start their own 3 months on the day they join.)
+Example: a family pays 150 for one course. A sister joins another course halfway through. The family would now pay 200 (2 × 100). Under today's rule they keep paying 150 until their next 3 months, so the school misses **50 USD** for that period. If a family that already has two courses (200) adds a third (300), the school misses **100 USD**, and 100 more for each further course. (A completely new family is not affected; they start their own 3 months on the day they join.)
 
 The same rule works the other way: a child who **leaves** or drops a course gets **no refund**; the family pays less from the next 3 months.
 
 | Option | What it means | Time to build |
 |---|---|---|
-| **A. Count from the next 3 months** (today) | As above. If you want, ask for a top-up in person and write it in the payment note. | None |
+| **A. Count from the next 3 months** (today) | As above. If you want, ask the parent for a top-up in person; the person reporting the payment (form teacher or finance) can mention it in the payment's note. | None |
 | **B. Admin can correct the amount** | Admin can change the current 3 months' amount up or down, with a reason that is saved. Handles joiners and leavers. | About 1–2 days |
 
 **Our suggestion: A.**
@@ -63,7 +63,7 @@ The same rule works the other way: a child who **leaves** or drops a course gets
 | **A. Copy and paste** (today) | As above. | None | – |
 | **B. "Send on WhatsApp" button** | Opens WhatsApp with the parent's number and the reminder already written; staff check it and press send. Shown only if the parent agreed to WhatsApp. | None | About 2 days |
 
-Later, if needed: emails sent by the app to many parents at once (needs an email company account and a school sender address), or fully automatic WhatsApp (WhatsApp charges per message and must approve the wording).
+Later, if needed: the app could email many parents at once (needs an email service, free for small numbers, and a school email address such as fees@yourschool), or send WhatsApp messages by itself (WhatsApp charges for each message and has to approve each message text first).
 
 **If you choose B, also tell us:**
 - Who sends: **only finance/admin**, or **teachers too**?

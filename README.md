@@ -133,4 +133,4 @@ So teachers can use it from their own devices and invitations work, host it (fre
 - The free Supabase plan pauses inactive projects; restore from the dashboard.
 - Manual testing on Chromebooks, phones and screen readers has not been done yet.
 
-Progress and open items: [docs/PROGRESS.md](docs/PROGRESS.md). Owner to-do list: [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md). Latest audit: [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md). Merging into `main`: [docs/MERGE_PLAN.md](docs/MERGE_PLAN.md).
+Progress and open items: [docs/PROGRESS.md](docs/PROGRESS.md). Owner to-do list: [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md). Latest audit: [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md). Open questions for the owner: [docs/DECISIONS.md](docs/DECISIONS.md). Merging into `main`: [docs/MERGE_PLAN.md](docs/MERGE_PLAN.md).

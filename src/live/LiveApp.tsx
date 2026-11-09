@@ -8,15 +8,16 @@ import { EMPTY, useAction, type Data, type PanelProps, type Role } from './share
 import LiveGuardians from './LiveGuardians';
 import LiveFees from './LiveFees';
 import LiveOverview from './LiveOverview';
+import LiveNotices from './LiveNotices';
 import LiveFamily, { LivePayments } from './LiveFamily';
 import { ATTENDANCE_STATUSES, GRADE_LEVELS, studentHistory, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
 
-type Section = 'Overview' | 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees' | 'My children' | 'My classes' | 'Payments';
+type Section = 'Overview' | 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees' | 'My children' | 'My classes' | 'Payments' | 'Notices';
 
 export default function LiveApp({ client, role, email, onSignOut }: { client: SupabaseClient; role: Role; email: string; onSignOut: () => void }) {
   const isAdmin = role === 'admin';
-  const sections: Section[] = isAdmin ? ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees']
-    : role === 'teacher' ? ['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees']
+  const sections: Section[] = isAdmin ? ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Notices']
+    : role === 'teacher' ? ['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']
     : role === 'finance' ? ['Fees', 'Overview', 'Guardians', 'Students']
     : role === 'guardian' ? ['My children', 'Payments'] : role === 'learner' ? ['My classes'] : [];
   const isFinance = role === 'finance';
@@ -68,6 +69,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
           {section === 'Overview' && <LiveOverview data={data} role={role} go={s => setSection(s as Section)} />}
           {(section === 'My children' || section === 'My classes') && <LiveFamily data={data} role={role} />}
           {section === 'Payments' && <LivePayments data={data} />}
+          {section === 'Notices' && <LiveNotices data={data} />}
           {section === 'Students' && <Students data={data} client={client} isAdmin={isAdmin} reload={reload} />}
           {section === 'Courses' && isAdmin && <Courses data={data} client={client} reload={reload} />}
           {section === 'Classes' && <Classes data={data} client={client} isAdmin={isAdmin} reload={reload} />}

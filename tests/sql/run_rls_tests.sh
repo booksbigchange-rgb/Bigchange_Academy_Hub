@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local RLS isolation test. Usage: tests/sql/run_rls_tests.sh <psql connection args>, e.g. -h /var/tmp/pgtest -p 5544 -U postgres
-# Requires a database with the auth stubs, migrations 0001–0005 applied, and an empty seed target.
+# Requires a database with the auth stubs, migrations 0001–0006 applied, and an empty seed target.
 set -u
 PSQL="psql $* -At -v ON_ERROR_STOP=0"
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -116,5 +116,27 @@ chk "teacher B can report for the same parent" $TB "select academy_report_paymen
 chk "teacher A sees teacher B's report" $TA "select reported_status||'/'||paid_method from academy_teacher_fee_periods() where guardian_id='$G1ID'" "paid/bank"
 chk "same phone reuses the guardian (parent tracked by number)" $A "select count(*) from (select academy_add_guardian('20000000-0000-0000-0000-000000000003','Another Name',null,'+251911000000',false,false)) x" 1
 chk "one guardian per phone number" $A "select count(*) from academy_guardians where phone_e164='+251911000000'" 1
+CP="(select id from academy_fee_period_status where learner_id='20000000-0000-0000-0000-000000000003')"
+chk "child fee: sister's own courses at the family rate (1 course, family has 3 → 100)" $F "select child_courses||'/'||family_courses||'/'||amount_due from academy_child_fee('20000000-0000-0000-0000-000000000003')" "1/3/100"
+chk "teacher cannot compute a child fee" $TA "select * from academy_child_fee('20000000-0000-0000-0000-000000000003')" ERR
+chk "finance starts the sister's own 3 months from her start day" $F "select count(*) from (select academy_create_child_period('20000000-0000-0000-0000-000000000003', current_date)) x" 1
+chk "overlapping period for the same child refused" $F "select academy_create_child_period('20000000-0000-0000-0000-000000000003', current_date + 30)" ERR
+chk "teacher cannot start a child period" $TA "select academy_create_child_period('20000000-0000-0000-0000-000000000003', current_date + 200)" ERR
+chk "child period is separate from the family period" $F "select count(*) from academy_fee_period_status where guardian_id='$G1ID'" 2
+chk "child period shows that child to her own teacher" $TB "select students::text from academy_teacher_fee_periods() where period_start = current_date and guardian_id='$G1ID'" '{"Sample Learner 3"}'
+chk "the sibling's teacher sees the record but not the other child's name" $TA "select students::text from academy_teacher_fee_periods() where period_start = current_date and guardian_id='$G1ID'" '{}'
+chk "admin changes an amount with a reason" $A "select academy_set_period_amount($CP, 90, 'Agreed discount for second child')" ""
+chk "the new amount is stored" $F "select amount_due from academy_fee_period_status where learner_id='20000000-0000-0000-0000-000000000003'" "90.00"
+chk "the change is audited with old and new amount" $A "select (detail->>'from')||'>'||(detail->>'to') from academy_audit_events where action='CHANGE_AMOUNT'" "100.00>90.00"
+chk "finance cannot change an amount" $F "select academy_set_period_amount($CP, 1, 'not allowed')" ERR
+chk "teacher cannot change an amount" $TB "select academy_set_period_amount($CP, 1, 'not allowed')" ERR
+chk "a reason is required" $A "select academy_set_period_amount($CP, 80, '')" ERR
+chk "amounts cannot be changed by a direct update, even by admin" $A "update academy_fee_periods set amount_due = 1 where learner_id='20000000-0000-0000-0000-000000000003'" ERR
+chk "email reminder refused without email permission" $F "select academy_log_reminder($CP, 'email')" ERR
+chk "admin records email permission" $A "update academy_guardians set email='parent1@example.com' where id='$G1ID'" "UPDATE 1"
+chk "email permission set" $A "select academy_set_guardian_consent('$G1ID', true, true)" ""
+chk "recording WhatsApp permission alone keeps email permission" $TA "select academy_set_guardian_consent('$G1ID', null, true)" ""
+chk "email permission is still on" $A "select email_opt_in and whatsapp_opt_in from academy_guardians where id='$G1ID'" t
+chk "finance records an email reminder" $F "select academy_log_reminder($CP, 'email') is not null" t
 chk "admin can enroll" $A "insert into academy_enrollments values ('50000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-000000000002')" "INSERT 0 1"
 echo "RLS tests: $pass passed, $fail failed"; [ $fail = 0 ]

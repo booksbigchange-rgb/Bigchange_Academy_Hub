@@ -3,7 +3,8 @@
 ## Answers received (2026-11-09) and what was built
 - **Q1:** payment is due at the **end**; a family becomes **Overdue 14 days after** their 3 months end. *Built (migration 0005).*
 - **Q2:** one course per subject, level in the class name, e.g. **"English – Level 2"**. *No build needed.*
-- **Q3:** not yet understood — asked again in simpler words.
+- **Q3 (2026-11-10):** each child's 3 months start on the day that child starts (a sister joining later gets her own dates; the parent may pay both on the same day), and the **admin can change any amount**, with a reason. *Built (migration 0006).*
+- **Bulk messages must be free:** finance emails parents in one go through their own email app (BCC); WhatsApp as before. Teachers send class notices (end of level, one-week break, next level) to their class WhatsApp groups. *Built (Notices screen).*
 - **Q4:** **Send on WhatsApp** for teachers (their own students' parents) and finance; finance gets a list of everyone to remind plus "copy numbers" for a WhatsApp broadcast list; **date of each reminder recorded**. Teachers already use WhatsApp groups with parents and send Zoom links there. *Built (migration 0005 + screens).*
 - **Q5:** yes to weekly backups and a second admin. *Backup script and steps: `docs/BACKUPS.md`.*
 

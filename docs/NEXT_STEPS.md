@@ -8,8 +8,8 @@ Verified on 2026-11-08: email sign-in ON, public sign-up OFF.
 ## 1. Privacy fix — done
 Owner ran migration 0004 on 2026-11-08 (confirmed when a teacher sees "Parent (waiting for verification)" for a pending parent).
 
-## 1b. Migration 0005 (owner decisions)
-SQL Editor → run `supabase/migrations/20261109_0005_reminders_and_grace.sql` → expect "Success". Then the verify script should show 16 tables and 43 policies.
+## 1b. Migrations 0005 and 0006 (your decisions)
+SQL Editor → run `supabase/migrations/20261109_0005_reminders_and_grace.sql`, then `supabase/migrations/20261110_0006_child_periods_and_amounts.sql` → each "Success". Then the verify script should show 16 tables and 43 policies.
 
 ## 2. Teacher test account
 1. SQL Editor: `select email, email_confirmed_at from auth.users order by created_at desc;` — find the teacher's exact email.
@@ -38,7 +38,7 @@ Follow `docs/HOSTING.md` (Netlify or Cloudflare Pages), then set Supabase **URL 
 See `docs/MERGE_PLAN.md`. One pull request replaces the 18 stacked drafts.
 
 ## 7. Decisions
-Q1, Q2, Q4, Q5 answered and built. Q3 (a child or course added mid-period) still needs an answer.
+All five answered and built (see `docs/DECISIONS.md`).
 
 ## 7b. Weekly backup and second admin
 Follow `docs/BACKUPS.md`.

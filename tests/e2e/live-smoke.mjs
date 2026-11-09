@@ -58,6 +58,15 @@ async function install(page, db, role) {
         const g = db.academy_guardians.find(x => x.id === l.guardian_id); return { guardian_id: g.id, display_name: g.display_name, email: g.email, phone_e164: g.phone_e164, email_opt_in: g.email_opt_in, whatsapp_opt_in: g.whatsapp_opt_in, verified: l.verified_by_staff_id !== null };
       }));
       if (fn === 'academy_family_fee') return json([{ course_count: 1, amount_due: 150 }]);
+      if (fn === 'academy_child_fee') return json([{ guardian_id: null, child_courses: 1, family_courses: 1, amount_due: 150 }]);
+      if (fn === 'academy_create_child_period') {
+        const link = db.academy_guardian_links.find(l => l.learner_id === a.p_learner && l.verified_by_staff_id);
+        const end = new Date(a.p_start); end.setMonth(end.getMonth() + 3);
+        db.academy_fee_period_status.push({ id: uid(seq++), guardian_id: link.guardian_id, learner_id: a.p_learner, period_start: a.p_start, period_end: end.toISOString().slice(0, 10), course_count: 1, amount_due: 150, currency_code: 'USD',
+          reported_status: 'unpaid', paid_on: null, paid_method: null, paid_note: null, checked_status: 'unpaid', approved_status: 'unpaid', status: 'unpaid', stage: 'none' });
+        return json(uid(seq));
+      }
+      if (fn === 'academy_set_period_amount') { db.academy_fee_period_status.find(x => x.id === a.p_period).amount_due = a.p_amount; return route.fulfill({ status: 204 }); }
       if (fn === 'academy_create_fee_period') {
         const end = new Date(a.p_start); end.setMonth(end.getMonth() + 3);
         db.academy_fee_period_status.push({ id: uid(seq++), guardian_id: a.p_guardian, period_start: a.p_start, period_end: end.toISOString().slice(0, 10), course_count: 1, amount_due: 150, currency_code: 'USD',
@@ -72,7 +81,7 @@ async function install(page, db, role) {
       if (fn === 'academy_teacher_fee_periods') return json(db.academy_fee_period_status.map(p => { const g = db.academy_guardians.find(x => x.id === p.guardian_id) ?? {}; return { period_id: p.id, guardian_id: p.guardian_id, guardian_name: g.display_name ?? 'Parent Test', guardian_phone: g.phone_e164 ?? null,
         period_start: p.period_start, period_end: p.period_end, amount_due: p.amount_due, status: p.status, stage: p.stage, reported_status: p.reported_status, paid_on: p.paid_on, paid_method: p.paid_method, paid_note: p.paid_note, students: ['Kid Test'], courses: ['Course Test'],
         whatsapp_opt_in: Boolean(g.whatsapp_opt_in), last_reminded_at: (db.academy_reminder_events ?? []).filter(r => r.period_id === p.id).map(r => r.sent_at).sort().pop() ?? null }; }));
-      if (fn === 'academy_set_guardian_consent') { const g = db.academy_guardians.find(x => x.id === a.p_guardian); g.email_opt_in = a.p_email_opt; g.whatsapp_opt_in = a.p_whatsapp_opt; return route.fulfill({ status: 204 }); }
+      if (fn === 'academy_set_guardian_consent') { const g = db.academy_guardians.find(x => x.id === a.p_guardian); g.email_opt_in = a.p_email_opt ?? g.email_opt_in; g.whatsapp_opt_in = a.p_whatsapp_opt ?? g.whatsapp_opt_in; return route.fulfill({ status: 204 }); }
       if (fn === 'academy_log_reminder') {
         const p = db.academy_fee_period_status.find(x => x.id === a.p_period); const g = db.academy_guardians.find(x => x.id === p.guardian_id);
         if (a.p_channel === 'whatsapp' && !g.whatsapp_opt_in) return json({ message: 'This parent has not agreed to WhatsApp messages' }, 400);
@@ -211,10 +220,10 @@ await session(browser, db, 'admin', 1366, async page => {
   check('the parent from the student form is linked, verified, phone normalised',
     await seen(page.getByRole('cell', { name: '+251911000000' })) && await seen(page.getByText('Verified', { exact: true })));
   await nav(page, 'Fees');
-  await page.getByRole('combobox', { name: /^Parent/ }).selectOption({ index: 1 });
+  await page.getByRole('combobox', { name: /^Child/ }).selectOption({ index: 1 });
   await page.getByRole('button', { name: 'Show fee' }).click();
-  check('fee preview shows USD 150', await seen(page.getByText(/USD 150/).first()));
-  await page.getByRole('button', { name: 'Start period' }).click();
+  check('fee preview shows the child and USD 150', await seen(page.getByText(/Kid Test: 1 course.*USD 150/).first()));
+  await page.getByRole('button', { name: 'Start 3 months' }).click();
   await page.getByRole('button', { name: 'Report', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Report', exact: true }).click();
   await page.getByLabel('How they paid').selectOption('cash');
@@ -227,6 +236,14 @@ await session(browser, db, 'admin', 1366, async page => {
   await page.getByRole('button', { name: /^Approve/ }).click();
   await page.getByText('Approved', { exact: true }).waitFor();
   check('admin approves; status becomes Paid', await seen(page.locator('.tag.green', { hasText: 'Paid' }).first()));
+  check('the period belongs to the child', await seen(page.getByRole('cell', { name: /^Kid Test: / })));
+  await page.getByRole('button', { name: 'Change amount' }).click();
+  await page.getByLabel('New amount (USD)').fill('120');
+  await page.getByRole('button', { name: 'Save amount' }).click();
+  check('an amount without a reason is refused by the form', (await page.getByRole('cell', { name: /USD 120/ }).count()) === 0);
+  await page.getByLabel('Reason').fill('Second child joined');
+  await page.getByRole('button', { name: 'Save amount' }).click();
+  check('admin changes the amount with a reason', await seen(page.getByRole('cell', { name: /USD 120/ })));
   await nav(page, 'Overview');
   check('overview cards render', (await page.locator('.metric').count()) === 4);
   await nav(page, 'Courses');
@@ -246,12 +263,13 @@ await session(browser, db, 'admin', 1366, async page => {
 
 // An ended, unpaid period so reminders appear (the parent has not yet agreed to WhatsApp).
 const parentOfKid = db.academy_guardians.find(g => g.phone_e164 === '+251911000000');
-db.academy_fee_period_status.push({ id: uid(seq++), guardian_id: parentOfKid?.id, period_start: '2026-05-01', period_end: '2026-08-01', course_count: 1, amount_due: 150, currency_code: 'USD',
+if (parentOfKid) { parentOfKid.email = 'p@example.com'; parentOfKid.email_opt_in = true; }
+db.academy_fee_period_status.push({ id: uid(seq++), guardian_id: parentOfKid?.id, learner_id: null, period_start: '2026-05-01', period_end: '2026-08-01', course_count: 1, amount_due: 150, currency_code: 'USD',
   reported_status: 'unpaid', paid_on: null, paid_method: null, paid_note: null, checked_status: 'unpaid', approved_status: 'unpaid', status: 'overdue', stage: 'none' });
 
 await session(browser, db, 'teacher', 390, async page => {
   const sections = await page.getByRole('navigation', { name: 'Sections' }).getByRole('button').allInnerTexts();
-  check('teacher sees teacher sections only', JSON.stringify(sections) === JSON.stringify(['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees']), sections.join(','));
+  check('teacher sees teacher sections only', JSON.stringify(sections) === JSON.stringify(['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']), sections.join(','));
   check('teacher cannot add students', (await nav(page, 'Students'), await page.getByRole('button', { name: '+ Add student' }).count()) === 0);
   await nav(page, 'Fees');
   check('teacher sees the parent payment with phone', await seen(page.getByText('+251911000000').first()));
@@ -270,6 +288,12 @@ await session(browser, db, 'teacher', 390, async page => {
   await page.getByText('Live database').waitFor({ timeout: 10000 }).catch(() => {});
   await nav(page, 'Fees');
   check('the reminder date is recorded', await seen(page.getByText(/^Reminded \d{2}\/\d{2}\/\d{4}/)));
+  await nav(page, 'Notices');
+  await page.getByRole('combobox', { name: /^Class/ }).selectOption({ index: 1 });
+  await page.getByLabel('Last day of this level').fill('2026-11-10');
+  check('notice says the level ends, the one-week break and the next start', await seen(page.getByText(/finishes on 10\/11\/2026\. After that there is a one-week break\. The next level starts on 18\/11\/2026/)));
+  const share = await page.getByRole('link', { name: 'Share on WhatsApp' }).getAttribute('href');
+  check('notice opens WhatsApp to choose the class group', (share ?? '').startsWith('https://wa.me/?text=Dear%20parents'), share ?? '');
   await nav(page, 'Guardians');
   await page.getByRole('combobox', { name: /^Student/ }).selectOption({ label: 'Kid Test' });
   await page.getByLabel('Guardian name').fill('Second Parent');
@@ -285,6 +309,8 @@ await session(browser, db, 'finance', 390, async page => {
   check('finance sees the parents-to-remind list', await seen(page.getByRole('heading', { name: /Parents to remind \(\d+\)/ })));
   check('finance list shows the WhatsApp button and last reminder', await seen(page.getByLabel('Parents to remind').getByRole('link', { name: 'Send on WhatsApp' })) && await seen(page.getByLabel('Parents to remind').getByText(/^Reminded /)));
   check('finance can copy numbers for a broadcast list', await seen(page.getByRole('button', { name: /Copy WhatsApp numbers \(1\)/ })));
+  const mail = await page.getByRole('link', { name: 'Email 1 parent' }).getAttribute('href').catch(() => null);
+  check('finance bulk email opens their email app with parents in BCC', (mail ?? '').startsWith('mailto:?bcc=p%40example.com&subject='), mail ?? 'no link');
 });
 
 await session(browser, db, 'admin', 1366, async page => {

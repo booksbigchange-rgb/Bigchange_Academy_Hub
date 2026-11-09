@@ -84,3 +84,23 @@ test('reminders only after the 3 months end and while not paid', () => {
   assert.equal(remindedText('2026-11-09T10:00:00Z'), 'Reminded 09/11/2026');
   assert.equal(remindedText(null), 'Not reminded yet');
 });
+
+import { addDays, nextLevelName, levelEndNotice, shareToWhatsApp, emailBatches, bulkReminderText } from '../src/live/fees.mjs';
+test('end-of-level notice: one-week break and next start date', () => {
+  assert.equal(addDays('2026-11-10', 8), '2026-11-18');
+  assert.equal(addDays('2026-12-28', 8), '2027-01-05');
+  assert.equal(nextLevelName('English – Level 2'), 'English – Level 3');
+  assert.equal(nextLevelName('Computer – Canva'), '');
+  const t = levelEndNotice({ classTitle: 'English – Level 2', endDate: '2026-11-10', nextStart: '2026-11-18', nextLevel: 'English – Level 3' });
+  assert.match(t, /finishes on 10\/11\/2026/); assert.match(t, /one-week break/); assert.match(t, /\(English – Level 3\) starts on 18\/11\/2026/);
+  assert.match(levelEndNotice({ classTitle: 'Canva', endDate: '2026-11-10', nextStart: '2026-11-18', nextLevel: '' }), /The next level starts on 18\/11\/2026/);
+  assert.equal(shareToWhatsApp('a & b'), 'https://wa.me/?text=a%20%26%20b');
+});
+test('bulk email: BCC groups, no duplicates, invalid addresses dropped', () => {
+  const emails = Array.from({ length: 85 }, (_, i) => `p${i}@x.et`).concat(['p0@x.et', 'not-an-email', null]);
+  const b = emailBatches(emails, { subject: 'Reminder', body: bulkReminderText(), size: 40 });
+  assert.deepEqual(b.map(x => x.emails.length), [40, 40, 5]);
+  assert.ok(b[0].href.startsWith('mailto:?bcc=p0%40x.et,p1%40x.et'));
+  assert.match(b[0].href, /&subject=Reminder&body=Dear%20parent/);
+  assert.deepEqual(emailBatches([], {}), []);
+});

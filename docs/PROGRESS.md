@@ -21,6 +21,7 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - Owner checklist `docs/NEXT_STEPS.md` and `docs/MERGE_PLAN.md` written. Live project re-checked on 2026-11-08 after the owner's changes: email sign-in ON, public sign-up OFF.
 - Deep audit 2026-11-09 (`docs/AUDIT_REPORT.md`): fixed silent 1,000-row truncation (paged loading), updated Vite 6.4.5 (0 vulnerabilities), retargeted pilot page; 126 unit, 79 DB, 52 browser checks pass.
 - Owner decisions 2026-11-09: 14-day grace before Overdue; WhatsApp reminders for teachers and finance with recorded dates, consent enforced by the database and editable; finance reminder list + broadcast-number copy; weekly admin backup script. Migration 0005 (97/97 DB checks), 128 unit tests, 59/59 browser checks incl. axe. `tests/live-project-check.mjs` made strict (network errors now fail). **Owner must run migration 0005.**
+- Owner decisions 2026-11-10: per-child 3-month periods from each child's start day; admin amount change with audited reason; free bulk email via the staff's own email app (BCC); teacher Notices (end of level + one-week break + next level) shared to WhatsApp groups; fixed a bug where recording WhatsApp permission cleared email permission. Migration 0006; 118/118 DB, 130 unit, 65/65 browser checks. **Owner must run migrations 0005 and 0006.**
 
 ## Remaining (needs owner input or credentials)
 1. Persistence and real auth: Supabase project key, migrations, RLS tests.

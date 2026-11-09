@@ -120,7 +120,7 @@ export type Guardian = { id: string; display_name: string; email: string | null;
 export type GuardianLink = { learner_id: string; guardian_id: string; verified: boolean };
 export type GuardianContact = { guardian_id: string; display_name: string; email: string | null; phone_e164: string | null; email_opt_in: boolean; whatsapp_opt_in: boolean; verified: boolean };
 export type FeeStatus = 'unpaid' | 'partial' | 'paid';
-export type PeriodRow = { id: string; guardian_id: string; period_start: string; period_end: string; course_count: number; amount_due: number; currency_code: string;
+export type PeriodRow = { id: string; guardian_id: string; learner_id: string | null; period_start: string; period_end: string; course_count: number; amount_due: number; currency_code: string;
   reported_status: FeeStatus; paid_on: string | null; paid_method: string | null; paid_note: string | null; checked_status: FeeStatus; approved_status: FeeStatus;
   status: 'unpaid' | 'partial' | 'paid' | 'overdue'; stage: 'none' | 'reported' | 'checked' | 'approved' };
 export type TeacherPeriod = { period_id: string; guardian_id: string; guardian_name: string; guardian_phone: string | null; period_start: string; period_end: string; amount_due: number;
@@ -157,7 +157,7 @@ export async function verifyLink(c: SupabaseClient, learnerId: string, guardianI
   if (!data?.length) throw Error('You are not allowed to verify this guardian');
 }
 /** Messages raised deliberately by the database workflow rules are safe to show. */
-const WORKFLOW = /^(Not allowed|Enter|Choose|The payment|Note|This parent|Add a phone|Add an email|Parent not found|Unknown reminder|Check only|Approve only|Only finance|Only an administrator|Payment period|Period details)/;
+const WORKFLOW = /^(Not allowed|Enter|Choose|The payment|Note|This parent|This child|Only an administrator can change|Add a phone|Add an email|Parent not found|Unknown reminder|Check only|Approve only|Only finance|Only an administrator|Payment period|Period details)/;
 function workflowFail(error: { message: string; code?: string }, action: string): never {
   if (error.code === '42501') throw Error('You are not allowed to ' + action);
   if (WORKFLOW.test(error.message)) throw Error(error.message);
@@ -213,12 +213,34 @@ export type ReminderEvent = { period_id: string; sent_at: string };
 export const listReminders = (c: SupabaseClient) =>
   pages<ReminderEvent>(() => c.from('academy_reminder_events').select('period_id,sent_at').order('sent_at', { ascending: false }).order('id'), 'load reminders');
 /** Record that a reminder was sent. WhatsApp reminders are refused by the database unless the parent agreed to WhatsApp. */
-export async function logReminder(c: SupabaseClient, periodId: string, channel: 'whatsapp' | 'copied') {
+export async function logReminder(c: SupabaseClient, periodId: string, channel: 'whatsapp' | 'copied' | 'email') {
   const { error } = await c.rpc('academy_log_reminder', { p_period: periodId, p_channel: channel });
   if (error) workflowFail(error, 'record the reminder');
 }
 /** Record or withdraw a parent's permission to be contacted (admin, or a teacher of one of their children). */
-export async function setGuardianConsent(c: SupabaseClient, guardianId: string, email: boolean, whatsapp: boolean) {
+/** Pass null to leave a permission as it is. */
+export async function setGuardianConsent(c: SupabaseClient, guardianId: string, email: boolean | null, whatsapp: boolean | null) {
   const { error } = await c.rpc('academy_set_guardian_consent', { p_guardian: guardianId, p_email_opt: email, p_whatsapp_opt: whatsapp });
   if (error) workflowFail(error, "change this parent's permission");
+}
+
+/** A child's own 3-month fee: that child's courses at the family rate (150 if the family has one course, else 100 each). */
+export async function childFee(c: SupabaseClient, learnerId: string): Promise<{ child_courses: number; family_courses: number; amount_due: number }> {
+  const { data, error } = await c.rpc('academy_child_fee', { p_learner: learnerId });
+  if (error) workflowFail(error, 'work out the fee');
+  const row = (data as Array<{ child_courses: number; family_courses: number; amount_due: number }> | null)?.[0];
+  if (!row) throw Error('Could not work out the fee');
+  return row;
+}
+/** Start a child's own 3 months from the day they start. */
+export async function createChildPeriod(c: SupabaseClient, learnerId: string, start: string) {
+  const { error } = await c.rpc('academy_create_child_period', { p_learner: learnerId, p_start: start });
+  if (error) workflowFail(error, 'start the payment period');
+}
+/** Admin only: change the amount of a period, with a reason that is kept in the audit trail. */
+export async function setPeriodAmount(c: SupabaseClient, periodId: string, amount: number, reason: string) {
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) throw Error('Enter an amount between 1 and 100000');
+  if (reason.trim().length < 3) throw Error('Enter a reason (3 to 200 characters)');
+  const { error } = await c.rpc('academy_set_period_amount', { p_period: periodId, p_amount: amount, p_reason: reason.trim() });
+  if (error) workflowFail(error, 'change the amount');
 }

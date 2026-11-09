@@ -23,9 +23,11 @@ It is an independent React + TypeScript + Vite app backed by Supabase (Postgres 
 | Parent | Their verified children's classes and attendance · their payments |
 | Student | Their classes and attendance |
 
-**Reminders:** once a family's 3 months have ended unpaid, teachers (for their own students' parents) and finance get a **Send on WhatsApp** button that opens WhatsApp with the reminder written; staff press send. Only parents who agreed to WhatsApp get the button; the date of every reminder is recorded. Finance also gets a list of everyone to remind and can copy the numbers for a WhatsApp broadcast list. The app never sends messages by itself.
+**Reminders:** once a family's 3 months have ended unpaid, teachers (for their own students' parents) and finance get a **Send on WhatsApp** button that opens WhatsApp with the reminder written; staff press send. Only parents who agreed to WhatsApp get the button; the date of every reminder is recorded. Finance also gets a list of everyone to remind, can copy the numbers for a WhatsApp broadcast list, and can email everyone who agreed to email in one go (opens their own email app with parents in BCC; free).
 
-**Payments (school policy):** a parent pays once per 3-month period for all of their children's courses, in US dollars: **150** if the family has one course in total, otherwise **100 per course**. Each parent has their own period dates. A form teacher reports the payment (date, method, note), finance checks it, an admin approves it. Every teacher of that parent's children sees the same record. A family becomes **Overdue** 14 days after their 3 months end without an approved payment. The amount is computed by the database.
+**Notices:** teachers pick a class and the last day of the level; the app writes "finishes on…, one-week break, next level starts on…" and opens WhatsApp to choose the class group. The app never sends messages by itself.
+
+**Payments (school policy):** every 3 months per child, counted from the day that child starts, in US dollars: **150** if the family has one course in total, otherwise **100 per course**. A brother or sister who joins later gets their own dates; the admin can change any amount, with a reason. A form teacher reports the payment (date, method, note), finance checks it, an admin approves it. Every teacher of that parent's children sees the same record. A family becomes **Overdue** 14 days after their 3 months end without an approved payment. The amount is computed by the database.
 
 The database enforces all of this with Row Level Security (RLS); hiding a button is never the only protection. Details: [docs/ACCESS_RULES.md](docs/ACCESS_RULES.md).
 
@@ -54,7 +56,8 @@ Use a **dedicated** Supabase project for the Academy. In the project: **SQL Edit
 4. [`supabase/migrations/20261107_0003_fees_and_guardians.sql`](supabase/migrations/20261107_0003_fees_and_guardians.sql) — parent payment periods and guardian contacts.
 5. [`supabase/migrations/20261108_0004_guardian_privacy.sql`](supabase/migrations/20261108_0004_guardian_privacy.sql) — teachers cannot see a parent's contact details until an admin verifies the link.
 6. [`supabase/migrations/20261109_0005_reminders_and_grace.sql`](supabase/migrations/20261109_0005_reminders_and_grace.sql) — 14 days' grace before Overdue, WhatsApp reminders with recorded dates, permission changes.
-7. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 16 tables, 0 missing RLS, 0 missing force RLS, 43 policies, 0 tables without policy, 0 anon/public policies.
+7. [`supabase/migrations/20261110_0006_child_periods_and_amounts.sql`](supabase/migrations/20261110_0006_child_periods_and_amounts.sql) — each child's own 3 months, admin can change an amount (with a reason), email reminders.
+8. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 16 tables, 0 missing RLS, 0 missing force RLS, 43 policies, 0 tables without policy, 0 anon/public policies.
 
 Each migration is safe to run again. Do **not** run `supabase/policies/academy_profile_access.sql` (superseded by 0002).
 

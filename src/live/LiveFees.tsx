@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { approvePeriod, checkPeriod, createPeriod, familyFee, logReminder, reportPayment, setGuardianConsent, type FeeStatus } from './api';
-import { FEE_TEXT, METHODS, STAGE_LABEL, STATUS_LABEL, formatDate, needsReminder, reminderText, remindedText, todayIso, usd, whatsappLink } from './fees.mjs';
+import { approvePeriod, checkPeriod, childFee, createChildPeriod, logReminder, reportPayment, setGuardianConsent, setPeriodAmount, type FeeStatus } from './api';
+import { FEE_TEXT, METHODS, STAGE_LABEL, STATUS_LABEL, bulkReminderText, emailBatches, formatDate, needsReminder, reminderText, remindedText, todayIso, usd, whatsappLink } from './fees.mjs';
 import { useAction, type PanelProps, type Role } from './shared';
 
 const tagClass = (s: string) => 'tag ' + (s === 'paid' ? 'green' : s === 'overdue' ? 'red' : 'amber');
@@ -53,7 +53,7 @@ function TeacherFees({ data, client, reload }: PanelProps & { role: Role }) {
               text={reminderText({ guardian: p.guardian_name, students: p.students, amount: p.amount_due, start: p.period_start, end: p.period_end })}
               onSent={() => void run(() => logReminder(client, p.period_id, 'whatsapp'), 'WhatsApp opened with the reminder. The date is recorded.')}
               onAllow={confirmConsent === p.guardian_id
-                ? () => void run(() => setGuardianConsent(client, p.guardian_id, false, true), 'WhatsApp permission recorded for ' + p.guardian_name + '.').then(() => setConfirmConsent(''))
+                ? () => void run(() => setGuardianConsent(client, p.guardian_id, null, true), 'WhatsApp permission recorded for ' + p.guardian_name + '.').then(() => setConfirmConsent(''))
                 : () => setConfirmConsent(p.guardian_id)}
               confirming={confirmConsent === p.guardian_id} />}</td></tr>)}
       </tbody></table></div>}
@@ -67,7 +67,10 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
   const { message, busy, run } = useAction(reload);
   const [filter, setFilter] = useState('all');
   const [open, setOpen] = useState<ReportTarget | null>(null);
-  const [guardianId, setGuardianId] = useState('');
+  const [learnerId, setLearnerId] = useState('');
+  const [amountFor, setAmountFor] = useState('');
+  const [newAmount, setNewAmount] = useState('');
+  const [amountReason, setAmountReason] = useState('');
   const [start, setStart] = useState(todayIso());
   const [preview, setPreview] = useState('');
   const [note, setNote] = useState('');
@@ -90,11 +93,24 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
   const counts = { paid: 0, partial: 0, unpaid: 0, overdue: 0, review: 0, approval: 0 };
   for (const p of data.periods) { counts[p.status]++; if (p.stage === 'reported') counts.review++; if (p.stage === 'checked') counts.approval++; }
   const rows = data.periods.filter(p => filter === 'all' || p.status === filter || (filter === 'review' && p.stage === 'reported') || (filter === 'approval' && p.stage === 'checked'));
-  const eligible = data.guardians.filter(g => data.links.some(l => l.guardian_id === g.id && l.verified));
+  const childName = (id: string | null) => (id ? data.learners.find(l => l.id === id)?.display_name : undefined);
+  // Children who can have their own 3 months: active, with a verified parent.
+  const eligibleChildren = data.learners.filter(l => l.active && data.links.some(k => k.learner_id === l.id && k.verified));
+  const coursesOf = (learnerId: string) => data.enrollments.filter(e => e.learner_id === learnerId)
+    .map(e => data.courses.find(c => c.id === data.classes.find(k => k.id === e.class_id)?.course_id)?.title).filter(Boolean) as string[];
 
   const lastReminded = (periodId: string) => data.reminders.find(r => r.period_id === periodId)?.sent_at ?? null;
   const textFor = (p: (typeof data.periods)[number]) => reminderText({ guardian: guardian(p.guardian_id)?.display_name ?? 'Parent',
-    students: info.get(p.guardian_id)?.students ?? [], amount: p.amount_due, start: p.period_start, end: p.period_end });
+    students: p.learner_id ? [childName(p.learner_id) ?? 'your child'] : info.get(p.guardian_id)?.students ?? [], amount: p.amount_due, start: p.period_start, end: p.period_end });
+  const emailable = toRemindAll().filter(p => { const g = guardian(p.guardian_id); return g?.email_opt_in && g.email; });
+  function toRemindAll() { return data.periods.filter(p => needsReminder(p)); }
+  const batches = emailBatches(emailable.map(p => guardian(p.guardian_id)!.email as string),
+    { subject: 'BigChange Academy – payment reminder', body: bulkReminderText() });
+  async function logEmails(emails: string[]) {
+    const periods = emailable.filter(p => emails.includes(guardian(p.guardian_id)!.email as string));
+    await run(async () => { for (const p of periods) await logReminder(client, p.id, 'email'); },
+      'Your email app opened with ' + emails.length + ' parents in BCC. Press send there. The reminder date is recorded.');
+  }
   // Parents to remind: ended and not approved as paid; never-reminded first, then the longest ago.
   const toRemind = data.periods.filter(p => needsReminder(p))
     .sort((a, b) => (lastReminded(a.id) ?? '').localeCompare(lastReminded(b.id) ?? ''));
@@ -110,26 +126,29 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
   }
   async function showFee() {
     setPreview('');
-    try { const f = await familyFee(client, guardianId); setPreview(f.course_count + ' course' + (f.course_count === 1 ? '' : 's') + ' in total → ' + usd(f.amount_due) + ' for this 3-month period.'); }
-    catch (error) { setPreview(error instanceof Error ? error.message : 'Could not work out the fee'); }
+    try {
+      const f = await childFee(client, learnerId);
+      setPreview(childName(learnerId) + ': ' + f.child_courses + ' course' + (f.child_courses === 1 ? '' : 's') + '; the family has ' + f.family_courses + ' in total → ' + usd(f.amount_due) + ' for these 3 months.');
+    } catch (error) { setPreview(error instanceof Error ? error.message : 'Could not work out the fee'); }
   }
   return <section className="panel operations" aria-label="Parent payments">
     <span className="eyebrow">PARENT PAYMENTS · TRACKING ONLY</span><h2>Parent payment periods</h2>
-    <p className="quiet">Parents pay outside this app, once per 3-month period for all their children’s courses: {usd(FEE_TEXT.single)} if the family has one course in total, otherwise {usd(FEE_TEXT.multi)} per course. A form teacher reports a payment, finance checks it, and an administrator approves it.</p>
+    <p className="quiet">Parents pay outside this app, every 3 months per child, counted from the day each child starts: {usd(FEE_TEXT.single)} if the family has one course in total, otherwise {usd(FEE_TEXT.multi)} per course. A form teacher reports a payment, finance checks it, and an administrator approves it.</p>
     <div className="finance-strip">
       <div><small>Paid</small><strong>{counts.paid}</strong></div><div><small>Partly paid</small><strong>{counts.partial}</strong></div>
       <div><small>Unpaid</small><strong>{counts.unpaid}</strong></div><div><small>Overdue</small><strong>{counts.overdue}</strong></div>
       <div><small>Awaiting check</small><strong>{counts.review}</strong></div><div><small>Awaiting approval</small><strong>{counts.approval}</strong></div></div>
 
-    <div className="people-enroll"><h3>Start a 3-month period for a parent</h3>
-      <label>Parent<select value={guardianId} onChange={e => { setGuardianId(e.target.value); setPreview(''); }}><option value="">Choose a parent</option>
-        {eligible.map(g => <option key={g.id} value={g.id}>{g.display_name}{g.phone_e164 ? ' · ' + g.phone_e164 : ''}</option>)}</select></label>
-      <label>Period starts on<input type="date" value={start} onChange={e => { setStart(e.target.value); setPreview(''); }} /></label>
-      {eligible.length === 0 && <p className="quiet">No parent has a verified child link yet. Add a guardian and verify the link under Guardians.</p>}
-      <button className="small-btn" type="button" disabled={!guardianId || busy} onClick={() => void showFee()}>Show fee</button>
+    <div className="people-enroll"><h3>Start a child's 3 months</h3>
+      <p className="quiet">Each child's 3 months start on the day that child starts. A brother or sister who joins later gets their own dates; the parent may still pay for both on the same day.</p>
+      <label>Child<select value={learnerId} onChange={e => { setLearnerId(e.target.value); setPreview(''); }}><option value="">Choose a child</option>
+        {eligibleChildren.map(l => <option key={l.id} value={l.id}>{l.display_name}{coursesOf(l.id).length ? ' · ' + coursesOf(l.id).join(', ') : ' · no class yet'}</option>)}</select></label>
+      <label>First day of the 3 months<input type="date" value={start} onChange={e => { setStart(e.target.value); setPreview(''); }} /></label>
+      {eligibleChildren.length === 0 && <p className="quiet">No child has a verified parent yet. Add the parent when adding the student, or verify the link under Guardians.</p>}
+      <button className="small-btn" type="button" disabled={!learnerId || busy} onClick={() => void showFee()}>Show fee</button>
       {preview && <p role="status">{preview}</p>}
-      <button className="primary-btn" type="button" disabled={!guardianId || !start || busy}
-        onClick={() => void run(() => createPeriod(client, guardianId, start), 'Period started. It runs for 3 months from the start date.')}>Start period</button>
+      <button className="primary-btn" type="button" disabled={!learnerId || !start || busy}
+        onClick={() => void run(() => createChildPeriod(client, learnerId, start), 'Started. It runs for 3 months from ' + formatDate(start) + '.')}>Start 3 months</button>
     </div>
 
     <div className="people-enroll" aria-label="Parents to remind"><h3>Parents to remind ({toRemind.length})</h3>
@@ -144,17 +163,28 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
               {' '}<button className="small-btn" type="button" disabled={busy} onClick={() => void copyReminder(p)}>Copy text</button></td></tr>; })}
         </tbody></table></div>
         <button className="small-btn" type="button" disabled={!waNumbers.length} onClick={() => void copyNumbers()}>Copy WhatsApp numbers ({waNumbers.length}) for a broadcast list</button>
+        <h4>Email everyone who agreed to email ({emailable.length})</h4>
+        {batches.length === 0 ? <p className="quiet">No parent in this list has agreed to email.</p> :
+          <p>{batches.map((b, i) => <a key={i} className="small-btn" href={b.href} onClick={() => void logEmails(b.emails)}>
+            {batches.length > 1 ? `Email group ${i + 1} (${b.emails.length})` : `Email ${b.emails.length} parent${b.emails.length === 1 ? '' : 's'}`}</a>)}</p>}
+        <p className="quiet">Opens your own email app (for example Gmail) with the parents in BCC, so they cannot see each other's addresses. Free. You press send.</p>
       </>}
     </div>
 
     <label>Show<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All</option><option value="unpaid">Unpaid</option><option value="partial">Partly paid</option>
       <option value="paid">Paid</option><option value="overdue">Overdue</option><option value="review">Awaiting check</option><option value="approval">Awaiting approval</option></select></label>
     {rows.length === 0 ? <p className="quiet">No payment periods yet.</p> :
-      <div className="table-wrap"><table><thead><tr><th>Parent</th><th>Students and courses</th><th>Period</th><th>Fee</th><th>Reported payment</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+      <div className="table-wrap"><table><thead><tr><th>Parent</th><th>Child and courses</th><th>Period</th><th>Fee</th><th>Reported payment</th><th>Status</th><th>Actions</th></tr></thead><tbody>
         {rows.map(p => { const g = guardian(p.guardian_id); const i = info.get(p.guardian_id); return <tr key={p.id}>
           <td>{g?.display_name ?? 'Parent'}<br /><small>{g?.phone_e164 ?? ''}</small></td>
-          <td>{i?.courses.length ? i.courses.join('; ') : i?.students.join(', ') ?? '—'}</td>
-          <td>{formatDate(p.period_start)} – {formatDate(p.period_end)}</td><td>{usd(p.amount_due)}</td>
+          <td>{p.learner_id ? (childName(p.learner_id) ?? 'Child') + ': ' + (coursesOf(p.learner_id).join(', ') || '—') : (i?.courses.length ? i.courses.join('; ') : i?.students.join(', ') ?? '—')}</td>
+          <td>{formatDate(p.period_start)} – {formatDate(p.period_end)}</td>
+          <td>{usd(p.amount_due)}{role === 'admin' && <><br /><button className="text-btn" type="button" onClick={() => { setAmountFor(p.id); setNewAmount(String(p.amount_due)); setAmountReason(''); }}>Change amount</button></>}
+            {amountFor === p.id && <form onSubmit={e => { e.preventDefault(); void run(() => setPeriodAmount(client, p.id, Number(newAmount), amountReason), 'Amount changed. The old amount and the reason are kept.').then(ok => { if (ok) setAmountFor(''); }); }}>
+              <label>New amount (USD)<input type="number" min="1" step="1" required value={newAmount} onChange={e => setNewAmount(e.target.value)} /></label>
+              <label>Reason<input required minLength={3} maxLength={200} value={amountReason} onChange={e => setAmountReason(e.target.value)} placeholder="e.g. second child joined" /></label>
+              <button className="small-btn" type="submit" disabled={busy}>Save amount</button> <button className="text-btn" type="button" onClick={() => setAmountFor('')}>Cancel</button>
+            </form>}</td>
           <td>{p.reported_status === 'unpaid' ? '—' : <>{label(STATUS_LABEL, p.reported_status)} on {formatDate(p.paid_on ?? '')} · {methodLabel(p.paid_method)}{p.paid_note ? ' · ' + p.paid_note : ''}</>}</td>
           <td><span className={tagClass(p.status)}>{label(STATUS_LABEL, p.status)}</span><br /><small>{label(STAGE_LABEL, p.stage)}</small></td>
           <td><button className="small-btn" onClick={() => setOpen({ id: p.id, periodStart: p.period_start, status: p.reported_status, paidOn: p.paid_on, method: p.paid_method, note: p.paid_note, title: g?.display_name ?? 'Parent' })}>Report</button>

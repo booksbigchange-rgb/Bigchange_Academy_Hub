@@ -23,7 +23,9 @@ It is an independent React + TypeScript + Vite app backed by Supabase (Postgres 
 | Parent | Their verified children's classes and attendance · their payments |
 | Student | Their classes and attendance |
 
-**Payments (school policy):** a parent pays once per 3-month period for all of their children's courses, in US dollars: **150** if the family has one course in total, otherwise **100 per course**. Each parent has their own period dates. A form teacher reports the payment (date, method, note), finance checks it, an admin approves it. Every teacher of that parent's children sees the same record. Unpaid after the period ends = **Overdue**. The amount is computed by the database.
+**Reminders:** once a family's 3 months have ended unpaid, teachers (for their own students' parents) and finance get a **Send on WhatsApp** button that opens WhatsApp with the reminder written; staff press send. Only parents who agreed to WhatsApp get the button; the date of every reminder is recorded. Finance also gets a list of everyone to remind and can copy the numbers for a WhatsApp broadcast list. The app never sends messages by itself.
+
+**Payments (school policy):** a parent pays once per 3-month period for all of their children's courses, in US dollars: **150** if the family has one course in total, otherwise **100 per course**. Each parent has their own period dates. A form teacher reports the payment (date, method, note), finance checks it, an admin approves it. Every teacher of that parent's children sees the same record. A family becomes **Overdue** 14 days after their 3 months end without an approved payment. The amount is computed by the database.
 
 The database enforces all of this with Row Level Security (RLS); hiding a button is never the only protection. Details: [docs/ACCESS_RULES.md](docs/ACCESS_RULES.md).
 
@@ -51,7 +53,8 @@ Use a **dedicated** Supabase project for the Academy. In the project: **SQL Edit
 3. [`supabase/migrations/20261031_0002_access_rules.sql`](supabase/migrations/20261031_0002_access_rules.sql) — who may see and do what.
 4. [`supabase/migrations/20261107_0003_fees_and_guardians.sql`](supabase/migrations/20261107_0003_fees_and_guardians.sql) — parent payment periods and guardian contacts.
 5. [`supabase/migrations/20261108_0004_guardian_privacy.sql`](supabase/migrations/20261108_0004_guardian_privacy.sql) — teachers cannot see a parent's contact details until an admin verifies the link.
-6. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 15 tables, 0 missing RLS, 0 missing force RLS, 42 policies, 0 tables without policy, 0 anon/public policies.
+6. [`supabase/migrations/20261109_0005_reminders_and_grace.sql`](supabase/migrations/20261109_0005_reminders_and_grace.sql) — 14 days' grace before Overdue, WhatsApp reminders with recorded dates, permission changes.
+7. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 16 tables, 0 missing RLS, 0 missing force RLS, 43 policies, 0 tables without policy, 0 anon/public policies.
 
 Each migration is safe to run again. Do **not** run `supabase/policies/academy_profile_access.sql` (superseded by 0002).
 
@@ -133,4 +136,4 @@ So teachers can use it from their own devices and invitations work, host it (fre
 - The free Supabase plan pauses inactive projects; restore from the dashboard.
 - Manual testing on Chromebooks, phones and screen readers has not been done yet.
 
-Progress and open items: [docs/PROGRESS.md](docs/PROGRESS.md). Owner to-do list: [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md). Latest audit: [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md). Open questions for the owner: [docs/DECISIONS.md](docs/DECISIONS.md). Merging into `main`: [docs/MERGE_PLAN.md](docs/MERGE_PLAN.md).
+Weekly backup and a second admin: [docs/BACKUPS.md](docs/BACKUPS.md). Progress and open items: [docs/PROGRESS.md](docs/PROGRESS.md). Owner to-do list: [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md). Latest audit: [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md). Open questions for the owner: [docs/DECISIONS.md](docs/DECISIONS.md). Merging into `main`: [docs/MERGE_PLAN.md](docs/MERGE_PLAN.md).

@@ -69,8 +69,15 @@ async function install(page, db, role) {
         Object.assign(p, { reported_status: a.p_status, paid_on: a.p_paid_on, paid_method: a.p_method, paid_note: a.p_note, stage: a.p_status === 'unpaid' ? 'none' : 'reported', checked_status: 'unpaid', approved_status: 'unpaid', status: 'unpaid' });
         return route.fulfill({ status: 204 });
       }
-      if (fn === 'academy_teacher_fee_periods') return json(db.academy_fee_period_status.map(p => ({ period_id: p.id, guardian_id: p.guardian_id, guardian_name: 'Parent Test', guardian_phone: '+251911000000',
-        period_start: p.period_start, period_end: p.period_end, amount_due: p.amount_due, status: p.status, stage: p.stage, reported_status: p.reported_status, paid_on: p.paid_on, paid_method: p.paid_method, paid_note: p.paid_note, students: ['Kid Test'], courses: ['Course Test'] })));
+      if (fn === 'academy_teacher_fee_periods') return json(db.academy_fee_period_status.map(p => { const g = db.academy_guardians.find(x => x.id === p.guardian_id) ?? {}; return { period_id: p.id, guardian_id: p.guardian_id, guardian_name: g.display_name ?? 'Parent Test', guardian_phone: g.phone_e164 ?? null,
+        period_start: p.period_start, period_end: p.period_end, amount_due: p.amount_due, status: p.status, stage: p.stage, reported_status: p.reported_status, paid_on: p.paid_on, paid_method: p.paid_method, paid_note: p.paid_note, students: ['Kid Test'], courses: ['Course Test'],
+        whatsapp_opt_in: Boolean(g.whatsapp_opt_in), last_reminded_at: (db.academy_reminder_events ?? []).filter(r => r.period_id === p.id).map(r => r.sent_at).sort().pop() ?? null }; }));
+      if (fn === 'academy_set_guardian_consent') { const g = db.academy_guardians.find(x => x.id === a.p_guardian); g.email_opt_in = a.p_email_opt; g.whatsapp_opt_in = a.p_whatsapp_opt; return route.fulfill({ status: 204 }); }
+      if (fn === 'academy_log_reminder') {
+        const p = db.academy_fee_period_status.find(x => x.id === a.p_period); const g = db.academy_guardians.find(x => x.id === p.guardian_id);
+        if (a.p_channel === 'whatsapp' && !g.whatsapp_opt_in) return json({ message: 'This parent has not agreed to WhatsApp messages' }, 400);
+        (db.academy_reminder_events ??= []).push({ id: uid(seq++), period_id: p.id, sent_at: new Date().toISOString() }); return json(new Date().toISOString());
+      }
       return json({ message: 'unknown rpc ' + fn }, 404);
     }
     if (path.startsWith('/rest/v1/')) {
@@ -237,6 +244,11 @@ await session(browser, db, 'admin', 1366, async page => {
   check('student attendance history shows the saved mark', await seen(page.getByRole('cell', { name: 'Present' })) && await seen(page.getByText(/Attendance rate 100%/)));
 });
 
+// An ended, unpaid period so reminders appear (the parent has not yet agreed to WhatsApp).
+const parentOfKid = db.academy_guardians.find(g => g.phone_e164 === '+251911000000');
+db.academy_fee_period_status.push({ id: uid(seq++), guardian_id: parentOfKid?.id, period_start: '2026-05-01', period_end: '2026-08-01', course_count: 1, amount_due: 150, currency_code: 'USD',
+  reported_status: 'unpaid', paid_on: null, paid_method: null, paid_note: null, checked_status: 'unpaid', approved_status: 'unpaid', status: 'overdue', stage: 'none' });
+
 await session(browser, db, 'teacher', 390, async page => {
   const sections = await page.getByRole('navigation', { name: 'Sections' }).getByRole('button').allInnerTexts();
   check('teacher sees teacher sections only', JSON.stringify(sections) === JSON.stringify(['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees']), sections.join(','));
@@ -244,6 +256,20 @@ await session(browser, db, 'teacher', 390, async page => {
   await nav(page, 'Fees');
   check('teacher sees the parent payment with phone', await seen(page.getByText('+251911000000').first()));
   check('teacher has a Report payment button', await seen(page.getByRole('button', { name: 'Report payment' }).first()));
+  check('no WhatsApp button without the parent\'s permission', (await page.getByRole('link', { name: 'Send on WhatsApp' }).count()) === 0);
+  await page.getByRole('button', { name: 'Record WhatsApp permission' }).click();
+  await page.getByRole('button', { name: 'Confirm: parent agreed to WhatsApp' }).click();
+  const wa = page.getByRole('link', { name: 'Send on WhatsApp' });
+  check('after recording permission the WhatsApp button appears', await seen(wa));
+  const href = await wa.getAttribute('href');
+  check('WhatsApp link has the parent number and the reminder text', /^https:\/\/wa\.me\/251911000000\?text=Dear%20/.test(href ?? '') && decodeURIComponent(href ?? '').includes('USD 150'), href ?? '');
+  await wa.evaluate(a => a.removeAttribute('target'));
+  await page.route('https://wa.me/**', r => r.fulfill({ status: 200, body: 'whatsapp' }));
+  await Promise.all([page.waitForURL('https://wa.me/**').catch(() => {}), wa.click()]);
+  await page.goBack();
+  await page.getByText('Live database').waitFor({ timeout: 10000 }).catch(() => {});
+  await nav(page, 'Fees');
+  check('the reminder date is recorded', await seen(page.getByText(/^Reminded \d{2}\/\d{2}\/\d{4}/)));
   await nav(page, 'Guardians');
   await page.getByRole('combobox', { name: /^Student/ }).selectOption({ label: 'Kid Test' });
   await page.getByLabel('Guardian name').fill('Second Parent');
@@ -256,6 +282,9 @@ await session(browser, db, 'teacher', 390, async page => {
 await session(browser, db, 'finance', 390, async page => {
   check('finance lands on Fees', await seen(page.getByRole('heading', { name: 'Parent payment periods' })));
   check('finance has no Approve button', (await page.getByRole('button', { name: /^Approve/ }).count()) === 0);
+  check('finance sees the parents-to-remind list', await seen(page.getByRole('heading', { name: /Parents to remind \(\d+\)/ })));
+  check('finance list shows the WhatsApp button and last reminder', await seen(page.getByLabel('Parents to remind').getByRole('link', { name: 'Send on WhatsApp' })) && await seen(page.getByLabel('Parents to remind').getByText(/^Reminded /)));
+  check('finance can copy numbers for a broadcast list', await seen(page.getByRole('button', { name: /Copy WhatsApp numbers \(1\)/ })));
 });
 
 await session(browser, db, 'admin', 1366, async page => {

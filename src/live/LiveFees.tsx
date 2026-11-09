@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { approvePeriod, checkPeriod, createPeriod, familyFee, reportPayment, type FeeStatus } from './api';
-import { FEE_TEXT, METHODS, STAGE_LABEL, STATUS_LABEL, formatDate, reminderText, todayIso, usd } from './fees.mjs';
+import { approvePeriod, checkPeriod, createPeriod, familyFee, logReminder, reportPayment, setGuardianConsent, type FeeStatus } from './api';
+import { FEE_TEXT, METHODS, STAGE_LABEL, STATUS_LABEL, formatDate, needsReminder, reminderText, remindedText, todayIso, usd, whatsappLink } from './fees.mjs';
 import { useAction, type PanelProps, type Role } from './shared';
 
 const tagClass = (s: string) => 'tag ' + (s === 'paid' ? 'green' : s === 'overdue' ? 'red' : 'amber');
@@ -38,6 +38,7 @@ export default function LiveFees(props: PanelProps & { role: Role }) {
 function TeacherFees({ data, client, reload }: PanelProps & { role: Role }) {
   const { message, busy, run } = useAction(reload);
   const [open, setOpen] = useState<ReportTarget | null>(null);
+  const [confirmConsent, setConfirmConsent] = useState('');
   return <section className="panel operations" aria-label="Parent payments">
     <span className="eyebrow">PARENT PAYMENTS · FORM TEACHER</span><h2>Parent payments for my students</h2>
     <p className="quiet">Payments are made outside this app. When a parent pays, report it here: the date, how they paid, and a note. The record belongs to the parent, so every teacher of that parent’s children sees the same update. Finance checks it and an administrator approves it.</p>
@@ -47,7 +48,14 @@ function TeacherFees({ data, client, reload }: PanelProps & { role: Role }) {
           <td>{formatDate(p.period_start)} – {formatDate(p.period_end)}</td><td>{usd(p.amount_due)}</td>
           <td>{p.reported_status === 'unpaid' ? '—' : <>{label(STATUS_LABEL, p.reported_status)} on {formatDate(p.paid_on ?? '')} · {methodLabel(p.paid_method)}{p.paid_note ? ' · ' + p.paid_note : ''}</>}</td>
           <td><span className={tagClass(p.status)}>{label(STATUS_LABEL, p.status)}</span><br /><small>{label(STAGE_LABEL, p.stage)}</small></td>
-          <td><button className="small-btn" onClick={() => setOpen({ id: p.period_id, periodStart: p.period_start, status: p.reported_status, paidOn: p.paid_on, method: p.paid_method, note: p.paid_note, title: p.guardian_name })}>Report payment</button></td></tr>)}
+          <td><button className="small-btn" onClick={() => setOpen({ id: p.period_id, periodStart: p.period_start, status: p.reported_status, paidOn: p.paid_on, method: p.paid_method, note: p.paid_note, title: p.guardian_name })}>Report payment</button>
+            {needsReminder(p) && <ReminderAction phone={p.guardian_phone} allowed={p.whatsapp_opt_in} lastAt={p.last_reminded_at ?? ''} busy={busy}
+              text={reminderText({ guardian: p.guardian_name, students: p.students, amount: p.amount_due, start: p.period_start, end: p.period_end })}
+              onSent={() => void run(() => logReminder(client, p.period_id, 'whatsapp'), 'WhatsApp opened with the reminder. The date is recorded.')}
+              onAllow={confirmConsent === p.guardian_id
+                ? () => void run(() => setGuardianConsent(client, p.guardian_id, false, true), 'WhatsApp permission recorded for ' + p.guardian_name + '.').then(() => setConfirmConsent(''))
+                : () => setConfirmConsent(p.guardian_id)}
+              confirming={confirmConsent === p.guardian_id} />}</td></tr>)}
       </tbody></table></div>}
     {open && <ReportForm key={open.id} target={open} busy={busy} onCancel={() => setOpen(null)}
       onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart), 'Payment reported. Finance will check it.')) setOpen(null); }} />}
@@ -84,11 +92,21 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
   const rows = data.periods.filter(p => filter === 'all' || p.status === filter || (filter === 'review' && p.stage === 'reported') || (filter === 'approval' && p.stage === 'checked'));
   const eligible = data.guardians.filter(g => data.links.some(l => l.guardian_id === g.id && l.verified));
 
+  const lastReminded = (periodId: string) => data.reminders.find(r => r.period_id === periodId)?.sent_at ?? null;
+  const textFor = (p: (typeof data.periods)[number]) => reminderText({ guardian: guardian(p.guardian_id)?.display_name ?? 'Parent',
+    students: info.get(p.guardian_id)?.students ?? [], amount: p.amount_due, start: p.period_start, end: p.period_end });
+  // Parents to remind: ended and not approved as paid; never-reminded first, then the longest ago.
+  const toRemind = data.periods.filter(p => needsReminder(p))
+    .sort((a, b) => (lastReminded(a.id) ?? '').localeCompare(lastReminded(b.id) ?? ''));
+  const waNumbers = [...new Set(toRemind.map(p => guardian(p.guardian_id)).filter(g => g?.whatsapp_opt_in && g.phone_e164).map(g => g!.phone_e164 as string))];
   async function copyReminder(p: (typeof data.periods)[number]) {
-    const g = guardian(p.guardian_id);
-    const text = reminderText({ guardian: g?.display_name ?? 'Parent', students: info.get(p.guardian_id)?.students ?? [], amount: p.amount_due, start: p.period_start, end: p.period_end });
-    try { await navigator.clipboard.writeText(text); setNote('Reminder for ' + (g?.display_name ?? 'the parent') + ' copied. Nothing was sent; paste it into your own message.'); }
-    catch { setNote('Copying was blocked by the browser. Nothing was sent.'); }
+    try { await navigator.clipboard.writeText(textFor(p)); }
+    catch { setNote('Copying was blocked by the browser. Nothing was sent.'); return; }
+    await run(() => logReminder(client, p.id, 'copied'), 'Reminder text copied (date recorded). Paste it into your own message.');
+  }
+  async function copyNumbers() {
+    try { await navigator.clipboard.writeText(waNumbers.join('\n')); setNote(waNumbers.length + ' WhatsApp numbers copied. In WhatsApp you can make a broadcast list with them. Nothing was sent.'); }
+    catch { setNote('Copying was blocked by the browser.'); }
   }
   async function showFee() {
     setPreview('');
@@ -114,6 +132,21 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
         onClick={() => void run(() => createPeriod(client, guardianId, start), 'Period started. It runs for 3 months from the start date.')}>Start period</button>
     </div>
 
+    <div className="people-enroll" aria-label="Parents to remind"><h3>Parents to remind ({toRemind.length})</h3>
+      <p className="quiet">Families whose 3 months have ended without an approved payment. They become Overdue 14 days after the end. "Send on WhatsApp" opens WhatsApp with the reminder written; you press send. Only parents who agreed to WhatsApp have the button.</p>
+      {toRemind.length === 0 ? <p className="quiet">Nobody to remind right now.</p> : <>
+        <div className="table-wrap"><table><thead><tr><th>Parent</th><th>Fee</th><th>Status</th><th>Last reminder</th><th>Send</th></tr></thead><tbody>
+          {toRemind.map(p => { const g = guardian(p.guardian_id); return <tr key={p.id}>
+            <td>{g?.display_name ?? 'Parent'}<br /><small>{g?.phone_e164 ?? 'no phone'}</small></td><td>{usd(p.amount_due)}</td>
+            <td><span className={tagClass(p.status)}>{label(STATUS_LABEL, p.status)}</span></td><td>{remindedText(lastReminded(p.id))}</td>
+            <td><ReminderAction phone={g?.phone_e164 ?? null} allowed={Boolean(g?.whatsapp_opt_in)} lastAt={null} busy={busy} text={textFor(p)}
+              onSent={() => void run(() => logReminder(client, p.id, 'whatsapp'), 'WhatsApp opened with the reminder. The date is recorded.')} />
+              {' '}<button className="small-btn" type="button" disabled={busy} onClick={() => void copyReminder(p)}>Copy text</button></td></tr>; })}
+        </tbody></table></div>
+        <button className="small-btn" type="button" disabled={!waNumbers.length} onClick={() => void copyNumbers()}>Copy WhatsApp numbers ({waNumbers.length}) for a broadcast list</button>
+      </>}
+    </div>
+
     <label>Show<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All</option><option value="unpaid">Unpaid</option><option value="partial">Partly paid</option>
       <option value="paid">Paid</option><option value="overdue">Overdue</option><option value="review">Awaiting check</option><option value="approval">Awaiting approval</option></select></label>
     {rows.length === 0 ? <p className="quiet">No payment periods yet.</p> :
@@ -126,7 +159,6 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
           <td><span className={tagClass(p.status)}>{label(STATUS_LABEL, p.status)}</span><br /><small>{label(STAGE_LABEL, p.stage)}</small></td>
           <td><button className="small-btn" onClick={() => setOpen({ id: p.id, periodStart: p.period_start, status: p.reported_status, paidOn: p.paid_on, method: p.paid_method, note: p.paid_note, title: g?.display_name ?? 'Parent' })}>Report</button>
             {p.stage === 'reported' && <> <button className="small-btn" disabled={busy} onClick={() => void run(() => checkPeriod(client, p.id, p.reported_status), 'Checked. An administrator can now approve it.')}>Check “{label(STATUS_LABEL, p.reported_status)}”</button></>}
-            {p.status === 'overdue' && <> <button className="small-btn" type="button" onClick={() => void copyReminder(p)}>Copy reminder</button>{g && !g.email_opt_in && !g.whatsapp_opt_in && <small> (no contact permission recorded)</small>}</>}
             {p.stage === 'checked' && role === 'admin' && <> <button className="small-btn" disabled={busy} onClick={() => void run(() => approvePeriod(client, p.id, p.checked_status), 'Approved.')}>Approve “{label(STATUS_LABEL, p.checked_status)}”</button></>}
           </td></tr>; })}
       </tbody></table></div>}
@@ -134,4 +166,17 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
       onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart), 'Payment reported. It now needs a finance check.')) setOpen(null); }} />}
     <p className="ops-feedback" role="status" aria-live="polite">{message || note}</p>
   </section>;
+}
+
+/** "Send on WhatsApp": opens WhatsApp with the reminder filled in; the click is recorded. Hidden without the parent's permission. */
+function ReminderAction({ phone, allowed, lastAt, text, busy, onSent, onAllow, confirming }: {
+  phone: string | null; allowed: boolean; lastAt: string | null; text: string; busy: boolean; onSent: () => void; onAllow?: () => void; confirming?: boolean }) {
+  const link = allowed ? whatsappLink(phone, text) : null;
+  return <>
+    {link ? <a className="small-btn" href={link} target="_blank" rel="noopener noreferrer" onClick={onSent}>Send on WhatsApp</a>
+      : !phone ? <small> No phone number</small>
+      : onAllow ? <button className="small-btn" type="button" disabled={busy} onClick={onAllow}>{confirming ? 'Confirm: parent agreed to WhatsApp' : 'Record WhatsApp permission'}</button>
+      : <small> No WhatsApp permission</small>}
+    {lastAt !== null && <><br /><small>{remindedText(lastAt)}</small></>}
+  </>;
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { addGuardian, guardiansForLearner, verifyLink, type GuardianContact } from './api';
+import { addGuardian, guardiansForLearner, setGuardianConsent, verifyLink, type GuardianContact } from './api';
 import { useAction, type PanelProps, type Role } from './shared';
 import { parentDirectory } from './validation.mjs';
 
@@ -14,6 +14,9 @@ export default function LiveGuardians({ data, client, role, reload }: PanelProps
   const [emailOk, setEmailOk] = useState(false);
   const [waOk, setWaOk] = useState(false);
   const canAdd = role === 'admin' || role === 'teacher';
+  const [consentFor, setConsentFor] = useState('');
+  const [consentEmail, setConsentEmail] = useState(false);
+  const [consentWa, setConsentWa] = useState(false);
   const learner = data.learners.find(l => l.id === learnerId);
   const [dirQuery, setDirQuery] = useState('');
   const [pendingOnly, setPendingOnly] = useState(false);
@@ -60,7 +63,13 @@ export default function LiveGuardians({ data, client, role, reload }: PanelProps
         {!loadError && contacts.length === 0 ? <p className="quiet">No guardian recorded yet.</p> : contacts.length > 0 &&
           <div className="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Permission</th><th>Verified</th></tr></thead><tbody>
             {contacts.map(c => <tr key={c.guardian_id}><td>{c.display_name}</td><td>{c.phone_e164 ?? '—'}</td><td>{c.email ?? '—'}</td>
-              <td>{[c.email_opt_in && 'Email', c.whatsapp_opt_in && 'WhatsApp'].filter(Boolean).join(', ') || 'None given'}</td>
+              <td>{[c.email_opt_in && 'Email', c.whatsapp_opt_in && 'WhatsApp'].filter(Boolean).join(', ') || 'None given'}
+                {canAdd && c.verified && <> <button className="text-btn" type="button" onClick={() => { setConsentFor(c.guardian_id); setConsentEmail(c.email_opt_in); setConsentWa(c.whatsapp_opt_in); }}>Change</button></>}
+                {consentFor === c.guardian_id && <form onSubmit={e => { e.preventDefault(); void run(() => setGuardianConsent(client, c.guardian_id, consentEmail, consentWa), 'Permission updated for ' + c.display_name + '.').then(() => { setConsentFor(''); void loadContacts(); }); }}>
+                  <label><input type="checkbox" checked={consentWa} disabled={!c.phone_e164} onChange={e => setConsentWa(e.target.checked)} /> Agreed to WhatsApp</label>
+                  <label><input type="checkbox" checked={consentEmail} disabled={!c.email} onChange={e => setConsentEmail(e.target.checked)} /> Agreed to email</label>
+                  <button className="small-btn" type="submit" disabled={busy}>Save permission</button> <button className="text-btn" type="button" onClick={() => setConsentFor('')}>Cancel</button>
+                </form>}</td>
               <td>{c.verified ? <span className="tag green">Verified</span> : <>
                 <span className="tag amber">Pending</span>{role === 'admin' && <> <button className="small-btn" disabled={busy}
                   onClick={() => void run(() => verifyLink(client, learner.id, c.guardian_id), 'Guardian verified.').then(loadContacts)}>Verify</button></>}</>}</td></tr>)}

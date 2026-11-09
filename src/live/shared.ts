@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AttendanceRow, ClassRow, Course, Enrollment, Guardian, GuardianLink, Learner, PeriodRow, Session, Staff, TeacherPeriod } from './api';
+import type { AttendanceRow, ClassRow, Course, Enrollment, Guardian, GuardianLink, Learner, PeriodRow, ReminderEvent, Session, Staff, TeacherPeriod } from './api';
 
 export type Role = 'admin' | 'teacher' | 'finance' | 'learner' | 'guardian';
 export type Data = {
   learners: Learner[]; courses: Course[]; staff: Staff[]; classes: ClassRow[]; enrollments: Enrollment[]; sessions: Session[];
-  attendance: AttendanceRow[]; guardians: Guardian[]; links: GuardianLink[]; periods: PeriodRow[]; teacherPeriods: TeacherPeriod[];
+  attendance: AttendanceRow[]; guardians: Guardian[]; links: GuardianLink[]; periods: PeriodRow[]; teacherPeriods: TeacherPeriod[]; reminders: ReminderEvent[];
 };
 export const EMPTY: Data = { learners: [], courses: [], staff: [], classes: [], enrollments: [], sessions: [], attendance: [],
-  guardians: [], links: [], periods: [], teacherPeriods: [] };
+  guardians: [], links: [], periods: [], teacherPeriods: [], reminders: [] };
 export type PanelProps = { data: Data; client: SupabaseClient; reload: () => Promise<void> };
 
 /** Runs a save action once at a time, reloads data, and reports success or a safe error message. */

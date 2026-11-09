@@ -69,3 +69,18 @@ test('overview counts', () => {
   assert.deepEqual([c.activeStudents, c.inactiveStudents, c.classes, c.unassignedClasses, c.emptyClasses, c.pendingLinks, c.overdue, c.awaitingCheck, c.awaitingApproval], [1, 1, 2, 1, 1, 1, 1, 1, 1]);
   assert.equal(overviewCounts({ learners: [], classes: [], guardians: [], links: [], enrollments: [], periods: [], teacherPeriods: [{ status: 'overdue', stage: 'none' }] }).overdue, 1);
 });
+
+import { whatsappLink, needsReminder, remindedText } from '../src/live/fees.mjs';
+test('WhatsApp link: digits only, message encoded, none without a number', () => {
+  assert.equal(whatsappLink('+251911223344', 'Dear Ms A & family?'), 'https://wa.me/251911223344?text=Dear%20Ms%20A%20%26%20family%3F');
+  assert.equal(whatsappLink(null, 'x'), null);
+  assert.equal(whatsappLink('+12', 'x'), null);
+});
+test('reminders only after the 3 months end and while not paid', () => {
+  assert.equal(needsReminder({ status: 'unpaid', period_end: '2026-11-01' }, '2026-11-09'), true);
+  assert.equal(needsReminder({ status: 'overdue', period_end: '2026-10-01' }, '2026-11-09'), true);
+  assert.equal(needsReminder({ status: 'paid', period_end: '2026-10-01' }, '2026-11-09'), false);
+  assert.equal(needsReminder({ status: 'unpaid', period_end: '2026-12-01' }, '2026-11-09'), false);
+  assert.equal(remindedText('2026-11-09T10:00:00Z'), 'Reminded 09/11/2026');
+  assert.equal(remindedText(null), 'Not reminded yet');
+});

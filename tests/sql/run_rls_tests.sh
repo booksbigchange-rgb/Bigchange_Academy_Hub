@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local RLS isolation test. Usage: tests/sql/run_rls_tests.sh <psql connection args>, e.g. -h /var/tmp/pgtest -p 5544 -U postgres
-# Requires a database with the auth stubs, migrations 0001 + 0002 applied, and an empty seed target.
+# Requires a database with the auth stubs, migrations 0001–0005 applied, and an empty seed target.
 set -u
 PSQL="psql $* -At -v ON_ERROR_STOP=0"
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -88,6 +88,24 @@ chk "learner has no fee data" $L1 "select count(*) from academy_teacher_fee_peri
 chk "teacher changing the report resets check and approval" $TA "select academy_report_payment($PRD, 'partial', current_date - 1, 'cash', null)" ""
 chk "approval was reset to unpaid" $A "select approved_status||'/'||checked_status from academy_fee_periods where guardian_id='$G1ID'" "unpaid/unpaid"
 chk "status after reset is unpaid again" $F "select status from academy_fee_period_status where guardian_id='$G1ID'" unpaid
+chk "finance starts a period that ended 5 days ago" $F "select count(*) from (select academy_create_fee_period('$G2ID', (current_date - interval '3 months' - interval '5 days')::date)) x" 1
+chk "period ended 5 days ago is NOT yet overdue (14-day grace)" $F "select status from academy_fee_period_status where guardian_id='$G2ID' and period_start > date '2025-01-01'" unpaid
+chk "the 2024 period (long past the grace) is overdue" $F "select status from academy_fee_period_status where guardian_id='$G2ID' and period_start = date '2024-01-01'" overdue
+chk "WhatsApp reminder refused without the parent's permission" $TA "select academy_log_reminder($PRD, 'whatsapp')" ERR
+chk "copied reminder allowed without WhatsApp permission" $TA "select academy_log_reminder($PRD, 'copied') is not null" t
+chk "WhatsApp permission needs a phone number" $TA "select academy_set_guardian_consent('$G1ID', false, true)" ERR
+chk "admin adds the parent's phone" $A "update academy_guardians set phone_e164='+251922000000' where id='$G1ID'" "UPDATE 1"
+chk "teacher of the child records WhatsApp permission" $TA "select academy_set_guardian_consent('$G1ID', false, true)" ""
+chk "unrelated teacher cannot change permission" $TB "select academy_set_guardian_consent('$G1ID', false, false)" ERR
+chk "finance cannot change permission" $F "select academy_set_guardian_consent('$G1ID', false, false)" ERR
+chk "teacher sends a WhatsApp reminder and it is recorded" $TA "select academy_log_reminder($PRD, 'whatsapp') is not null" t
+chk "teacher sees the WhatsApp permission and last reminder date" $TA "select whatsapp_opt_in and last_reminded_at is not null from academy_teacher_fee_periods() where guardian_id='$G1ID'" t
+chk "unrelated teacher cannot log a reminder" $TB "select academy_log_reminder('$P1', 'whatsapp')" ERR
+chk "finance sees the reminder log" $F "select count(*) from academy_reminder_events where guardian_id='$G1ID'" 2
+chk "teacher cannot read the reminder log table" $TA "select count(*) from academy_reminder_events" 0
+chk "nobody can write the reminder log directly" $A "insert into academy_reminder_events(period_id,guardian_id,staff_id,channel) select id, guardian_id, '10000000-0000-0000-0000-0000000000a1', 'whatsapp' from academy_fee_periods limit 1" ERR
+chk "permission change is audited" $A "select count(*) from academy_audit_events where action='SET_CONSENT'" 1
+chk "consent without contact is blocked by the database" $A "update academy_guardians set phone_e164=null where id='$G1ID'" ERR
 chk "anon cannot call fee RPC" anon "select count(*) from academy_teacher_fee_periods()" ERR
 chk "no direct inserts into periods" $F "insert into academy_fee_periods(guardian_id,period_start,period_end,course_count,amount_due) values ('$G1ID','2030-01-01','2030-04-01',1,150)" ERR
 chk "finance can read enrollments" $F "select count(*)>=2 from academy_enrollments" t

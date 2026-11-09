@@ -20,6 +20,7 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - Hosting prepared (not deployed): `netlify.toml`, security headers `public/_headers` (strict CSP), `docs/HOSTING.md`. Production build served with these headers passes the full browser smoke test (40/40, no CSP errors) and the demo loads cleanly.
 - Owner checklist `docs/NEXT_STEPS.md` and `docs/MERGE_PLAN.md` written. Live project re-checked on 2026-11-08 after the owner's changes: email sign-in ON, public sign-up OFF.
 - Deep audit 2026-11-09 (`docs/AUDIT_REPORT.md`): fixed silent 1,000-row truncation (paged loading), updated Vite 6.4.5 (0 vulnerabilities), retargeted pilot page; 126 unit, 79 DB, 52 browser checks pass.
+- Owner decisions 2026-11-09: 14-day grace before Overdue; WhatsApp reminders for teachers and finance with recorded dates, consent enforced by the database and editable; finance reminder list + broadcast-number copy; weekly admin backup script. Migration 0005 (97/97 DB checks), 128 unit tests, 59/59 browser checks incl. axe. `tests/live-project-check.mjs` made strict (network errors now fail). **Owner must run migration 0005.**
 
 ## Remaining (needs owner input or credentials)
 1. Persistence and real auth: Supabase project key, migrations, RLS tests.

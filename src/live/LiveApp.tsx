@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  addClass, addCourse, addLearnerWithGuardian, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
+  addClass, addCourse, addLearnerWithGuardian, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, listReminders, type ReminderEvent, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
   unenroll, updateLearner, setClassTeacher, updateCourse, renameClass, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
 } from './api';
 import { EMPTY, useAction, type Data, type PanelProps, type Role } from './shared';
@@ -29,14 +29,15 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
     setLoadError('');
     try {
       const staffView = isAdmin || isFinance;
-      const [learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriodRows] = await Promise.all([
+      const [learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriodRows, reminders] = await Promise.all([
         listLearners(client), listCourses(client), isAdmin ? listStaff(client) : Promise.resolve([] as Staff[]),
         listClasses(client), listEnrollments(client), listSessions(client), listAttendance(client),
         staffView ? listGuardians(client) : Promise.resolve([] as Guardian[]),
         staffView ? listLinks(client) : Promise.resolve([] as GuardianLink[]),
         staffView || role === 'guardian' ? listPeriods(client) : Promise.resolve([] as PeriodRow[]),
-        role === 'teacher' ? teacherPeriods(client) : Promise.resolve([] as TeacherPeriod[])]);
-      setData({ learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriods: teacherPeriodRows });
+        role === 'teacher' ? teacherPeriods(client) : Promise.resolve([] as TeacherPeriod[]),
+        staffView ? listReminders(client) : Promise.resolve([] as ReminderEvent[])]);
+      setData({ learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriods: teacherPeriodRows, reminders });
     } catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not load data'); }
     finally { setLoading(false); }
   }, [client, isAdmin, isFinance, role]);

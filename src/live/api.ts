@@ -124,7 +124,7 @@ export type PeriodRow = { id: string; guardian_id: string; period_start: string;
   reported_status: FeeStatus; paid_on: string | null; paid_method: string | null; paid_note: string | null; checked_status: FeeStatus; approved_status: FeeStatus;
   status: 'unpaid' | 'partial' | 'paid' | 'overdue'; stage: 'none' | 'reported' | 'checked' | 'approved' };
 export type TeacherPeriod = { period_id: string; guardian_id: string; guardian_name: string; guardian_phone: string | null; period_start: string; period_end: string; amount_due: number;
-  status: PeriodRow['status']; stage: PeriodRow['stage']; reported_status: FeeStatus; paid_on: string | null; paid_method: string | null; paid_note: string | null; students: string[]; courses: string[] };
+  status: PeriodRow['status']; stage: PeriodRow['stage']; reported_status: FeeStatus; paid_on: string | null; paid_method: string | null; paid_note: string | null; students: string[]; courses: string[]; whatsapp_opt_in: boolean; last_reminded_at: string | null };
 
 export const listGuardians = (c: SupabaseClient) =>
   pages<Guardian>(() => c.from('academy_guardians').select('id,display_name,email,phone_e164,email_opt_in,whatsapp_opt_in').order('display_name').order('id'), 'load guardians');
@@ -157,7 +157,7 @@ export async function verifyLink(c: SupabaseClient, learnerId: string, guardianI
   if (!data?.length) throw Error('You are not allowed to verify this guardian');
 }
 /** Messages raised deliberately by the database workflow rules are safe to show. */
-const WORKFLOW = /^(Not allowed|Enter|Choose|The payment|Note|This parent|Check only|Approve only|Only finance|Only an administrator|Payment period|Period details)/;
+const WORKFLOW = /^(Not allowed|Enter|Choose|The payment|Note|This parent|Add a phone|Add an email|Parent not found|Unknown reminder|Check only|Approve only|Only finance|Only an administrator|Payment period|Period details)/;
 function workflowFail(error: { message: string; code?: string }, action: string): never {
   if (error.code === '42501') throw Error('You are not allowed to ' + action);
   if (WORKFLOW.test(error.message)) throw Error(error.message);
@@ -207,4 +207,18 @@ export async function renameClass(c: SupabaseClient, id: string, title: string) 
   const { data, error } = await c.from('academy_classes').update({ title: t }).eq('id', id).select('id');
   if (error) fail(error, 'rename the class');
   if (!data?.length) throw Error('You are not allowed to rename this class');
+}
+
+export type ReminderEvent = { period_id: string; sent_at: string };
+export const listReminders = (c: SupabaseClient) =>
+  pages<ReminderEvent>(() => c.from('academy_reminder_events').select('period_id,sent_at').order('sent_at', { ascending: false }).order('id'), 'load reminders');
+/** Record that a reminder was sent. WhatsApp reminders are refused by the database unless the parent agreed to WhatsApp. */
+export async function logReminder(c: SupabaseClient, periodId: string, channel: 'whatsapp' | 'copied') {
+  const { error } = await c.rpc('academy_log_reminder', { p_period: periodId, p_channel: channel });
+  if (error) workflowFail(error, 'record the reminder');
+}
+/** Record or withdraw a parent's permission to be contacted (admin, or a teacher of one of their children). */
+export async function setGuardianConsent(c: SupabaseClient, guardianId: string, email: boolean, whatsapp: boolean) {
+  const { error } = await c.rpc('academy_set_guardian_consent', { p_guardian: guardianId, p_email_opt: email, p_whatsapp_opt: whatsapp });
+  if (error) workflowFail(error, "change this parent's permission");
 }

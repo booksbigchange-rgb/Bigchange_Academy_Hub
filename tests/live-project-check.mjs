@@ -20,8 +20,10 @@ if (!URL_ || !KEY) { console.error('Missing .env with VITE_ACADEMY_SUPABASE_URL 
 let pass = 0, fail = 0;
 const check = (name, ok, detail = '') => { ok ? pass++ : fail++; console.log((ok ? 'PASS ' : 'FAIL ') + name + (ok || !detail ? '' : ' — ' + detail)); };
 const client = () => createClient(URL_, KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-const count = async (c, table) => { const { data, error } = await c.from(table).select('*', { head: false }).limit(1000); return error ? -1 : data.length; };
-const refused = r => Boolean(r.error) || (Array.isArray(r.data) && r.data.length === 0);
+const count = async (c, table) => { const { data, error } = await c.from(table).select('*', { head: false }).limit(1000);
+  if (error && error.code !== '42501') throw Error(`Could not reach ${table}: ${error.message}`); return error ? -1 : data.length; };
+// A write counts as refused only if the database said no (permission/RLS) or matched zero rows; network errors do not count.
+const refused = r => (r.error && /^(42501|PGRST|23)/.test(String(r.error.code ?? ''))) || (!r.error && Array.isArray(r.data) && r.data.length === 0);
 
 async function signIn(role) {
   const email = process.env[role + '_EMAIL'], password = process.env[role + '_PASSWORD'];
@@ -38,7 +40,9 @@ async function signIn(role) {
 // Anonymous: nothing visible
 const anon = client();
 for (const t of ['academy_learners', 'academy_guardians', 'academy_fee_periods', 'academy_attendance'])
-  check(`not signed in: ${t} is hidden`, (await anon.from(t).select('*').limit(1)).error !== null);
+  { const r = await anon.from(t).select('*').limit(1);
+    // Only a real "permission denied" from the database counts; a network failure is a FAIL, not a pass.
+    check(`not signed in: ${t} is hidden`, r.error?.code === '42501', r.error ? (r.error.code ?? '') + ' ' + r.error.message : 'rows were returned'); }
 
 const admin = await signIn('ADMIN');
 let adminCounts = null;

@@ -1,5 +1,15 @@
 # Questions for the owner
 
+## Answers received (2026-11-09) and what was built
+- **Q1:** payment is due at the **end**; a family becomes **Overdue 14 days after** their 3 months end. *Built (migration 0005).*
+- **Q2:** one course per subject, level in the class name, e.g. **"English – Level 2"**. *No build needed.*
+- **Q3:** not yet understood — asked again in simpler words.
+- **Q4:** **Send on WhatsApp** for teachers (their own students' parents) and finance; finance gets a list of everyone to remind plus "copy numbers" for a WhatsApp broadcast list; **date of each reminder recorded**. Teachers already use WhatsApp groups with parents and send Zoom links there. *Built (migration 0005 + screens).*
+- **Q5:** yes to weekly backups and a second admin. *Backup script and steps: `docs/BACKUPS.md`.*
+
+---
+
+
 **How to answer:** reply with one short line per question, for example:
 `Q1: start, 14 days · Q2: A · Q3: A · Q4: B, finance/admin only, school phone, yes · Q5: weekly copy by <name>, second admin = <name>`
 

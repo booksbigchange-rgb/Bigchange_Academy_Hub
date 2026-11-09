@@ -23,3 +23,14 @@ export function reminderText({ guardian, students, amount, start, end }) {
   const who = students.length ? students.join(', ') : 'your child';
   return `Dear ${guardian}, this is a reminder from BigChange Academy that the payment of ${usd(amount)} for ${who} for the period ${formatDate(start)} to ${formatDate(end)} is still outstanding. Payments are made outside this system. Please contact the school office if you have already paid.`;
 }
+
+/** WhatsApp "click to chat" link with the message filled in, or null without a usable number. Nothing is sent automatically. */
+export function whatsappLink(phoneE164, text) {
+  const digits = typeof phoneE164 === 'string' ? phoneE164.replace(/\D/g, '') : '';
+  if (digits.length < 8) return null;
+  return 'https://wa.me/' + digits + '?text=' + encodeURIComponent(text);
+}
+/** A reminder makes sense once the family's 3 months have ended and the payment is not approved as paid. */
+export const needsReminder = (p, today = todayIso()) => p.status !== 'paid' && p.period_end <= today;
+/** Short "last reminded" text, e.g. "Reminded 09/11/2026" or "Not reminded yet". */
+export const remindedText = iso => (iso ? 'Reminded ' + formatDate(String(iso).slice(0, 10)) : 'Not reminded yet');

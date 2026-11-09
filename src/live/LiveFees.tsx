@@ -43,7 +43,7 @@ function TeacherFees({ data, client, reload }: PanelProps & { role: Role }) {
     <span className="eyebrow">PARENT PAYMENTS · FORM TEACHER</span><h2>Parent payments for my students</h2>
     <p className="quiet">Payments are made outside this app. When a parent pays, report it here: the date, how they paid, and a note. The record belongs to the parent, so every teacher of that parent’s children sees the same update. Finance checks it and an administrator approves it.</p>
     {data.teacherPeriods.length === 0 ? <p className="quiet">No payment periods have been started for your students’ parents yet. Ask finance to start one.</p> :
-      <div className="table-wrap"><table><thead><tr><th>Parent</th><th>Phone</th><th>My students</th><th>Period</th><th>Fee</th><th>Payment</th><th>Status</th><th>Action</th></tr></thead><tbody>
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Parent</th><th>Phone</th><th>My students</th><th>Period</th><th>Fee</th><th>Payment</th><th>Status</th><th>Action</th></tr></thead><tbody>
         {data.teacherPeriods.map(p => <tr key={p.period_id}><td>{p.guardian_name}</td><td>{p.guardian_phone ?? '—'}</td><td>{p.students.join(', ') || '—'}</td>
           <td>{formatDate(p.period_start)} – {formatDate(p.period_end)}</td><td>{usd(p.amount_due)}</td>
           <td>{p.reported_status === 'unpaid' ? '—' : <>{label(STATUS_LABEL, p.reported_status)} on {formatDate(p.paid_on ?? '')} · {methodLabel(p.paid_method)}{p.paid_note ? ' · ' + p.paid_note : ''}</>}</td>
@@ -154,7 +154,7 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
     <div className="people-enroll" aria-label="Parents to remind"><h3>Parents to remind ({toRemind.length})</h3>
       <p className="quiet">Families whose 3 months have ended without an approved payment. They become Overdue 14 days after the end. "Send on WhatsApp" opens WhatsApp with the reminder written; you press send. Only parents who agreed to WhatsApp have the button.</p>
       {toRemind.length === 0 ? <p className="quiet">Nobody to remind right now.</p> : <>
-        <div className="table-wrap"><table><thead><tr><th>Parent</th><th>Fee</th><th>Status</th><th>Last reminder</th><th>Send</th></tr></thead><tbody>
+        <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Parent</th><th>Fee</th><th>Status</th><th>Last reminder</th><th>Send</th></tr></thead><tbody>
           {toRemind.map(p => { const g = guardian(p.guardian_id); return <tr key={p.id}>
             <td>{g?.display_name ?? 'Parent'}<br /><small>{g?.phone_e164 ?? 'no phone'}</small></td><td>{usd(p.amount_due)}</td>
             <td><span className={tagClass(p.status)}>{label(STATUS_LABEL, p.status)}</span></td><td>{remindedText(lastReminded(p.id))}</td>
@@ -174,7 +174,7 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
     <label>Show<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All</option><option value="unpaid">Unpaid</option><option value="partial">Partly paid</option>
       <option value="paid">Paid</option><option value="overdue">Overdue</option><option value="review">Awaiting check</option><option value="approval">Awaiting approval</option></select></label>
     {rows.length === 0 ? <p className="quiet">No payment periods yet.</p> :
-      <div className="table-wrap"><table><thead><tr><th>Parent</th><th>Child and courses</th><th>Period</th><th>Fee</th><th>Reported payment</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Parent</th><th>Child and courses</th><th>Period</th><th>Fee</th><th>Reported payment</th><th>Status</th><th>Actions</th></tr></thead><tbody>
         {rows.map(p => { const g = guardian(p.guardian_id); const i = info.get(p.guardian_id); return <tr key={p.id}>
           <td>{g?.display_name ?? 'Parent'}<br /><small>{g?.phone_e164 ?? ''}</small></td>
           <td>{p.learner_id ? (childName(p.learner_id) ?? 'Child') + ': ' + (coursesOf(p.learner_id).join(', ') || '—') : (i?.courses.length ? i.courses.join('; ') : i?.students.join(', ') ?? '—')}</td>

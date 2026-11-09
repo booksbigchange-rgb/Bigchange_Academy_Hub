@@ -118,7 +118,7 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
     return <LiveApp client={client} role={role} email={userEmail} onSignOut={() => void signOut()} />;
   }
 
-  return <main className="auth-shell">
+  return <main className="auth-shell live-auth">
     <section className="auth-card" aria-label="Academy account">
       <img className="auth-logo" src={`${import.meta.env.BASE_URL}bigchange-academy-logo.svg`} alt="BigChange Academy" />
       <span className="eyebrow">PRIVATE ACCOUNT AREA</span>

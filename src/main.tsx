@@ -18,9 +18,9 @@ try {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     {configError
-      ? <div className="auth-shell"><section className="auth-card"><h1>Preview configuration error</h1><p>{configError}</p><p>No school records are available.</p></section></div>
+      ? <div className="auth-shell live-auth"><section className="auth-card"><h1>Preview configuration error</h1><p>{configError}</p><p>No school records are available.</p></section></div>
       : config
-        ? <Suspense fallback={<div className="auth-shell"><p>Loading secure sign-in…</p></div>}><SecureApp url={config.url} publishableKey={config.publishableKey} /></Suspense>
+        ? <Suspense fallback={<div className="auth-shell live-auth"><p>Loading secure sign-in…</p></div>}><SecureApp url={config.url} publishableKey={config.publishableKey} /></Suspense>
         : <App />}
   </React.StrictMode>
 );

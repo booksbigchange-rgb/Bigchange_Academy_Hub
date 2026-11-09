@@ -8,6 +8,7 @@ import { EMPTY, useAction, type Data, type PanelProps, type Role } from './share
 import LiveGuardians from './LiveGuardians';
 import LiveFees from './LiveFees';
 import LiveOverview from './LiveOverview';
+import { NavIcon } from './icons';
 import LiveNotices from './LiveNotices';
 import { addMonths, daysUntil, endingText, formatDate, nextLevelPlan, todayIso } from './fees.mjs';
 import LiveFamily, { LivePayments } from './LiveFamily';
@@ -46,20 +47,20 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
   }, [client, isAdmin, isFinance, role]);
   useEffect(() => { void reload(); }, [reload]);
 
-  return <div className="shell">
+  return <div className="shell live-shell">
     <aside className="sidebar">
       <div className="identity"><img className="brand-logo" src={`${import.meta.env.BASE_URL}bigchange-academy-logo.svg`} width="220" height="177" alt="BigChange Academy" /></div>
       <div className="side-label">WORKSPACE</div>
       <nav aria-label="Sections">
         {sections.map(item => <button key={item} className={section === item ? 'navitem active' : 'navitem'}
-          aria-current={section === item ? 'page' : undefined} onClick={() => setSection(item)}>{item}</button>)}
+          aria-current={section === item ? 'page' : undefined} onClick={() => setSection(item)}><NavIcon name={item} />{item}</button>)}
       </nav>
-      <div className="sidebar-bottom"><div className="sidebar-note">Signed in · {role}</div></div>
+      <div className="sidebar-bottom"><div className="sidebar-user" title={email}>{email}</div><span className="role-chip">{role}</span></div>
     </aside>
     <div className="workspace">
       <header className="topbar">
         <nav className="crumb" aria-label="Breadcrumb">BigChange Academy <span aria-hidden="true">/</span> <span aria-current="page">{sections.length ? section : 'Account'}</span></nav>
-        <div className="top-actions"><span>{email}</span> <button className="small-btn" onClick={onSignOut}>Sign out</button></div>
+        <div className="top-actions"><span className="top-email">{email}</span> <button className="small-btn" onClick={onSignOut}>Sign out</button></div>
       </header>
       <main className="content live" id="main-content" tabIndex={-1}>
         <div role="note" className="notice"><strong>Live database</strong> — use test data only until the privacy and safeguarding checklist is complete. Changes are saved to the Academy database.</div>
@@ -139,7 +140,7 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
     </form>}
     <label>Search students<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name" /></label>
     {shown.length === 0 ? <p className="quiet">{data.learners.length === 0 ? (isAdmin ? 'No students yet. Add the first one above.' : 'No students are in your classes yet.') : 'No students match your search.'}</p> :
-      <div className="table-wrap"><table><thead><tr><th>Name</th><th>Grade</th><th>Status</th><th>Classes</th><th>Action</th></tr></thead><tbody>
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Name</th><th>Grade</th><th>Status</th><th>Classes</th><th>Action</th></tr></thead><tbody>
         {shown.map(l => <tr key={l.id}><td>{l.display_name}</td><td>{l.grade_level ?? '—'}</td>
           <td><span className={'tag ' + (l.active ? 'green' : 'amber')}>{l.active ? 'Active' : 'Inactive'}</span></td><td>{classCount(l.id)}</td>
           <td><button className="small-btn" onClick={() => setHistoryId(historyId === l.id ? '' : l.id)}>{historyId === l.id ? 'Hide history' : 'Attendance'}</button>
@@ -184,7 +185,7 @@ function Courses({ data, client, reload }: PanelProps) {
       <button className="primary-btn" type="submit" disabled={busy}>+ Add course</button>
     </form>
     {data.courses.length === 0 ? <p className="quiet">No courses yet. Add one to start creating classes.</p> :
-      <div className="table-wrap"><table><thead><tr><th>Title</th><th>Description</th><th>Action</th></tr></thead><tbody>
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Title</th><th>Description</th><th>Action</th></tr></thead><tbody>
         {data.courses.map(c => <tr key={c.id}><td>{c.title}</td><td>{c.description ?? '—'}</td>
           <td><button className="small-btn" onClick={() => { setEditId(c.id); setEditTitle(c.title); setEditDescription(c.description ?? ''); }}>Edit</button></td></tr>)}</tbody></table></div>}
     {editId && <form className="ops-form" onSubmit={save}>
@@ -235,7 +236,7 @@ function Classes({ data, client, isAdmin, canEditLevels, reload }: PanelProps & 
       <button className="primary-btn" type="submit" disabled={busy || !data.courses.length}>+ Create class</button>
     </form>}
     {data.classes.length === 0 ? <p className="quiet">{isAdmin ? 'No classes yet.' : 'You have no classes assigned yet.'}</p> :
-      <div className="table-wrap"><table><thead><tr><th>Class</th><th>Course</th><th>Teacher</th><th>Current level</th><th>Students</th><th>Roster</th></tr></thead><tbody>
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Class</th><th>Course</th><th>Teacher</th><th>Current level</th><th>Students</th><th>Roster</th></tr></thead><tbody>
         {data.classes.map(c => <tr key={c.id}><td>{c.title}</td><td>{course(c.course_id)}</td><td>{isAdmin ? <select aria-label={'Teacher for ' + c.title} value={c.teacher_staff_id ?? ''} disabled={busy}
             onChange={e => void run(() => setClassTeacher(client, c.id, e.target.value), 'Teacher updated.')}><option value="">Unassigned</option>
             {teachers.map(t => <option key={t.id} value={t.id}>{t.display_name ?? 'Unnamed teacher'}</option>)}</select> : teacher(c.teacher_staff_id)}</td>
@@ -310,7 +311,7 @@ function Attendance({ data, client, reload }: PanelProps) {
         <label>Lesson<select value={sessionId} onChange={e => chooseSession(e.target.value)}><option value="">Choose a lesson</option>
           {classSessions.map(s => <option key={s.id} value={s.id}>{localDay(s.starts_at)} · {new Date(s.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</option>)}</select></label>)}
       {sessionId && (roster.length === 0 ? <p className="quiet">No students are enrolled in this class. Enroll students under Classes first.</p> :
-        <div className="table-wrap"><table><thead><tr><th>Student</th><th>Status</th><th>Saved</th></tr></thead><tbody>
+        <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Student</th><th>Status</th><th>Saved</th></tr></thead><tbody>
           {roster.map(l => <tr key={l.id}><td>{l.display_name}</td>
             <td><select aria-label={'Attendance for ' + l.display_name} value={marks[l.id] ?? ''} onChange={e => setMarks({ ...marks, [l.id]: e.target.value as AttendanceStatus })}>
               <option value="">Not marked</option>{ATTENDANCE_STATUSES.map((st: string) => <option key={st} value={st}>{STATUS_LABEL[st as AttendanceStatus]}</option>)}</select></td>
@@ -335,7 +336,7 @@ function History({ name, rows, summary }: { name: string; rows: Array<{ date: st
     {rows.length === 0 ? <p className="quiet">No attendance recorded yet.</p> : <>
       <p>Present {summary.present} · Late {summary.late} · Absent {summary.absent} · Excused {summary.excused}
         {summary.rate !== null && <> · Attendance rate <strong>{summary.rate}%</strong></>}</p>
-      <div className="table-wrap"><table><thead><tr><th>Date</th><th>Class</th><th>Mark</th></tr></thead><tbody>
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Date</th><th>Class</th><th>Mark</th></tr></thead><tbody>
         {rows.map((r, i) => <tr key={i}><td>{r.date.slice(8, 10) + '/' + r.date.slice(5, 7) + '/' + r.date.slice(0, 4)}</td><td>{r.classTitle}</td><td>{MARK[r.status] ?? r.status}</td></tr>)}
       </tbody></table></div></>}
   </div>;

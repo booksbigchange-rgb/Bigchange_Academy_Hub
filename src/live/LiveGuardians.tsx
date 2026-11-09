@@ -44,7 +44,7 @@ export default function LiveGuardians({ data, client, role, reload }: PanelProps
       <label>Search parents<input type="search" value={dirQuery} onChange={e => setDirQuery(e.target.value)} placeholder="Name, phone, email or child" /></label>
       <label><input type="checkbox" checked={pendingOnly} onChange={e => setPendingOnly(e.target.checked)} /> Only parents waiting for verification</label>
       {directory.length === 0 ? <p className="quiet">{data.guardians.length === 0 ? 'No parents recorded yet. Choose a student below to add one.' : 'No parents match.'}</p> :
-        <div className="table-wrap"><table><thead><tr><th>Parent</th><th>Phone</th><th>Email</th><th>Permission</th><th>Children</th></tr></thead><tbody>
+        <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Parent</th><th>Phone</th><th>Email</th><th>Permission</th><th>Children</th></tr></thead><tbody>
           {directory.map(g => <tr key={g.id}><td>{g.display_name}</td><td>{g.phone_e164 ?? '—'}</td><td>{g.email ?? '—'}</td>
             <td>{[g.email_opt_in && 'Email', g.whatsapp_opt_in && 'WhatsApp'].filter(Boolean).join(', ') || 'None given'}</td>
             <td>{g.verified.map(c => c.name).join(', ')}
@@ -61,7 +61,7 @@ export default function LiveGuardians({ data, client, role, reload }: PanelProps
         <h3>Guardians of {learner.display_name}</h3>
         {loadError && <p className="ops-feedback" role="alert">{loadError}</p>}
         {!loadError && contacts.length === 0 ? <p className="quiet">No guardian recorded yet.</p> : contacts.length > 0 &&
-          <div className="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Permission</th><th>Verified</th></tr></thead><tbody>
+          <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Permission</th><th>Verified</th></tr></thead><tbody>
             {contacts.map(c => <tr key={c.guardian_id}><td>{c.display_name}</td><td>{c.phone_e164 ?? '—'}</td><td>{c.email ?? '—'}</td>
               <td>{[c.email_opt_in && 'Email', c.whatsapp_opt_in && 'WhatsApp'].filter(Boolean).join(', ') || 'None given'}
                 {canAdd && c.verified && <> <button className="text-btn" type="button" onClick={() => { setConsentFor(c.guardian_id); setConsentEmail(c.email_opt_in); setConsentWa(c.whatsapp_opt_in); }}>Change</button></>}

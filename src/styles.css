@@ -1030,5 +1030,150 @@ footer {
 .detail-list div { display: flex; flex-wrap: wrap; gap: 8px; }
 .detail-list dt { min-width: 130px; font-weight: 600; color: var(--text-muted); }
 .detail-list dd { margin: 0; }
-.live .operations label { display: block; margin: 10px 0; }
-.live .operations input:not([type="checkbox"]), .live .operations select { display: block; margin-top: 4px; min-height: 36px; padding: 6px 10px; border: 1px solid #d8c7a4; border-radius: 8px; background: #fffaf2; font: inherit; max-width: 100%; }
+
+/* ==========================================================================================================
+   Live app visual refresh (docs/DESIGN_SPEC.md). Everything here is scoped to .live-shell (signed-in app) or
+   .live-auth (sign-in, loading and configuration screens) so the older demo app is unchanged.
+   ========================================================================================================== */
+.live-shell, .live-auth {
+  --lv-page: #f3efe8; --lv-surface: #ffffff; --lv-muted: #faf8f4; --lv-line: #e7e0d4; --lv-field: #8a8072;
+  --lv-text: #1f1b16; --lv-text-2: #6b6257; --lv-gold: #c8902f; --lv-gold-tint: #f6e7c8; --lv-gold-text: #7d5313;
+  --lv-shadow: 0 1px 2px rgba(31,27,22,.04), 0 8px 24px rgba(31,27,22,.06);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Ethiopic", Arial, sans-serif;
+  color: var(--lv-text);
+}
+.live-shell { min-height: 100dvh; background: var(--lv-page); grid-template-columns: 248px minmax(0, 1fr); }
+.live-shell :focus-visible, .live-auth :focus-visible, .live-shell .navitem:focus-visible { outline: 2px solid var(--lv-gold-text); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .live-shell *, .live-auth * { transition: none !important; animation: none !important; } }
+
+/* Sidebar */
+.live-shell .sidebar { background: var(--lv-surface); color: var(--lv-text); border-right: 1px solid var(--lv-line); padding: 22px 14px; min-width: 0; }
+.live-shell .identity { margin: 0 6px 18px; padding: 0; background: none; border: 0; box-shadow: none; }
+.live-shell .brand-logo { width: 100%; max-width: 168px; padding: 12px; border-radius: 14px; background: var(--lv-text); filter: none; box-sizing: border-box; }
+.live-shell .side-label { color: var(--lv-text-2); font-size: 11px; letter-spacing: .08em; margin: 4px 10px 8px; }
+.live-shell .sidebar nav { gap: 4px; }
+.live-shell .navitem { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 12px; border-radius: 999px; border: 0; border-left: 3px solid transparent;
+  background: transparent; color: var(--lv-text); font-size: 14px; font-weight: 500; text-align: left; box-shadow: none; }
+.live-shell .navitem:hover { background: var(--lv-muted); color: var(--lv-text); }
+.live-shell .navitem.active { background: var(--lv-gold-tint); color: var(--lv-gold-text); font-weight: 700; border-left-color: var(--lv-gold-text); box-shadow: none; }
+.live-shell .nav-svg { flex: 0 0 18px; }
+.live-shell .sidebar-bottom { margin-top: auto; padding: 14px 10px 0; border-top: 1px solid var(--lv-line); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.live-shell .sidebar-user { font-size: 13px; color: var(--lv-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-shell .role-chip { align-self: flex-start; padding: 3px 10px; border-radius: 999px; background: var(--lv-gold-tint); color: var(--lv-gold-text); font-size: 12px; font-weight: 600; text-transform: capitalize; }
+
+/* Top bar and page */
+.live-shell .workspace { background: var(--lv-page); min-width: 0; }
+.live-shell .topbar { background: var(--lv-surface); border-bottom: 1px solid var(--lv-line); min-height: 64px; padding: 10px 28px; box-shadow: none; }
+.live-shell .crumb { color: var(--lv-text-2); font-weight: 500; font-size: 13px; }
+.live-shell .crumb span[aria-current] { color: var(--lv-text); font-weight: 600; }
+.live-shell .crumb span { color: var(--lv-text-2); }
+.live-shell .top-actions { gap: 14px; min-width: 0; }
+.live-shell .top-email { font-size: 13px; color: var(--lv-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+.live-shell .content { padding: 28px 32px 40px; max-width: 1240px; }
+.live-shell .notice { display: block; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--lv-line); background: var(--lv-surface);
+  color: var(--lv-text-2); font-size: 13px; box-shadow: none; margin-bottom: 20px; }
+.live-shell .notice::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--lv-gold); vertical-align: 1px; }
+.live-shell .notice strong { color: var(--lv-text); }
+
+/* Cards */
+.live-shell .panel { background: var(--lv-surface); border: 1px solid var(--lv-line); border-radius: 20px; box-shadow: var(--lv-shadow); padding: 24px; min-width: 0; }
+.live-shell .panel + .panel { margin-top: 20px; }
+.live-shell .eyebrow { color: var(--lv-gold-text); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+.live-shell .panel h2 { font-size: 22px; font-weight: 650; color: var(--lv-text); margin: 4px 0 12px; }
+.live-shell .panel h3 { font-size: 16px; font-weight: 650; color: var(--lv-text); }
+.live-shell .panel h4 { font-size: 14px; font-weight: 650; margin: 16px 0 8px; }
+.live-shell .quiet { font-size: 14px !important; color: var(--lv-text-2); margin-top: 8px !important; line-height: 1.5; }
+.live-shell .people-enroll { background: var(--lv-muted); border: 1px solid var(--lv-line); border-radius: 14px; padding: 18px; margin-top: 20px; min-width: 0; }
+.live-shell .people-enroll > h3:first-child { margin-top: 0; }
+.live-shell .ops-form { min-width: 0; }
+
+/* Metrics */
+.live-shell .metric-grid { gap: 16px; }
+.live-shell .metric { background: var(--lv-surface); border: 1px solid var(--lv-line); border-radius: 20px; box-shadow: var(--lv-shadow); padding: 20px; min-height: 0; }
+.live-shell .metric::before, .live-shell .metric::after { display: none; }
+.live-shell .metric-value { font-size: 32px; font-weight: 700; color: var(--lv-text); }
+.live-shell .metric-title { font-size: 14px; font-weight: 600; color: var(--lv-text); }
+.live-shell .metric-subtitle { font-size: 13px; color: var(--lv-text-2); }
+.live-shell .metric-hero { background: linear-gradient(135deg, #f6e7c8, #efd39a); border-color: #e6c98f; }
+.live-shell .metric-hero .metric-value, .live-shell .metric-hero .metric-title, .live-shell .metric-hero .metric-subtitle { color: var(--lv-text); }
+.live-shell .finance-strip { gap: 12px; }
+.live-shell .finance-strip > div { background: var(--lv-surface); border: 1px solid var(--lv-line); border-radius: 14px; box-shadow: none; }
+.live-shell .finance-strip > div:last-child { border-top: 1px solid var(--lv-line); }
+.live-shell .finance-strip small { color: var(--lv-text-2); }
+
+/* Buttons */
+.live-shell .primary-btn, .live-auth .primary-btn, .live-shell a.primary-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 10px 20px; border-radius: 999px;
+  border: 1px solid var(--lv-text); background: var(--lv-text); color: #fff; font-weight: 600; font-size: 14px; box-shadow: none; text-decoration: none; filter: none; }
+.live-shell .primary-btn:hover, .live-auth .primary-btn:hover { background: #2d2822; filter: none; }
+.live-shell .small-btn, .live-auth .small-btn, .live-shell a.small-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 16px; border-radius: 999px;
+  border: 1px solid #cfc6b8; background: var(--lv-surface); color: var(--lv-text); font-weight: 600; font-size: 13px; box-shadow: none; text-decoration: none; filter: none; }
+.live-shell .small-btn:hover, .live-auth .small-btn:hover { background: var(--lv-muted); filter: none; }
+.live-shell .text-btn { min-height: 36px; padding: 6px 4px; background: none; border: 0; color: var(--lv-gold-text); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.live-shell button:disabled, .live-auth button:disabled, .live-shell .primary-btn:disabled, .live-shell .small-btn:disabled {
+  opacity: 1; background: var(--lv-line); border-color: var(--lv-line); color: var(--lv-text-2); cursor: not-allowed; }
+.live-shell .quick-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
+/* Forms */
+.live-shell .operations label, .live-shell .people-enroll label { display: block; margin: 12px 0; font-size: 13px; font-weight: 600; color: var(--lv-text); max-width: 420px; }
+.live-shell .operations input:not([type="checkbox"]), .live-shell .operations select, .live-shell .operations textarea {
+  display: block; width: 100%; max-width: 420px; box-sizing: border-box; margin-top: 6px; min-height: 44px; padding: 10px 12px;
+  border: 1px solid var(--lv-field); border-radius: 12px; background: var(--lv-surface); color: var(--lv-text); font: inherit; font-weight: 400; }
+.live-shell .operations input[type="checkbox"] { width: 20px; height: 20px; margin-right: 8px; vertical-align: middle; accent-color: var(--lv-gold-text); }
+.live-shell .operations label:has(> input[type="checkbox"]) { display: flex; align-items: center; min-height: 44px; font-weight: 500; }
+.live-shell .operations [aria-invalid="true"] { border-color: #8a2a24; }
+.live-shell .ops-feedback { font-size: 14px; color: var(--lv-text); min-height: 1em; }
+.live-shell .ops-feedback[role="alert"], .live-shell [role="alert"].ops-feedback { color: #8a2a24; background: #f8e4e2; padding: 10px 14px; border-radius: 12px; }
+
+/* Tables */
+.live-shell .table-wrap { overflow-x: auto; border: 1px solid var(--lv-line); border-radius: 14px; background: var(--lv-surface); margin-top: 12px; max-width: 100%; }
+.live-shell table { min-width: 640px; width: 100%; border-collapse: collapse; }
+.live-shell thead { background: var(--lv-muted); }
+.live-shell th { color: var(--lv-text-2); font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; text-align: left; }
+.live-shell th, .live-shell td { padding: 12px 14px; border-bottom: 1px solid var(--lv-line); vertical-align: top; font-weight: 400; font-size: 14px; }
+.live-shell tbody tr:nth-child(even), .live-shell tbody tr:hover { background: transparent; }
+.live-shell tbody tr:last-child td { border-bottom: 0; }
+.live-shell td:last-child { white-space: nowrap; }
+.live-shell td form { width: auto; min-width: 8rem; white-space: normal; }
+.live-shell td .small-btn, .live-shell td .primary-btn { margin: 2px 4px 2px 0; }
+
+/* Status chips */
+.live-shell .tag { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 0; letter-spacing: 0; text-transform: none; }
+.live-shell .tag.green { background: #deeadc; color: #315f41; }
+.live-shell .tag.amber { background: #fde4cc; color: #8a3d0a; }
+.live-shell .tag.red { background: #f8e4e2; color: #8a2a24; }
+
+/* Phones and small Chromebooks */
+@media (max-width: 790px) {
+  .live-shell { display: block; }
+  .live-shell .sidebar { display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 10px 12px; border-right: 0; border-bottom: 1px solid var(--lv-line); min-height: 0; }
+  .live-shell .identity { margin: 0; flex: 0 0 auto; }
+  .live-shell .brand-logo { width: 44px; height: 44px; padding: 5px; border-radius: 12px; object-fit: contain; }
+  .live-shell .side-label, .live-shell .sidebar-bottom { display: none; }
+  .live-shell .sidebar nav { flex-direction: row; overflow-x: auto; gap: 6px; padding: 2px; min-width: 0; flex: 1 1 auto; }
+  .live-shell .navitem { min-width: max-content; border-left: 0; font-size: 13px; padding: 8px 12px; }
+  .live-shell .navitem.active { box-shadow: inset 0 -3px 0 var(--lv-gold-text); }
+  .live-shell .topbar { padding: 8px 16px; min-height: 56px; }
+  .live-shell .top-email { display: none; }
+  .live-shell .content { padding: 16px; }
+  .live-shell .notice { border-radius: 14px; font-size: 12px; }
+  .live-shell .panel { padding: 16px; border-radius: 16px; }
+  .live-shell .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .live-shell .metric { padding: 14px; }
+  .live-shell .metric-value { font-size: 24px; }
+}
+
+/* Sign-in, loading and configuration screens */
+.live-auth { background: var(--lv-page); min-height: 100dvh; }
+.live-auth .auth-card { width: min(100%, 440px); padding: 32px; border-radius: 20px; border: 1px solid var(--lv-line); background: var(--lv-surface); box-shadow: var(--lv-shadow); color: var(--lv-text); }
+.live-auth .auth-logo { width: 150px; height: auto; padding: 12px; border-radius: 14px; background: var(--lv-text); box-sizing: border-box; }
+.live-auth .auth-card h1 { font-size: 24px; font-weight: 650; color: var(--lv-text); }
+.live-auth .auth-card p, .live-auth .auth-footer { color: var(--lv-text-2); }
+.live-auth .eyebrow { color: var(--lv-gold-text); }
+.live-auth .auth-form label { display: block; margin: 14px 0; font-size: 13px; font-weight: 600; color: var(--lv-text); }
+.live-auth .auth-form input { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; min-height: 44px; padding: 10px 12px; border: 1px solid var(--lv-field); border-radius: 12px; background: var(--lv-surface); color: var(--lv-text); }
+.live-auth .auth-form .primary-btn { width: 100%; margin-top: 8px; }
+.live-auth .auth-role { background: var(--lv-gold-tint); color: var(--lv-gold-text); border-radius: 999px; padding: 2px 10px; }
+@media (max-width: 520px) { .live-auth .auth-card { padding: 20px; } }
+

@@ -30,7 +30,7 @@ export default function LiveFamily({ data, role }: { data: Data; role: Role }) {
     <h3>Attendance</h3>
     {marks.length === 0 ? <p className="quiet">No attendance recorded yet.</p> : <>
       <p>Present {sum.present} · Late {sum.late} · Absent {sum.absent} · Excused {sum.excused}{sum.rate !== null && <> · Attendance rate <strong>{sum.rate}%</strong></>}</p>
-      <div className="table-wrap"><table><thead><tr><th>Date</th><th>Class</th><th>Mark</th></tr></thead><tbody>
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Date</th><th>Class</th><th>Mark</th></tr></thead><tbody>
         {recent.map(({ a, s }) => <tr key={a.session_id}><td>{formatDate(localDay(s!.starts_at))}</td>
           <td>{data.classes.find(c => c.id === s!.class_id)?.title ?? '—'}</td><td>{MARK[a.status]}</td></tr>)}</tbody></table></div></>}
   </section>;
@@ -41,7 +41,7 @@ export function LivePayments({ data }: { data: Data }) {
     <span className="eyebrow">PAYMENTS · TRACKING ONLY</span><h2>My payments</h2>
     <p className="quiet">Payments are made directly to the school, not through this app. This page shows what the school has recorded and approved.</p>
     {data.periods.length === 0 ? <p className="quiet">No payment period has been started for you yet.</p> :
-      <div className="table-wrap"><table><thead><tr><th>Period</th><th>Courses</th><th>Fee</th><th>Paid on</th><th>Status</th></tr></thead><tbody>
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Period</th><th>Courses</th><th>Fee</th><th>Paid on</th><th>Status</th></tr></thead><tbody>
         {data.periods.map(p => <tr key={p.id}><td>{formatDate(p.period_start)} – {formatDate(p.period_end)}</td><td>{p.course_count}</td><td>{usd(p.amount_due)}</td>
           <td>{formatDate(p.paid_on ?? '')}</td><td><span className={tagClass(p.status)}>{STATUS_LABEL[p.status]}</span><br /><small>{STAGE_LABEL[p.stage]}</small></td></tr>)}</tbody></table></div>}
   </section>;

@@ -348,8 +348,19 @@ await session(browser, db, 'admin', 1366, async page => {
 
 // Optional accessibility scan with axe-core: AXE_PATH=/path/to/axe.min.js node tests/e2e/live-smoke.mjs ...
 if (process.env.AXE_PATH) {
-  for (const [role, sections] of [['admin', ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees']], ['teacher', ['Overview', 'Fees', 'Notices']]]) {
-    await session(browser, db, role, 1366, async page => {
+  // Sign-in screen (before signing in), at phone and desktop width.
+  for (const width of [390, 1366]) {
+    const p = await (await browser.newContext({ viewport: { width, height: 900 } })).newPage();
+    await p.goto(BASE); await p.getByRole('button', { name: 'Sign in' }).waitFor();
+    if (process.env.SCREENSHOTS) await p.screenshot({ path: `${process.env.SCREENSHOTS}/signin-${width}.png` });
+    await p.addScriptTag({ path: process.env.AXE_PATH });
+    const v = await p.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
+      .filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+    check(`axe sign-in @${width}px: no serious/critical issues`, v.length === 0, v.join(' | '));
+    await p.context().close();
+  }
+  for (const [role, sections] of [['admin', ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees']], ['teacher', ['Overview', 'Classes', 'Fees', 'Notices']], ['finance', ['Fees', 'Overview', 'Guardians']]]) {
+    await session(browser, db, role, role === 'teacher' ? 390 : 1366, async page => {
       for (const name of sections) {
         await nav(page, name);
         await page.waitForTimeout(300);

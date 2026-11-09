@@ -19,6 +19,7 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - Real project (txwremmzgnmlnklpeton) probed from this session, not signed in: all 16 tables/views and every Academy function refuse anonymous access; migration 0003 is applied. **Public sign-up is ON** — owner should turn it off. `tests/live-project-check.mjs` checks admin/teacher/finance rules on the real project with the owner's test logins (run locally).
 - Hosting prepared (not deployed): `netlify.toml`, security headers `public/_headers` (strict CSP), `docs/HOSTING.md`. Production build served with these headers passes the full browser smoke test (40/40, no CSP errors) and the demo loads cleanly.
 - Owner checklist `docs/NEXT_STEPS.md` and `docs/MERGE_PLAN.md` written. Live project re-checked on 2026-11-08 after the owner's changes: email sign-in ON, public sign-up OFF.
+- Deep audit 2026-11-09 (`docs/AUDIT_REPORT.md`): fixed silent 1,000-row truncation (paged loading), updated Vite 6.4.5 (0 vulnerabilities), retargeted pilot page; 126 unit, 79 DB, 52 browser checks pass.
 
 ## Remaining (needs owner input or credentials)
 1. Persistence and real auth: Supabase project key, migrations, RLS tests.

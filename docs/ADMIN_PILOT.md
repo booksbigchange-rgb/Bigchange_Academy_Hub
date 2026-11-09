@@ -1,3 +1,5 @@
+> **Historical note (2026-11-09):** this page describes an earlier project (`nwpaqjzwqwkqxibwvusr`) and setup. The current project is `txwremmzgnmlnklpeton`; follow the [README](../README.md) and [docs/NEXT_STEPS.md](NEXT_STEPS.md).
+
 # Administrator Pilot Milestone — test accounts only
 
 ## Preflight (done by owner)

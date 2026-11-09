@@ -38,7 +38,7 @@ test('adult-only pilot does not use public user self-registration or service key
   const auth=readFileSync(new URL('../src/SecureApp.tsx',import.meta.url),'utf8');
   const vite=readFileSync(new URL('../vite.config.ts',import.meta.url),'utf8');
   assert.match(source,/sb_publishable_/);
-  assert.match(source,/nwpaqjzwqwkqxibwvusr/);
+  assert.match(source,/txwremmzgnmlnklpeton/);
   assert.doesNotMatch(source,/signUp\(/);
   assert.match(auth,/detectSessionInUrl: true/);
   assert.match(auth,/auth\.updateUser\(\{ password \}\)/);

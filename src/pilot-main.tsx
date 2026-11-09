@@ -6,7 +6,7 @@ import './styles.css';
 
 // A limited test-only login at /pilot.html. No student data is available here.
 // The publishable key is public by design; never input sb_secret_ or service_role.
-const PROJECT_URL = 'https://nwpaqjzwqwkqxibwvusr.supabase.co';
+const PROJECT_URL = 'https://txwremmzgnmlnklpeton.supabase.co';
 const STORAGE_KEY = 'bigchange_pilot_publishable_key';
 
 function Pilot() {
@@ -48,7 +48,7 @@ function Pilot() {
         <button type="submit" className="primary-btn">Open test sign-in</button>
       </form>
       <p role="status" className="auth-feedback">{error}</p>
-      <p className="auth-footer">Confirm your project ID is nwpaqjzwqwkqxibwvusr. Only enter the publishable key from that project. Never send or paste a service-role, secret, database password or invitation link.</p>
+      <p className="auth-footer">Confirm your project ID is txwremmzgnmlnklpeton. Only enter the publishable key from that project. Never send or paste a service-role, secret, database password or invitation link.</p>
     </section>
   </main>;
 }

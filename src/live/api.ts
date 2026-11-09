@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { collectPages } from './paging.mjs';
 import { validateClass, validateCourse, validateGuardian, validateLearner, validateReport, validateSession } from './validation.mjs';
 
 export type Learner = { id: string; display_name: string; active: boolean; grade_level: string | null; note: string | null };
@@ -19,16 +20,25 @@ async function rows<T>(query: PromiseLike<{ data: T[] | null; error: { message: 
   return data ?? [];
 }
 
+type Result<T> = { data: T[] | null; error: { message: string; code?: string } | null };
+/** Supabase returns at most 1,000 rows per request by default, so lists are read page by page.
+ * Each query must have a stable, unique ordering so pages neither skip nor repeat rows. */
+export async function pages<T>(make: () => { range(from: number, to: number): PromiseLike<Result<T>> }, action: string): Promise<T[]> {
+  const { rows: all, error } = await collectPages<T>((from, to) => make().range(from, to));
+  if (error) fail(error, action);
+  return all;
+}
+
 export const listLearners = (c: SupabaseClient) =>
-  rows<Learner>(c.from('academy_learners').select('id,display_name,active,grade_level,note').order('display_name'), 'load students');
+  pages<Learner>(() => c.from('academy_learners').select('id,display_name,active,grade_level,note').order('display_name').order('id'), 'load students');
 export const listCourses = (c: SupabaseClient) =>
-  rows<Course>(c.from('academy_courses').select('id,title,description').order('title'), 'load courses');
+  pages<Course>(() => c.from('academy_courses').select('id,title,description').order('title').order('id'), 'load courses');
 export const listStaff = (c: SupabaseClient) =>
-  rows<Staff>(c.from('academy_staff').select('id,role,display_name').order('display_name'), 'load staff');
+  pages<Staff>(() => c.from('academy_staff').select('id,role,display_name').order('display_name').order('id'), 'load staff');
 export const listClasses = (c: SupabaseClient) =>
-  rows<ClassRow>(c.from('academy_classes').select('id,title,course_id,teacher_staff_id').order('title'), 'load classes');
+  pages<ClassRow>(() => c.from('academy_classes').select('id,title,course_id,teacher_staff_id').order('title').order('id'), 'load classes');
 export const listEnrollments = (c: SupabaseClient) =>
-  rows<Enrollment>(c.from('academy_enrollments').select('class_id,learner_id'), 'load enrollments');
+  pages<Enrollment>(() => c.from('academy_enrollments').select('class_id,learner_id').order('class_id').order('learner_id'), 'load enrollments');
 
 export async function addLearner(c: SupabaseClient, input: { name: string; gradeLevel?: string; note?: string }): Promise<string> {
   const { data, error } = await c.from('academy_learners').insert(validateLearner(input)).select('id').single();
@@ -79,9 +89,9 @@ export type AttendanceStatus = 'present' | 'late' | 'absent' | 'excused';
 export type AttendanceRow = { session_id: string; learner_id: string; status: AttendanceStatus };
 
 export const listSessions = (c: SupabaseClient) =>
-  rows<Session>(c.from('academy_sessions').select('id,class_id,starts_at').order('starts_at', { ascending: false }), 'load lessons');
+  pages<Session>(() => c.from('academy_sessions').select('id,class_id,starts_at').order('starts_at', { ascending: false }).order('id'), 'load lessons');
 export const listAttendance = (c: SupabaseClient) =>
-  rows<AttendanceRow>(c.from('academy_attendance').select('session_id,learner_id,status'), 'load attendance');
+  pages<AttendanceRow>(() => c.from('academy_attendance').select('session_id,learner_id,status').order('session_id').order('learner_id'), 'load attendance');
 
 export async function addSession(c: SupabaseClient, classId: string, input: { date: string; time: string }) {
   const { error } = await c.from('academy_sessions').insert({ class_id: classId, starts_at: validateSession(input) });
@@ -117,16 +127,16 @@ export type TeacherPeriod = { period_id: string; guardian_id: string; guardian_n
   status: PeriodRow['status']; stage: PeriodRow['stage']; reported_status: FeeStatus; paid_on: string | null; paid_method: string | null; paid_note: string | null; students: string[]; courses: string[] };
 
 export const listGuardians = (c: SupabaseClient) =>
-  rows<Guardian>(c.from('academy_guardians').select('id,display_name,email,phone_e164,email_opt_in,whatsapp_opt_in').order('display_name'), 'load guardians');
+  pages<Guardian>(() => c.from('academy_guardians').select('id,display_name,email,phone_e164,email_opt_in,whatsapp_opt_in').order('display_name').order('id'), 'load guardians');
 export async function listLinks(c: SupabaseClient): Promise<GuardianLink[]> {
-  const data = await rows<{ learner_id: string; guardian_id: string; verified_by_staff_id: string | null }>(
-    c.from('academy_guardian_links').select('learner_id,guardian_id,verified_by_staff_id'), 'load guardian links');
+  const data = await pages<{ learner_id: string; guardian_id: string; verified_by_staff_id: string | null }>(
+    () => c.from('academy_guardian_links').select('learner_id,guardian_id,verified_by_staff_id').order('learner_id').order('guardian_id'), 'load guardian links');
   return data.map(l => ({ learner_id: l.learner_id, guardian_id: l.guardian_id, verified: l.verified_by_staff_id !== null }));
 }
 export const listPeriods = (c: SupabaseClient) =>
-  rows<PeriodRow>(c.from('academy_fee_period_status').select('*').order('period_start', { ascending: false }), 'load payment periods');
+  pages<PeriodRow>(() => c.from('academy_fee_period_status').select('*').order('period_start', { ascending: false }).order('id'), 'load payment periods');
 export async function teacherPeriods(c: SupabaseClient): Promise<TeacherPeriod[]> {
-  return rows<TeacherPeriod>(c.rpc('academy_teacher_fee_periods') as unknown as PromiseLike<{ data: TeacherPeriod[] | null; error: { message: string; code?: string } | null }>, 'load payment status');
+  return pages<TeacherPeriod>(() => c.rpc('academy_teacher_fee_periods') as unknown as { range(from: number, to: number): PromiseLike<Result<TeacherPeriod>> }, 'load payment status');
 }
 export async function guardiansForLearner(c: SupabaseClient, learnerId: string): Promise<GuardianContact[]> {
   return rows<GuardianContact>(c.rpc('academy_guardians_for_learner', { p_learner: learnerId }) as unknown as PromiseLike<{ data: GuardianContact[] | null; error: { message: string; code?: string } | null }>, 'load guardian contacts');

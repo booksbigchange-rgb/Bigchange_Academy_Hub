@@ -348,11 +348,12 @@ await session(browser, db, 'admin', 1366, async page => {
 
 // Optional accessibility scan with axe-core: AXE_PATH=/path/to/axe.min.js node tests/e2e/live-smoke.mjs ...
 if (process.env.AXE_PATH) {
-  for (const [role, sections] of [['admin', ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees']], ['teacher', ['Fees']]]) {
+  for (const [role, sections] of [['admin', ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees']], ['teacher', ['Overview', 'Fees', 'Notices']]]) {
     await session(browser, db, role, 1366, async page => {
       for (const name of sections) {
         await nav(page, name);
         await page.waitForTimeout(300);
+        if (process.env.SCREENSHOTS) await page.screenshot({ path: `${process.env.SCREENSHOTS}/${role}-${name.toLowerCase()}.png` });
         await page.addScriptTag({ path: process.env.AXE_PATH });
         const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
           .filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id + ' (' + x.nodes.length + '): ' + x.nodes.slice(0, 2).map(n => n.target.join(' ') + ' ' + (n.any[0]?.message ?? '')).join(', ')));

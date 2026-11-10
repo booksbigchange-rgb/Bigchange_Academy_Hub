@@ -1,6 +1,6 @@
 -- BigChange Academy — review fixes of 2026-11-10 (migration 0008). Run after 0001–0007. Safe to re-run.
---  1. "Today" is the date in Ethiopia (Africa/Addis_Ababa), not UTC. Before this, between midnight and 03:00 a payment
---     dated today was refused as "in the future", and Overdue changed up to 3 hours late.
+--  1. "Today" is the date in Israel (Asia/Jerusalem), not UTC. Before this, for the first hours after midnight a payment
+--     dated today was refused as "in the future", and Overdue changed hours late.
 --  2. Family-wide periods are retired. Every new period belongs to one child (migration 0006), so a child can no
 --     longer be counted in a family period and in their own period. Existing family-wide periods stay as they are.
 --  3. Every verified parent of a child sees that child's periods under Payments, not only the parent the period is
@@ -9,7 +9,7 @@ begin;
 
 -- 1. One definition of "today" ------------------------------------------------------------------------------------
 create or replace function public.academy_today() returns date
-language sql stable set search_path = '' as $$ select (now() at time zone 'Africa/Addis_Ababa')::date $$;
+language sql stable set search_path = '' as $$ select (now() at time zone 'Asia/Jerusalem')::date $$;
 revoke execute on function public.academy_today() from public, anon;
 grant execute on function public.academy_today() to authenticated;
 

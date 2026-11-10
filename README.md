@@ -60,7 +60,7 @@ Use a **dedicated** Supabase project for the Academy. In the project: **SQL Edit
 6. [`supabase/migrations/20261109_0005_reminders_and_grace.sql`](supabase/migrations/20261109_0005_reminders_and_grace.sql) — 14 days' grace before Overdue, WhatsApp reminders with recorded dates, permission changes.
 7. [`supabase/migrations/20261110_0006_child_periods_and_amounts.sql`](supabase/migrations/20261110_0006_child_periods_and_amounts.sql) — each child's own 3 months, admin can change an amount (with a reason), email reminders.
 8. [`supabase/migrations/20261111_0007_class_level_dates.sql`](supabase/migrations/20261111_0007_class_level_dates.sql) — each class's level start and end dates, reminders before a level ends, move a class to its next level.
-9. [`supabase/migrations/20261112_0008_local_dates_and_parents.sql`](supabase/migrations/20261112_0008_local_dates_and_parents.sql) — dates follow Ethiopia time, family-wide periods retired, both verified parents see their child's payments.
+9. [`supabase/migrations/20261112_0008_local_dates_and_parents.sql`](supabase/migrations/20261112_0008_local_dates_and_parents.sql) — dates follow Israel time (where the admin works), family-wide periods retired, both verified parents see their child's payments.
 10. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 16 tables, 0 missing RLS, 0 missing force RLS, 43 policies, 0 tables without policy, 0 anon/public policies.
 
 Each migration is safe to run again. Do **not** run `supabase/policies/academy_profile_access.sql` (superseded by 0002).

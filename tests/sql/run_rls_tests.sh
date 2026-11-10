@@ -152,9 +152,9 @@ chk "same students still enrolled after moving up" $A "select count(*) from acad
 chk "level changes are audited" $A "select count(*) from academy_audit_events where action='SET_CLASS_LEVEL'" 2
 chk "dates cannot bypass the rules by direct update" $A "update academy_classes set level_end = level_start - 1 where id='$CA'" ERR
 chk "admin can enroll" $A "insert into academy_enrollments values ('50000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-000000000002')" "INSERT 0 1"
-# Migration 0008: Ethiopia dates, and both verified parents see their child's period.
-chk "today is the date in Ethiopia" $F "select academy_today() = (now() at time zone 'Africa/Addis_Ababa')::date" t
-chk "a payment dated today (Ethiopia) is accepted" $F "select academy_report_payment($CP, 'paid', academy_today(), 'cash', null)" ""
+# Migration 0008: Israel dates, and both verified parents see their child's period.
+chk "today is the date in Israel" $F "select academy_today() = (now() at time zone 'Asia/Jerusalem')::date" t
+chk "a payment dated today (Israel) is accepted" $F "select academy_report_payment($CP, 'paid', academy_today(), 'cash', null)" ""
 chk "a payment dated tomorrow is refused" $F "select academy_report_payment($CP, 'paid', academy_today() + 1, 'cash', null)" ERR
 chk "second parent sees nothing before being linked" $E2 "select count(*) from academy_fee_period_status where learner_id='20000000-0000-0000-0000-000000000003'" 0
 $PSQL -q -c "insert into academy_guardian_links(guardian_id,learner_id,verified_by_staff_id) values ('$G2ID','20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-0000000000a1')" >/dev/null

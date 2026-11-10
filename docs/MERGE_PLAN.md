@@ -3,7 +3,7 @@
 `main` still holds only the first README commit (`37e4459`). All work lives on branches.
 
 ## Status
-Pull request **#19** (`claude/eloquent-faraday-yarrzs` → `main`) is open. That branch is the same history as `ccr-7b420966-pk4uiw`. Steps 2–4 below remain.
+**Done on 2026-11-10.** Pull request #19 was merged into `main` with a merge commit and drafts #1–#18 were closed. Only step 4 (hosting) remains. The rest of this page is kept as a record.
 
 ## Current state
 - 18 open **draft** PRs (#1–#18) form a stack: each one is based on the previous branch (`feature/initial-student-hub` → … → `feature/academy-accessibility-m5-15`).

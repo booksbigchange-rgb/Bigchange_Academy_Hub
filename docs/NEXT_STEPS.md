@@ -1,6 +1,6 @@
 # Next steps for the owner (in order)
 
-Files are on branch `ccr-7b420966-pk4uiw`: https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub/tree/ccr-7b420966-pk4uiw
+Files are on branch `main`: https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub
 
 ## 0. Sign-in settings — done
 Verified on 2026-11-08: email sign-in ON, public sign-up OFF.
@@ -12,7 +12,7 @@ Owner ran migration 0004 on 2026-11-08 (confirmed when a teacher sees "Parent (w
 SQL Editor → run, in order, `supabase/migrations/20261109_0005_reminders_and_grace.sql`, `supabase/migrations/20261110_0006_child_periods_and_amounts.sql`, `supabase/migrations/20261111_0007_class_level_dates.sql` → each "Success". Then the verify script should show 16 tables and 43 policies.
 
 ## 1c. Migration 0008 (review fixes) — to do
-SQL Editor → run `supabase/migrations/20261112_0008_local_dates_and_parents.sql` → "Success". It makes "today" the date in Israel, where the admin works (no more refused payments just after midnight), retires family-wide periods (every new period belongs to one child), and lets both verified parents of a child see that child's payments. The verify script still shows 16 tables and 43 policies.
+SQL Editor → run `supabase/migrations/20261112_0008_local_dates_and_parents.sql` → "Success". It makes "today" the date in Israel, where the admin works (no more refused payments just after midnight), retires family-wide periods (every new period belongs to one child), lets both verified parents of a child see that child's payments, and bills the parent who was linked to the child first. The verify script still shows 16 tables and 43 policies.
 
 ## 2. Teacher test account
 1. SQL Editor: `select email, email_confirmed_at from auth.users order by created_at desc;` — find the teacher's exact email.
@@ -38,7 +38,7 @@ Finance: Check. Admin: Approve → everyone sees **Paid**.
 Follow `docs/HOSTING.md` (Netlify or Cloudflare Pages), then set Supabase **URL Configuration** to the new address. Invitations then work.
 
 ## 6. Merge into main
-Pull request #19 is open: https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub/pull/19. Merge it with a merge commit, then close drafts #1–#18 (see `docs/MERGE_PLAN.md`).
+Done on 2026-11-10: pull request #19 merged, drafts #1–#18 closed. Everything is on `main`.
 
 ## 7. Decisions
 All five answered and built (see `docs/DECISIONS.md`).

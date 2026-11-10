@@ -5,6 +5,8 @@
 --     longer be counted in a family period and in their own period. Existing family-wide periods stay as they are.
 --  3. Every verified parent of a child sees that child's periods under Payments, not only the parent the period is
 --     stored on. Parents still cannot change anything.
+--  4. With two verified parents, a child's period goes to the parent who was linked to the child first (before this
+--     the choice depended on internal ids). Links that already exist keep the old order.
 begin;
 
 -- 1. One definition of "today" ------------------------------------------------------------------------------------
@@ -83,5 +85,28 @@ create policy academy_periods_select on public.academy_fee_periods for select to
                  join public.academy_guardians g on g.id = l.guardian_id
                  where l.learner_id = academy_fee_periods.learner_id and l.verified_by_staff_id is not null
                    and g.auth_user_id = (select auth.uid()))));
+
+-- 4. The paying parent is the first one linked to the child ---------------------------------------------------------
+alter table public.academy_guardian_links add column if not exists linked_at timestamptz not null default now();
+
+create or replace function public.academy_child_fee(p_learner uuid)
+returns table (guardian_id uuid, child_courses integer, family_courses integer, amount_due numeric)
+language plpgsql stable security definer set search_path = '' as $$
+declare g uuid; c integer; f integer;
+begin
+  if not public.academy_is_finance() then raise exception 'Not allowed' using errcode = '42501'; end if;
+  select l.guardian_id into g from public.academy_guardian_links l
+    join public.academy_learners le on le.id = l.learner_id and le.active
+    where l.learner_id = p_learner and l.verified_by_staff_id is not null order by l.linked_at, l.guardian_id limit 1;
+  if g is null then raise exception 'This child has no verified parent'; end if;
+  select count(distinct c2.course_id) into c from public.academy_enrollments e
+    join public.academy_classes c2 on c2.id = e.class_id where e.learner_id = p_learner;
+  select fee.course_count into f from public.academy_family_fee(g) fee;
+  guardian_id := g; child_courses := c; family_courses := f;
+  amount_due := case when c = 0 then 0 when f = 1 then 150 else 100 * c end;
+  return next;
+end $$;
+revoke execute on function public.academy_child_fee(uuid) from public, anon;
+grant execute on function public.academy_child_fee(uuid) to authenticated;
 
 commit;

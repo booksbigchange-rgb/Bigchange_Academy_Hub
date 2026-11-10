@@ -27,9 +27,11 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - Parent and student screens now in the browser test with axe (parent at phone width): 94/94. All migrations 0001–0007 confirmed live on the real project.
 
 - 2026-11-10: pull request #19 opened to `main`. Re-ran everything on a clean checkout: 131 unit, 128/128 DB, 94/94 browser checks incl. axe, build OK. Database rule tests are now one command (`tests/sql/run_local.sh`, with `tests/sql/auth_stubs.sql`) and run in CI.
+- 2026-11-10, review fixes (migration 0008): dates use Ethiopia time; family-wide periods retired (only per-child periods can be started; old family periods stay as they are); every verified parent of a child sees that child's periods. 132/132 DB checks. **Owner must run migration 0008.**
 
 ## Remaining
 Needs the owner:
+0. Run migration 0008 (`docs/NEXT_STEPS.md` step 1c).
 1. Merge pull request #19, then close drafts #1–#18 (`docs/MERGE_PLAN.md`).
 2. Teacher test account, then `tests/live-project-check.mjs` with test logins (`docs/NEXT_STEPS.md` steps 2–3).
 3. One manual run-through with fake names (step 4), including a Chromebook, a phone and a screen reader.
@@ -38,7 +40,8 @@ Needs the owner:
 6. Privacy and safeguarding checklist before any real family data.
 
 Known and not yet built:
-- Dates use UTC in the database but the device's local date in the browser. Between midnight and 03:00 in Ethiopia, a payment dated "today" is refused as "in the future", and Overdue can flip up to 3 hours late. Fix needs a small migration (0008) using Africa/Addis_Ababa.
+- With two verified parents, the period is still stored on one of them (lowest id), so reminders go to that parent. Both now see it. Choosing the paying parent is not built.
+- An old family-wide period that already counted a child is not detected when a per-child period is started for that child. Only matters for periods created before migration 0006 (test data).
 - Messages are still sent by staff from their own WhatsApp/email; no provider is connected.
 - Teacher logins are created by hand in the Supabase dashboard (a server-side invite needs hosting first).
 - The browser test is not in CI (Playwright is not a project dependency).

@@ -170,10 +170,6 @@ export async function familyFee(c: SupabaseClient, guardianId: string): Promise<
   if (!row) throw Error('Could not work out the fee');
   return row;
 }
-export async function createPeriod(c: SupabaseClient, guardianId: string, start: string) {
-  const { error } = await c.rpc('academy_create_fee_period', { p_guardian: guardianId, p_start: start });
-  if (error) workflowFail(error, 'start the payment period');
-}
 /** Report what a parent paid. A form teacher of any of the parent's children, finance or admin may do this; finance then checks and an admin approves. */
 export async function reportPayment(c: SupabaseClient, periodId: string, input: { status: FeeStatus; paidOn?: string; method?: string; note?: string }, today: string, periodStart: string) {
   const { error } = await c.rpc('academy_report_payment', { p_period: periodId, ...validateReport(input, today, periodStart) });

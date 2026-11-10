@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local RLS isolation test. Usage: tests/sql/run_rls_tests.sh <psql connection args>, e.g. -h /var/tmp/pgtest -p 5544 -U postgres
-# Requires a database with the auth stubs, migrations 0001–0007 applied, and an empty seed target.
+# Requires a database with the auth stubs, all migrations applied, and an empty seed target.
 # Easiest: tests/sql/run_local.sh sets all of that up on a throwaway PostgreSQL and calls this script.
 set -u
 PSQL="psql $* -At -v ON_ERROR_STOP=0"
@@ -56,11 +56,12 @@ PRD="(select period_id from academy_teacher_fee_periods() where guardian_id='$G1
 chk "family fee counts courses per child, once per course (2 courses -> 200)" $F "select course_count||'/'||amount_due from academy_family_fee('$G1ID')" "2/200"
 chk "one course -> 150" $F "select course_count||'/'||amount_due from academy_family_fee('$G2ID')" "1/150"
 chk "teacher cannot compute family fees" $TA "select * from academy_family_fee('$G1ID')" ERR
-chk "teacher cannot create a period" $TA "select academy_create_fee_period('$G1ID', current_date)" ERR
-chk "finance creates a period" $F "select count(*) from (select academy_create_fee_period('$G1ID', current_date - 40)) x" 1
+chk "teacher cannot create a family-wide period" $TA "select academy_create_fee_period('$G1ID', current_date)" ERR
+# Family-wide periods are retired (migration 0008); older ones still exist, so seed them as the table owner.
+$PSQL -q -c "insert into academy_fee_periods(guardian_id,period_start,period_end,course_count,amount_due,created_by_staff_id) values ('$G1ID',current_date - 40,(current_date - 40 + interval '3 months')::date,2,200,'10000000-0000-0000-0000-0000000000c1')" >/dev/null
+chk "family-wide periods are retired, even for finance" $F "select academy_create_fee_period('$G1ID', current_date + 200)" ERR
 P1=$($PSQL -c "select id from academy_fee_periods where guardian_id='$G1ID'" 2>/dev/null)
-chk "overlapping period rejected" $F "select academy_create_fee_period('$G1ID', current_date)" ERR
-chk "finance creates an old (ended) period for guardian 2" $F "select count(*) from (select academy_create_fee_period('$G2ID', date '2024-01-01')) x" 1
+$PSQL -q -c "insert into academy_fee_periods(guardian_id,period_start,period_end,course_count,amount_due,created_by_staff_id) values ('$G2ID',date '2024-01-01',(date '2024-01-01' + interval '3 months')::date,1,150,'10000000-0000-0000-0000-0000000000c1')" >/dev/null
 chk "period is USD with computed amount" $F "select currency_code||amount_due from academy_fee_period_status where guardian_id='$G1ID'" "USD200.00"
 chk "ended unapproved period is overdue" $F "select status from academy_fee_period_status where guardian_id='$G2ID'" overdue
 chk "current unpaid period is unpaid" $F "select status from academy_fee_period_status where guardian_id='$G1ID'" unpaid
@@ -89,7 +90,7 @@ chk "learner has no fee data" $L1 "select count(*) from academy_teacher_fee_peri
 chk "teacher changing the report resets check and approval" $TA "select academy_report_payment($PRD, 'partial', current_date - 1, 'cash', null)" ""
 chk "approval was reset to unpaid" $A "select approved_status||'/'||checked_status from academy_fee_periods where guardian_id='$G1ID'" "unpaid/unpaid"
 chk "status after reset is unpaid again" $F "select status from academy_fee_period_status where guardian_id='$G1ID'" unpaid
-chk "finance starts a period that ended 5 days ago" $F "select count(*) from (select academy_create_fee_period('$G2ID', (current_date - interval '3 months' - interval '5 days')::date)) x" 1
+$PSQL -q -c "insert into academy_fee_periods(guardian_id,period_start,period_end,course_count,amount_due,created_by_staff_id) values ('$G2ID',(current_date - interval '3 months' - interval '5 days')::date,((current_date - interval '3 months' - interval '5 days')::date + interval '3 months')::date,1,150,'10000000-0000-0000-0000-0000000000c1')" >/dev/null
 chk "period ended 5 days ago is NOT yet overdue (14-day grace)" $F "select status from academy_fee_period_status where guardian_id='$G2ID' and period_start > date '2025-01-01'" unpaid
 chk "the 2024 period (long past the grace) is overdue" $F "select status from academy_fee_period_status where guardian_id='$G2ID' and period_start = date '2024-01-01'" overdue
 chk "WhatsApp reminder refused without the parent's permission" $TA "select academy_log_reminder($PRD, 'whatsapp')" ERR
@@ -151,4 +152,13 @@ chk "same students still enrolled after moving up" $A "select count(*) from acad
 chk "level changes are audited" $A "select count(*) from academy_audit_events where action='SET_CLASS_LEVEL'" 2
 chk "dates cannot bypass the rules by direct update" $A "update academy_classes set level_end = level_start - 1 where id='$CA'" ERR
 chk "admin can enroll" $A "insert into academy_enrollments values ('50000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-000000000002')" "INSERT 0 1"
+# Migration 0008: Ethiopia dates, and both verified parents see their child's period.
+chk "today is the date in Ethiopia" $F "select academy_today() = (now() at time zone 'Africa/Addis_Ababa')::date" t
+chk "a payment dated today (Ethiopia) is accepted" $F "select academy_report_payment($CP, 'paid', academy_today(), 'cash', null)" ""
+chk "a payment dated tomorrow is refused" $F "select academy_report_payment($CP, 'paid', academy_today() + 1, 'cash', null)" ERR
+chk "second parent sees nothing before being linked" $E2 "select count(*) from academy_fee_period_status where learner_id='20000000-0000-0000-0000-000000000003'" 0
+$PSQL -q -c "insert into academy_guardian_links(guardian_id,learner_id,verified_by_staff_id) values ('$G2ID','20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-0000000000a1')" >/dev/null
+chk "second verified parent sees the child's period" $E2 "select count(*) from academy_fee_period_status where learner_id='20000000-0000-0000-0000-000000000003'" 1
+chk "second parent still cannot see the other parent's family period" $E2 "select count(*) from academy_fee_period_status where guardian_id='$G1ID' and learner_id is null" 0
+chk "second parent cannot change the period" $E2 "update academy_fee_periods set approved_status='paid' where learner_id='20000000-0000-0000-0000-000000000003'" "UPDATE 0"
 echo "RLS tests: $pass passed, $fail failed"; [ $fail = 0 ]

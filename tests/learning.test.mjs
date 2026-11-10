@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {markAttendance,recordDemoPayment,nextSubmissionState} from '../src/lib/learning.mjs';
+test('attendance cannot change unknown learners or invalid states',()=>{const r={a:'Absent',b:'Present'};assert.equal(markAttendance(r,'a','Late').a,'Late');assert.equal(r.a,'Absent');assert.throws(()=>markAttendance(r,'c','Present'));assert.throws(()=>markAttendance(r,'a','Fake'));});
+test('no invalid or overpaid demo amounts',()=>{assert.equal(recordDemoPayment(2500,1000,500),1500);for(const v of [0,-1,1501,NaN,1.5])assert.throws(()=>recordDemoPayment(2500,1000,v));});
+test('submission progresses only through valid states',()=>{assert.equal(nextSubmissionState('Not submitted'),'Submitted');assert.equal(nextSubmissionState('Submitted'),'Reviewed');assert.throws(()=>nextSubmissionState('Fake'));});

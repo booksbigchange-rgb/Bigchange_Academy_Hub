@@ -9,7 +9,7 @@ Security headers (`public/_headers`) are published with the app: a strict Conten
 ## Netlify (about 15 minutes)
 1. Sign in at netlify.com with GitHub (the account that owns `booksbigchange-rgb/Bigchange_Academy_Hub`).
 2. **Add new site → Import an existing project → GitHub →** choose `Bigchange_Academy_Hub`.
-3. **Branch to deploy:** `ccr-7b420966-pk4uiw` (or `main` once the work is merged). Build settings are read from `netlify.toml`; leave them.
+3. **Branch to deploy:** `main`. Build settings are read from `netlify.toml`; leave them.
 4. **Environment variables** (Site configuration → Environment variables), add exactly two:
    - `VITE_ACADEMY_SUPABASE_URL` = `https://txwremmzgnmlnklpeton.supabase.co`
    - `VITE_ACADEMY_SUPABASE_PUBLISHABLE_KEY` = your `sb_publishable_…` key

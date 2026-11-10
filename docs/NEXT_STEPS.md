@@ -11,7 +11,7 @@ Owner ran migration 0004 on 2026-11-08 (confirmed when a teacher sees "Parent (w
 ## 1b. Migrations 0005, 0006 and 0007 (your decisions) — done (confirmed live 2026-11-11)
 SQL Editor → run, in order, `supabase/migrations/20261109_0005_reminders_and_grace.sql`, `supabase/migrations/20261110_0006_child_periods_and_amounts.sql`, `supabase/migrations/20261111_0007_class_level_dates.sql` → each "Success". Then the verify script should show 16 tables and 43 policies.
 
-## 1c. Migration 0008 (review fixes) — to do
+## 1c. Migration 0008 (review fixes) — done (owner ran it on 2026-11-10, "Success")
 SQL Editor → run `supabase/migrations/20261112_0008_local_dates_and_parents.sql` → "Success". It makes "today" the date in Israel, where the admin works (no more refused payments just after midnight), retires family-wide periods (every new period belongs to one child), lets both verified parents of a child see that child's payments, and bills the parent who was linked to the child first. The verify script still shows 16 tables and 43 policies.
 
 ## 2. Teacher test account

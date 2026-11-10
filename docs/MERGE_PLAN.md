@@ -21,5 +21,5 @@ Merge the drafts one by one (#1 into `main`, retarget #2 to `main`, merge, …) 
 
 ## Before merging
 - CI green on the PR (type-check, unit tests, build, database rule tests).
-- Migrations 0001–0008 applied in Supabase and the verify script matching (16 tables, 43 policies). 0001–0007 confirmed live; 0008 still to run.
+- Migrations 0001–0008 applied in Supabase and the verify script matching (16 tables, 43 policies). 0001–0007 confirmed live; 0008 run by the owner on 2026-11-10.
 - `tests/live-project-check.mjs` passing with your test logins.

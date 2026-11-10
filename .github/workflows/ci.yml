@@ -25,4 +25,13 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
-
+  database-rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install PostgreSQL 16 if missing
+        run: ls /usr/lib/postgresql/*/bin/initdb >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y postgresql)
+      - name: Database access-rule tests on a throwaway PostgreSQL
+        run: bash tests/sql/run_local.sh

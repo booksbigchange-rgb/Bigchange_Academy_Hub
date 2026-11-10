@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Local RLS isolation test. Usage: tests/sql/run_rls_tests.sh <psql connection args>, e.g. -h /var/tmp/pgtest -p 5544 -U postgres
 # Requires a database with the auth stubs, migrations 0001–0007 applied, and an empty seed target.
+# Easiest: tests/sql/run_local.sh sets all of that up on a throwaway PostgreSQL and calls this script.
 set -u
 PSQL="psql $* -At -v ON_ERROR_STOP=0"
 DIR="$(cd "$(dirname "$0")" && pwd)"

@@ -35,7 +35,7 @@ Finance: Check. Admin: Approve → everyone sees **Paid**.
 Follow `docs/HOSTING.md` (Netlify or Cloudflare Pages), then set Supabase **URL Configuration** to the new address. Invitations then work.
 
 ## 6. Merge into main
-See `docs/MERGE_PLAN.md`. One pull request replaces the 18 stacked drafts.
+Pull request #19 is open: https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub/pull/19. Merge it with a merge commit, then close drafts #1–#18 (see `docs/MERGE_PLAN.md`).
 
 ## 7. Decisions
 All five answered and built (see `docs/DECISIONS.md`).

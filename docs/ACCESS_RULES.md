@@ -18,7 +18,7 @@ Safeguards: RLS forced on all 14 tables; no anon access; no client DELETE on peo
 ## Verified locally (not on Supabase)
 Applied 0001 then 0002 to a throwaway PostgreSQL 16 with stubbed `auth` schema and roles; re-ran 0002 (idempotent); `tests/sql/run_rls_tests.sh` passed 37/37 role-isolation checks. Not yet run against the real Supabase project, and `auth.uid()` there is the real JWT-based function.
 
-Run it yourself: create a scratch database, load the auth stubs described in the script header, apply both migrations, then `tests/sql/run_rls_tests.sh -h <host> -U postgres -d <db>`.
+Run it yourself with one command: `tests/sql/run_local.sh` (needs PostgreSQL 16 installed). It starts a throwaway database, loads the Supabase stand-ins (`tests/sql/auth_stubs.sql`), applies every migration, runs the checks and deletes the database. CI runs the same command.
 
 ## Still required before real data
 Test with separate real admin/teacher/finance/learner/guardian **test** accounts in the app; privacy and consent review; backups.

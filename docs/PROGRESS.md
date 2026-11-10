@@ -26,12 +26,19 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - Visual refresh (docs/DESIGN_SPEC.md, reviewed by EGM design and implementation-readiness reviewers): light sidebar with gold pill + bar, white rounded cards, gold hero card, black/white pill buttons, readable chips, scrolling tables, phone layout, new sign-in card. Scoped to the live app; demo pixel-identical before/after. axe now also scans sign-in and finance screens: 80/80 browser checks. Screenshots in docs/design/.
 - Parent and student screens now in the browser test with axe (parent at phone width): 94/94. All migrations 0001–0007 confirmed live on the real project.
 
-## Remaining (needs owner input or credentials)
-1. Persistence and real auth: Supabase project key, migrations, RLS tests.
-2. Email/WhatsApp provider, parent contact and consent records.
-3. Payment-status audit trail server-side (current history is in-memory).
-4. (Done) Teacher and student detail view with editable grade/specialty and note; see `src/components/AcademyPersonProfile.tsx`.
-5. Manual Chromebook/mobile/screen-reader testing.
-6. Merge strategy for the 18 stacked draft PRs.
+- 2026-11-10: pull request #19 opened to `main`. Re-ran everything on a clean checkout: 131 unit, 128/128 DB, 94/94 browser checks incl. axe, build OK. Database rule tests are now one command (`tests/sql/run_local.sh`, with `tests/sql/auth_stubs.sql`) and run in CI.
 
-7. Live slices still to build: attendance, fees/payments/reminders, learner and guardian views, teacher login creation (needs a server-side invite).
+## Remaining
+Needs the owner:
+1. Merge pull request #19, then close drafts #1–#18 (`docs/MERGE_PLAN.md`).
+2. Teacher test account, then `tests/live-project-check.mjs` with test logins (`docs/NEXT_STEPS.md` steps 2–3).
+3. One manual run-through with fake names (step 4), including a Chromebook, a phone and a screen reader.
+4. Hosting (`docs/HOSTING.md`); invitations need it.
+5. Weekly backup and a second admin (`docs/BACKUPS.md`).
+6. Privacy and safeguarding checklist before any real family data.
+
+Known and not yet built:
+- Dates use UTC in the database but the device's local date in the browser. Between midnight and 03:00 in Ethiopia, a payment dated "today" is refused as "in the future", and Overdue can flip up to 3 hours late. Fix needs a small migration (0008) using Africa/Addis_Ababa.
+- Messages are still sent by staff from their own WhatsApp/email; no provider is connected.
+- Teacher logins are created by hand in the Supabase dashboard (a server-side invite needs hosting first).
+- The browser test is not in CI (Playwright is not a project dependency).

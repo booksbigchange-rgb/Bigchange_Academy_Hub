@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { addGuardian, guardiansForLearner, setGuardianConsent, verifyLink, type GuardianContact } from './api';
 import { useAction, type PanelProps, type Role } from './shared';
+import { TOUCHES } from './store';
 import { parentDirectory } from './validation.mjs';
 
 export default function LiveGuardians({ data, client, role, reload }: PanelProps & { role: Role }) {
@@ -33,7 +34,7 @@ export default function LiveGuardians({ data, client, role, reload }: PanelProps
   async function add(event: FormEvent) {
     event.preventDefault();
     const ok = await run(() => addGuardian(client, learnerId, { name, email, phone, emailOptIn: emailOk, whatsappOptIn: waOk }),
-      role === 'admin' ? 'Guardian added and verified.' : 'Guardian added. An administrator must verify the link before the parent can see this student.');
+      role === 'admin' ? 'Guardian added and verified.' : 'Guardian added. An administrator must verify the link before the parent can see this student.', TOUCHES.guardianLink);
     if (ok) { setName(''); setEmail(''); setPhone(''); setEmailOk(false); setWaOk(false); await loadContacts(); }
   }
   return <section className="panel operations" aria-label="Guardians">
@@ -50,7 +51,7 @@ export default function LiveGuardians({ data, client, role, reload }: PanelProps
             <td>{g.verified.map(c => c.name).join(', ')}
               {g.pending.map(c => <span key={c.learnerId}>{g.verified.length ? ', ' : ''}{c.name} <span className="tag amber">Pending</span>
                 {role === 'admin' && <> <button className="small-btn" disabled={busy}
-                  onClick={() => void run(() => verifyLink(client, c.learnerId, g.id), 'Verified ' + g.display_name + ' for ' + c.name + '.').then(loadContacts)}>Verify</button></>}</span>)}
+                  onClick={() => void run(() => verifyLink(client, c.learnerId, g.id), 'Verified ' + g.display_name + ' for ' + c.name + '.', TOUCHES.guardianLink).then(loadContacts)}>Verify</button></>}</span>)}
               {!g.verified.length && !g.pending.length && '—'}</td></tr>)}
         </tbody></table></div>}
     </div>}
@@ -65,14 +66,14 @@ export default function LiveGuardians({ data, client, role, reload }: PanelProps
             {contacts.map(c => <tr key={c.guardian_id}><td>{c.display_name}</td><td>{c.phone_e164 ?? '—'}</td><td>{c.email ?? '—'}</td>
               <td>{[c.email_opt_in && 'Email', c.whatsapp_opt_in && 'WhatsApp'].filter(Boolean).join(', ') || 'None given'}
                 {canAdd && c.verified && <> <button className="text-btn" type="button" onClick={() => { setConsentFor(c.guardian_id); setConsentEmail(c.email_opt_in); setConsentWa(c.whatsapp_opt_in); }}>Change</button></>}
-                {consentFor === c.guardian_id && <form onSubmit={e => { e.preventDefault(); void run(() => setGuardianConsent(client, c.guardian_id, consentEmail, consentWa), 'Permission updated for ' + c.display_name + '.').then(() => { setConsentFor(''); void loadContacts(); }); }}>
+                {consentFor === c.guardian_id && <form onSubmit={e => { e.preventDefault(); void run(() => setGuardianConsent(client, c.guardian_id, consentEmail, consentWa), 'Permission updated for ' + c.display_name + '.', TOUCHES.consent).then(() => { setConsentFor(''); void loadContacts(); }); }}>
                   <label><input type="checkbox" checked={consentWa} disabled={!c.phone_e164} onChange={e => setConsentWa(e.target.checked)} /> Agreed to WhatsApp</label>
                   <label><input type="checkbox" checked={consentEmail} disabled={!c.email} onChange={e => setConsentEmail(e.target.checked)} /> Agreed to email</label>
                   <button className="small-btn" type="submit" disabled={busy}>Save permission</button> <button className="text-btn" type="button" onClick={() => setConsentFor('')}>Cancel</button>
                 </form>}</td>
               <td>{c.verified ? <span className="tag green">Verified</span> : <>
                 <span className="tag amber">Pending</span>{role === 'admin' && <> <button className="small-btn" disabled={busy}
-                  onClick={() => void run(() => verifyLink(client, learner.id, c.guardian_id), 'Guardian verified.').then(loadContacts)}>Verify</button></>}</>}</td></tr>)}
+                  onClick={() => void run(() => verifyLink(client, learner.id, c.guardian_id), 'Guardian verified.', TOUCHES.guardianLink).then(loadContacts)}>Verify</button></>}</>}</td></tr>)}
           </tbody></table></div>}
         {canAdd && <form className="ops-form" onSubmit={add}>
           <h3>Add a guardian</h3>

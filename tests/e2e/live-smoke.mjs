@@ -364,7 +364,7 @@ await session(browser, db, 'guardian', 390, async page => {
     await nav(page, name); await page.waitForTimeout(300);
     if (process.env.SCREENSHOTS) await page.screenshot({ path: `${process.env.SCREENSHOTS}/guardian-${name.toLowerCase().replace(' ', '-')}.png` });
     await page.addScriptTag({ path: process.env.AXE_PATH });
-    const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+    const v = await page.evaluate(async () => (await new Promise(r => setTimeout(r, 450)), await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
     check(`axe guardian ${name}: no serious/critical issues`, v.length === 0, v.join(' | '));
   }
 });
@@ -376,7 +376,7 @@ await session(browser, db, 'learner', 1366, async page => {
   check('student sees no payments and no edit buttons', (await page.getByText(/USD/).count()) === 0 && (await page.getByRole('button', { name: /^\+|Edit|Save|Report/ }).count()) === 0);
   if (process.env.AXE_PATH) {
     await page.addScriptTag({ path: process.env.AXE_PATH });
-    const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+    const v = await page.evaluate(async () => (await new Promise(r => setTimeout(r, 450)), await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
     check('axe student My classes: no serious/critical issues', v.length === 0, v.join(' | '));
   }
 });
@@ -388,7 +388,7 @@ if (process.env.AXE_PATH) {
     await p.goto(BASE); await p.getByRole('button', { name: 'Sign in' }).waitFor();
     if (process.env.SCREENSHOTS) await p.screenshot({ path: `${process.env.SCREENSHOTS}/signin-${width}.png` });
     await p.addScriptTag({ path: process.env.AXE_PATH });
-    const v = await p.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
+    const v = await p.evaluate(async () => (await new Promise(r => setTimeout(r, 450)), await window.axe.run(document, { resultTypes: ['violations'] })).violations
       .filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
     check(`axe sign-in @${width}px: no serious/critical issues`, v.length === 0, v.join(' | '));
     await p.context().close();
@@ -400,7 +400,7 @@ if (process.env.AXE_PATH) {
         await page.waitForTimeout(300);
         if (process.env.SCREENSHOTS) await page.screenshot({ path: `${process.env.SCREENSHOTS}/${role}-${name.toLowerCase()}.png` });
         await page.addScriptTag({ path: process.env.AXE_PATH });
-        const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
+        const v = await page.evaluate(async () => (await new Promise(r => setTimeout(r, 450)), await window.axe.run(document, { resultTypes: ['violations'] })).violations
           .filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id + ' (' + x.nodes.length + '): ' + x.nodes.slice(0, 2).map(n => n.target.join(' ') + ' ' + (n.any[0]?.message ?? '')).join(', ')));
         check(`axe ${role} ${name}: no serious/critical issues`, v.length === 0, v.join(' | '));
       }

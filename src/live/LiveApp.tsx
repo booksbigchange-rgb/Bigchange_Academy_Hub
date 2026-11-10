@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   addClass, addCourse, addLearnerWithGuardian, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, listReminders, type ReminderEvent, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
   unenroll, updateLearner, setClassTeacher, updateCourse, renameClass, setClassLevel, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
 } from './api';
-import { EMPTY, useAction, type Data, type PanelProps, type Role } from './shared';
+import { useAction, type PanelProps, type Role } from './shared';
+import { TOUCHES, useAcademyData } from './store';
 import LiveGuardians from './LiveGuardians';
 import LiveFees from './LiveFees';
 import LiveOverview from './LiveOverview';
@@ -25,27 +26,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
   const isFinance = role === 'finance';
   const [section, setSection] = useState<Section>(sections[0] ?? 'Overview');
   const [noticeClassId, setNoticeClassId] = useState('');
-  const [data, setData] = useState<Data>(EMPTY);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
-
-  const reload = useCallback(async () => {
-    setLoadError('');
-    try {
-      const staffView = isAdmin || isFinance;
-      const [learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriodRows, reminders] = await Promise.all([
-        listLearners(client), listCourses(client), isAdmin ? listStaff(client) : Promise.resolve([] as Staff[]),
-        listClasses(client), listEnrollments(client), listSessions(client), listAttendance(client),
-        staffView ? listGuardians(client) : Promise.resolve([] as Guardian[]),
-        staffView ? listLinks(client) : Promise.resolve([] as GuardianLink[]),
-        staffView || role === 'guardian' ? listPeriods(client) : Promise.resolve([] as PeriodRow[]),
-        role === 'teacher' ? teacherPeriods(client) : Promise.resolve([] as TeacherPeriod[]),
-        staffView ? listReminders(client) : Promise.resolve([] as ReminderEvent[])]);
-      setData({ learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriods: teacherPeriodRows, reminders });
-    } catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not load data'); }
-    finally { setLoading(false); }
-  }, [client, isAdmin, isFinance, role]);
-  useEffect(() => { void reload(); }, [reload]);
+  const { data, loading, loadError, reload } = useAcademyData(client, role);
 
   return <div className="shell live-shell">
     <aside className="sidebar">
@@ -66,9 +47,10 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
         <div role="note" className="notice"><strong>Live database</strong> — use test data only until the privacy and safeguarding checklist is complete. Changes are saved to the Academy database.</div>
         {!sections.length && <section className="panel"><h2>No screens yet for your role</h2>
           <p>Screens for the <strong>{role}</strong> role have not been built yet. Your account is verified, but nothing is available to you here for now.</p></section>}
-        {sections.length > 0 && loading && <p role="status">Loading…</p>}
+        {sections.length > 0 && loading && <div role="status" className="skeleton-wrap"><span className="sr-only">Loading…</span>
+          <i className="skeleton skeleton-title" /><i className="skeleton" /><i className="skeleton" /><i className="skeleton skeleton-short" /></div>}
         {sections.length > 0 && loadError && <p className="ops-feedback" role="alert">{loadError} <button className="small-btn" onClick={() => void reload()}>Retry</button></p>}
-        {sections.length > 0 && !loading && !loadError && <>
+        {sections.length > 0 && !loading && !loadError && <div className="section-fade" key={section}>
           {section === 'Overview' && <LiveOverview data={data} role={role} go={s => setSection(s as Section)}
             onWriteNotice={id => { setNoticeClassId(id); setSection('Notices'); }} />}
           {(section === 'My children' || section === 'My classes') && <LiveFamily data={data} role={role} />}
@@ -80,7 +62,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
           {section === 'Attendance' && <Attendance data={data} client={client} reload={reload} />}
           {section === 'Guardians' && <LiveGuardians data={data} client={client} role={role} reload={reload} />}
           {section === 'Fees' && <LiveFees data={data} client={client} role={role} reload={reload} />}
-        </>}
+        </div>}
       </main>
     </div>
   </div>;
@@ -113,13 +95,13 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
       const problem = await addLearnerWithGuardian(client, { name, gradeLevel: grade, note },
         { name: parentName, phone: parentPhone, email: parentEmail, emailOptIn: parentEmailOk, whatsappOptIn: parentWaOk });
       setWarning(problem);
-    }, 'Student and parent saved.');
+    }, 'Student and parent saved.', TOUCHES.learnerWithGuardian);
     if (ok) { setName(''); setGrade(''); setNote(''); setParentName(''); setParentPhone(''); setParentEmail(''); setParentEmailOk(false); setParentWaOk(false); }
   }
   function startEdit(l: Learner) { setEditId(l.id); setEditName(l.display_name); setEditGrade(l.grade_level ?? ''); setEditNote(l.note ?? ''); }
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (editing) await run(() => updateLearner(client, editing.id, { name: editName, gradeLevel: editGrade, note: editNote }), 'Student updated.');
+    if (editing) await run(() => updateLearner(client, editing.id, { name: editName, gradeLevel: editGrade, note: editNote }), 'Student updated.', TOUCHES.learner);
   }
   return <section className="panel operations" aria-label="Students">
     <span className="eyebrow">STUDENTS</span><h2>{isAdmin ? 'Manage students' : 'Students in my classes'} ({data.learners.length})</h2>
@@ -155,7 +137,7 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
       <button className="primary-btn" type="submit" disabled={busy}>Save changes</button>
       <button className="small-btn" type="button" disabled={busy}
         onClick={() => void run(() => updateLearner(client, editing.id, { name: editName, gradeLevel: editGrade, note: editNote, active: !editing.active }),
-          editing.active ? 'Student deactivated. No records were deleted.' : 'Student reactivated.')}>{editing.active ? 'Deactivate' : 'Reactivate'}</button>
+          editing.active ? 'Student deactivated. No records were deleted.' : 'Student reactivated.', TOUCHES.learner)}>{editing.active ? 'Deactivate' : 'Reactivate'}</button>
       <button className="text-btn" type="button" onClick={() => setEditId('')}>Close</button>
     </form>}
     <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
@@ -171,11 +153,11 @@ function Courses({ data, client, reload }: PanelProps) {
   const [editDescription, setEditDescription] = useState('');
   async function create(event: FormEvent) {
     event.preventDefault();
-    if (await run(() => addCourse(client, { title, description }), 'Course added.')) { setTitle(''); setDescription(''); }
+    if (await run(() => addCourse(client, { title, description }), 'Course added.', TOUCHES.course)) { setTitle(''); setDescription(''); }
   }
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (await run(() => updateCourse(client, editId, { title: editTitle, description: editDescription }), 'Course updated.')) setEditId('');
+    if (await run(() => updateCourse(client, editId, { title: editTitle, description: editDescription }), 'Course updated.', TOUCHES.course)) setEditId('');
   }
   return <section className="panel operations" aria-label="Courses">
     <span className="eyebrow">COURSES</span><h2>Courses ({data.courses.length})</h2>
@@ -215,13 +197,13 @@ function Classes({ data, client, isAdmin, canEditLevels, reload }: PanelProps & 
     .map(e => data.learners.find(l => l.id === e.learner_id)).filter((l): l is Learner => Boolean(l)), [data, openId]);
   async function create(event: FormEvent) {
     event.preventDefault();
-    if (await run(() => addClass(client, { title, courseId, teacherId }), 'Class created.')) { setTitle(''); setCourseId(''); setTeacherId(''); }
+    if (await run(() => addClass(client, { title, courseId, teacherId }), 'Class created.', TOUCHES.classes)) { setTitle(''); setCourseId(''); setTeacherId(''); }
   }
   async function add(event: FormEvent) {
     event.preventDefault();
     const problem = enrollmentProblem({ learnerId, classId: openId, enrollments: data.enrollments, learners: data.learners });
     if (problem) return void run(async () => { throw Error(problem); }, '');
-    await run(() => enroll(client, openId, learnerId), 'Student enrolled.');
+    await run(() => enroll(client, openId, learnerId), 'Student enrolled.', TOUCHES.enrollment);
   }
   return <section className="panel operations" aria-label="Classes">
     <span className="eyebrow">CLASSES</span><h2>{isAdmin ? 'Manage classes' : 'My classes'} ({data.classes.length})</h2>
@@ -238,7 +220,7 @@ function Classes({ data, client, isAdmin, canEditLevels, reload }: PanelProps & 
     {data.classes.length === 0 ? <p className="quiet">{isAdmin ? 'No classes yet.' : 'You have no classes assigned yet.'}</p> :
       <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Class</th><th>Course</th><th>Teacher</th><th>Current level</th><th>Students</th><th>Roster</th></tr></thead><tbody>
         {data.classes.map(c => <tr key={c.id}><td>{c.title}</td><td>{course(c.course_id)}</td><td>{isAdmin ? <select aria-label={'Teacher for ' + c.title} value={c.teacher_staff_id ?? ''} disabled={busy}
-            onChange={e => void run(() => setClassTeacher(client, c.id, e.target.value), 'Teacher updated.')}><option value="">Unassigned</option>
+            onChange={e => void run(() => setClassTeacher(client, c.id, e.target.value), 'Teacher updated.', TOUCHES.classes)}><option value="">Unassigned</option>
             {teachers.map(t => <option key={t.id} value={t.id}>{t.display_name ?? 'Unnamed teacher'}</option>)}</select> : teacher(c.teacher_staff_id)}</td>
           <td>{c.level_start && c.level_end ? <>{formatDate(c.level_start)} – {formatDate(c.level_end)}
             {daysUntil(c.level_end) <= 14 && <><br /><span className={'tag ' + (daysUntil(c.level_end) < 0 ? 'red' : 'amber')}>{endingText(daysUntil(c.level_end))}</span></>}</> : <span className="quiet">Dates not set</span>}</td>
@@ -248,17 +230,17 @@ function Classes({ data, client, isAdmin, canEditLevels, reload }: PanelProps & 
     {open && <div className="people-enroll"><h3>Roster · {open.title}</h3>
       {roster.length === 0 ? <p className="quiet">No students enrolled yet.</p> :
         <ul>{roster.map(l => <li key={l.id}>{l.display_name}{isAdmin && <> <button className="text-btn" disabled={busy}
-          onClick={() => void run(() => unenroll(client, open.id, l.id), 'Enrollment removed.')}>Remove</button></>}</li>)}</ul>}
+          onClick={() => void run(() => unenroll(client, open.id, l.id), 'Enrollment removed.', TOUCHES.enrollment)}>Remove</button></>}</li>)}</ul>}
       {isAdmin && <form className="ops-form" onSubmit={add}>
         <label>Enroll a student<select value={learnerId} onChange={e => setLearnerId(e.target.value)}><option value="">Choose a student</option>
           {data.learners.filter(l => l.active).map(l => <option key={l.id} value={l.id}>{l.display_name}</option>)}</select></label>
         <button className="primary-btn" type="submit" disabled={busy}>+ Enroll</button></form>}
-      {isAdmin && <form className="ops-form" onSubmit={e => { e.preventDefault(); void run(() => renameClass(client, open.id, newTitle), 'Class renamed.'); }}>
+      {isAdmin && <form className="ops-form" onSubmit={e => { e.preventDefault(); void run(() => renameClass(client, open.id, newTitle), 'Class renamed.', TOUCHES.classes); }}>
         <label>Rename class<input required maxLength={80} value={newTitle} onChange={e => setNewTitle(e.target.value)} /></label>
         <button className="small-btn" type="submit" disabled={busy}>Save name</button></form>}
       {canEditLevels && <LevelEditor key={open.id + (open.level_end ?? '')} cls={open} busy={busy}
         onSave={(title, start, end, moving) => run(() => setClassLevel(client, open.id, title, start, end),
-          moving ? 'Class moved to the next level. The same students stay enrolled.' : 'Level dates saved.')} />}
+          moving ? 'Class moved to the next level. The same students stay enrolled.' : 'Level dates saved.', TOUCHES.classes)} />}
     </div>}
     <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
   </section>;
@@ -287,12 +269,12 @@ function Attendance({ data, client, reload }: PanelProps) {
   async function createLesson(event: FormEvent) {
     event.preventDefault();
     if (duplicateSession(data.sessions, classId, date)) return void run(async () => { throw Error('This class already has a lesson on that date'); }, '');
-    await run(() => addSession(client, classId, { date, time }), 'Lesson added. Select it below to take attendance.');
+    await run(() => addSession(client, classId, { date, time }), 'Lesson added. Select it below to take attendance.', TOUCHES.lesson);
   }
   async function save() {
     const missing = roster.filter(l => !marks[l.id]).length;
     if (missing) return void run(async () => { throw Error('Mark every student (' + missing + ' left) before saving'); }, '');
-    await run(() => saveAttendance(client, sessionId, marks), 'Attendance saved.');
+    await run(() => saveAttendance(client, sessionId, marks), 'Attendance saved.', TOUCHES.attendance);
   }
   const classRecords = data.attendance.filter(a => classSessions.some(s => s.id === a.session_id));
   const overall = attendanceSummary(classRecords);

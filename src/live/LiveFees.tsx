@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { approvePeriod, checkPeriod, childFee, createChildPeriod, logReminder, reportPayment, setGuardianConsent, setPeriodAmount, type FeeStatus } from './api';
 import { FEE_TEXT, METHODS, STAGE_LABEL, STATUS_LABEL, bulkReminderText, emailBatches, formatDate, needsReminder, reminderText, remindedText, todayIso, usd, whatsappLink } from './fees.mjs';
 import { useAction, type PanelProps, type Role } from './shared';
+import { TOUCHES } from './store';
 
 const tagClass = (s: string) => 'tag ' + (s === 'paid' ? 'green' : s === 'overdue' ? 'red' : 'amber');
 const label = (map: Record<string, string>, key: string) => map[key] ?? key;
@@ -51,14 +52,14 @@ function TeacherFees({ data, client, reload }: PanelProps & { role: Role }) {
           <td><button className="small-btn" onClick={() => setOpen({ id: p.period_id, periodStart: p.period_start, status: p.reported_status, paidOn: p.paid_on, method: p.paid_method, note: p.paid_note, title: p.guardian_name })}>Report payment</button>
             {needsReminder(p) && <ReminderAction phone={p.guardian_phone} allowed={p.whatsapp_opt_in} lastAt={p.last_reminded_at ?? ''} busy={busy}
               text={reminderText({ guardian: p.guardian_name, students: p.students, amount: p.amount_due, start: p.period_start, end: p.period_end })}
-              onSent={() => void run(() => logReminder(client, p.period_id, 'whatsapp'), 'WhatsApp opened with the reminder. The date is recorded.')}
+              onSent={() => void run(() => logReminder(client, p.period_id, 'whatsapp'), 'WhatsApp opened with the reminder. The date is recorded.', TOUCHES.reminder)}
               onAllow={confirmConsent === p.guardian_id
-                ? () => void run(() => setGuardianConsent(client, p.guardian_id, null, true), 'WhatsApp permission recorded for ' + p.guardian_name + '.').then(() => setConfirmConsent(''))
+                ? () => void run(() => setGuardianConsent(client, p.guardian_id, null, true), 'WhatsApp permission recorded for ' + p.guardian_name + '.', TOUCHES.consent).then(() => setConfirmConsent(''))
                 : () => setConfirmConsent(p.guardian_id)}
               confirming={confirmConsent === p.guardian_id} />}</td></tr>)}
       </tbody></table></div>}
     {open && <ReportForm key={open.id} target={open} busy={busy} onCancel={() => setOpen(null)}
-      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart), 'Payment reported. Finance will check it.')) setOpen(null); }} />}
+      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart), 'Payment reported. Finance will check it.', TOUCHES.payment)) setOpen(null); }} />}
     <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
   </section>;
 }
@@ -109,7 +110,7 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
   async function logEmails(emails: string[]) {
     const periods = emailable.filter(p => emails.includes(guardian(p.guardian_id)!.email as string));
     await run(async () => { for (const p of periods) await logReminder(client, p.id, 'email'); },
-      'Your email app opened with ' + emails.length + ' parents in BCC. Press send there. The reminder date is recorded.');
+      'Your email app opened with ' + emails.length + ' parents in BCC. Press send there. The reminder date is recorded.', TOUCHES.reminder);
   }
   // Parents to remind: ended and not approved as paid; never-reminded first, then the longest ago.
   const toRemind = data.periods.filter(p => needsReminder(p))
@@ -118,7 +119,7 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
   async function copyReminder(p: (typeof data.periods)[number]) {
     try { await navigator.clipboard.writeText(textFor(p)); }
     catch { setNote('Copying was blocked by the browser. Nothing was sent.'); return; }
-    await run(() => logReminder(client, p.id, 'copied'), 'Reminder text copied (date recorded). Paste it into your own message.');
+    await run(() => logReminder(client, p.id, 'copied'), 'Reminder text copied (date recorded). Paste it into your own message.', TOUCHES.reminder);
   }
   async function copyNumbers() {
     try { await navigator.clipboard.writeText(waNumbers.join('\n')); setNote(waNumbers.length + ' WhatsApp numbers copied. In WhatsApp you can make a broadcast list with them. Nothing was sent.'); }
@@ -148,7 +149,7 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
       <button className="small-btn" type="button" disabled={!learnerId || busy} onClick={() => void showFee()}>Show fee</button>
       {preview && <p role="status">{preview}</p>}
       <button className="primary-btn" type="button" disabled={!learnerId || !start || busy}
-        onClick={() => void run(() => createChildPeriod(client, learnerId, start), 'Started. It runs for 3 months from ' + formatDate(start) + '.')}>Start 3 months</button>
+        onClick={() => void run(() => createChildPeriod(client, learnerId, start), 'Started. It runs for 3 months from ' + formatDate(start) + '.', TOUCHES.payment)}>Start 3 months</button>
     </div>
 
     <div className="people-enroll" aria-label="Parents to remind"><h3>Parents to remind ({toRemind.length})</h3>
@@ -159,7 +160,7 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
             <td>{g?.display_name ?? 'Parent'}<br /><small>{g?.phone_e164 ?? 'no phone'}</small></td><td>{usd(p.amount_due)}</td>
             <td><span className={tagClass(p.status)}>{label(STATUS_LABEL, p.status)}</span></td><td>{remindedText(lastReminded(p.id))}</td>
             <td><ReminderAction phone={g?.phone_e164 ?? null} allowed={Boolean(g?.whatsapp_opt_in)} lastAt={null} busy={busy} text={textFor(p)}
-              onSent={() => void run(() => logReminder(client, p.id, 'whatsapp'), 'WhatsApp opened with the reminder. The date is recorded.')} />
+              onSent={() => void run(() => logReminder(client, p.id, 'whatsapp'), 'WhatsApp opened with the reminder. The date is recorded.', TOUCHES.reminder)} />
               {' '}<button className="small-btn" type="button" disabled={busy} onClick={() => void copyReminder(p)}>Copy text</button></td></tr>; })}
         </tbody></table></div>
         <button className="small-btn" type="button" disabled={!waNumbers.length} onClick={() => void copyNumbers()}>Copy WhatsApp numbers ({waNumbers.length}) for a broadcast list</button>
@@ -180,7 +181,7 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
           <td>{p.learner_id ? (childName(p.learner_id) ?? 'Child') + ': ' + (coursesOf(p.learner_id).join(', ') || '—') : (i?.courses.length ? i.courses.join('; ') : i?.students.join(', ') ?? '—')}</td>
           <td>{formatDate(p.period_start)} – {formatDate(p.period_end)}</td>
           <td>{usd(p.amount_due)}{role === 'admin' && <><br /><button className="text-btn" type="button" onClick={() => { setAmountFor(p.id); setNewAmount(String(p.amount_due)); setAmountReason(''); }}>Change amount</button></>}
-            {amountFor === p.id && <form onSubmit={e => { e.preventDefault(); void run(() => setPeriodAmount(client, p.id, Number(newAmount), amountReason), 'Amount changed. The old amount and the reason are kept.').then(ok => { if (ok) setAmountFor(''); }); }}>
+            {amountFor === p.id && <form onSubmit={e => { e.preventDefault(); void run(() => setPeriodAmount(client, p.id, Number(newAmount), amountReason), 'Amount changed. The old amount and the reason are kept.', TOUCHES.payment).then(ok => { if (ok) setAmountFor(''); }); }}>
               <label>New amount (USD)<input type="number" min="1" step="1" required value={newAmount} onChange={e => setNewAmount(e.target.value)} /></label>
               <label>Reason<input required minLength={3} maxLength={200} value={amountReason} onChange={e => setAmountReason(e.target.value)} placeholder="e.g. second child joined" /></label>
               <button className="small-btn" type="submit" disabled={busy}>Save amount</button> <button className="text-btn" type="button" onClick={() => setAmountFor('')}>Cancel</button>
@@ -188,12 +189,12 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
           <td>{p.reported_status === 'unpaid' ? '—' : <>{label(STATUS_LABEL, p.reported_status)} on {formatDate(p.paid_on ?? '')} · {methodLabel(p.paid_method)}{p.paid_note ? ' · ' + p.paid_note : ''}</>}</td>
           <td><span className={tagClass(p.status)}>{label(STATUS_LABEL, p.status)}</span><br /><small>{label(STAGE_LABEL, p.stage)}</small></td>
           <td><button className="small-btn" onClick={() => setOpen({ id: p.id, periodStart: p.period_start, status: p.reported_status, paidOn: p.paid_on, method: p.paid_method, note: p.paid_note, title: g?.display_name ?? 'Parent' })}>Report</button>
-            {p.stage === 'reported' && <> <button className="small-btn" disabled={busy} onClick={() => void run(() => checkPeriod(client, p.id, p.reported_status), 'Checked. An administrator can now approve it.')}>Check “{label(STATUS_LABEL, p.reported_status)}”</button></>}
-            {p.stage === 'checked' && role === 'admin' && <> <button className="small-btn" disabled={busy} onClick={() => void run(() => approvePeriod(client, p.id, p.checked_status), 'Approved.')}>Approve “{label(STATUS_LABEL, p.checked_status)}”</button></>}
+            {p.stage === 'reported' && <> <button className="small-btn" disabled={busy} onClick={() => void run(() => checkPeriod(client, p.id, p.reported_status), 'Checked. An administrator can now approve it.', TOUCHES.payment)}>Check “{label(STATUS_LABEL, p.reported_status)}”</button></>}
+            {p.stage === 'checked' && role === 'admin' && <> <button className="small-btn" disabled={busy} onClick={() => void run(() => approvePeriod(client, p.id, p.checked_status), 'Approved.', TOUCHES.payment)}>Approve “{label(STATUS_LABEL, p.checked_status)}”</button></>}
           </td></tr>; })}
       </tbody></table></div>}
     {open && <ReportForm key={open.id} target={open} busy={busy} onCancel={() => setOpen(null)}
-      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart), 'Payment reported. It now needs a finance check.')) setOpen(null); }} />}
+      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart), 'Payment reported. It now needs a finance check.', TOUCHES.payment)) setOpen(null); }} />}
     <p className="ops-feedback" role="status" aria-live="polite">{message || note}</p>
   </section>;
 }

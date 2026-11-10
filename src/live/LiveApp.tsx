@@ -46,6 +46,8 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
     finally { setLoading(false); }
   }, [client, isAdmin, isFinance, role]);
   useEffect(() => { void reload(); }, [reload]);
+  // On phones the section bar scrolls sideways: keep the chosen section in view.
+  useEffect(() => { document.querySelector('.live-shell .navitem.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [section]);
 
   return <div className="shell live-shell">
     <aside className="sidebar">
@@ -67,8 +69,9 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
         {!sections.length && <section className="panel"><h2>No screens yet for your role</h2>
           <p>Screens for the <strong>{role}</strong> role have not been built yet. Your account is verified, but nothing is available to you here for now.</p></section>}
         {sections.length > 0 && loading && <p role="status">Loading…</p>}
+        {sections.length > 0 && loading && <div className="lv-skeleton" aria-hidden="true"><span /><span /><span /></div>}
         {sections.length > 0 && loadError && <p className="ops-feedback" role="alert">{loadError} <button className="small-btn" onClick={() => void reload()}>Retry</button></p>}
-        {sections.length > 0 && !loading && !loadError && <>
+        {sections.length > 0 && !loading && !loadError && <div className="lv-view" key={section}>
           {section === 'Overview' && <LiveOverview data={data} role={role} go={s => setSection(s as Section)}
             onWriteNotice={id => { setNoticeClassId(id); setSection('Notices'); }} />}
           {(section === 'My children' || section === 'My classes') && <LiveFamily data={data} role={role} />}
@@ -80,7 +83,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
           {section === 'Attendance' && <Attendance data={data} client={client} reload={reload} />}
           {section === 'Guardians' && <LiveGuardians data={data} client={client} role={role} reload={reload} />}
           {section === 'Fees' && <LiveFees data={data} client={client} role={role} reload={reload} />}
-        </>}
+        </div>}
       </main>
     </div>
   </div>;

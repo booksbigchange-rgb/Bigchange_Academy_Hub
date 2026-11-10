@@ -1177,3 +1177,62 @@ footer {
 .live-auth .auth-role { background: var(--lv-gold-tint); color: var(--lv-gold-text); border-radius: 999px; padding: 2px 10px; }
 @media (max-width: 520px) { .live-auth .auth-card { padding: 20px; } }
 
+/* ----------------------------------------------------------------------------------------------------------
+   Motion and fluid sizing for the live app (docs/DESIGN_SPEC.md, "Motion and fluidity"). Short, calm, and
+   switched off entirely by the reduced-motion rule above. Still scoped to .live-shell / .live-auth.
+   ---------------------------------------------------------------------------------------------------------- */
+.live-shell, .live-auth { --lv-ease: cubic-bezier(.22, .8, .24, 1); --lv-fast: .16s; --lv-med: .2s; }
+@keyframes lv-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes lv-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lv-shimmer { to { background-position: -200% 0; } }
+html:has(.live-shell) { scroll-behavior: smooth; }
+
+/* A section slides in softly when you change section; cards on the Overview follow one after another. */
+.live-shell .lv-view { animation: lv-rise var(--lv-med) var(--lv-ease) both; }
+.live-shell .lv-view .metric { animation: lv-rise var(--lv-med) var(--lv-ease) both; }
+.live-shell .lv-view .metric:nth-child(2) { animation-delay: 20ms; }
+.live-shell .lv-view .metric:nth-child(3) { animation-delay: 40ms; }
+.live-shell .lv-view .metric:nth-child(4) { animation-delay: 60ms; }
+.live-shell .panel .people-enroll, .live-auth .auth-card { animation: lv-rise var(--lv-med) var(--lv-ease) both; }
+.live-shell .ops-feedback:not(:empty) { animation: lv-fade var(--lv-med) ease-out both; }
+
+/* Everything you can press or type in changes state smoothly instead of snapping. */
+.live-shell .navitem { transition: background-color var(--lv-fast) ease, color var(--lv-fast) ease, border-color var(--lv-fast) ease; }
+.live-shell .primary-btn, .live-auth .primary-btn, .live-shell .small-btn, .live-auth .small-btn, .live-shell .text-btn {
+  transition: background-color var(--lv-fast) ease, border-color var(--lv-fast) ease, color var(--lv-fast) ease, box-shadow var(--lv-fast) ease, transform var(--lv-fast) var(--lv-ease); }
+.live-shell .primary-btn:hover:not(:disabled), .live-auth .primary-btn:hover:not(:disabled) { box-shadow: 0 4px 14px rgba(31,27,22,.18); }
+.live-shell .small-btn:hover:not(:disabled), .live-auth .small-btn:hover:not(:disabled) { border-color: var(--lv-field); }
+.live-shell .primary-btn:active:not(:disabled), .live-auth .primary-btn:active:not(:disabled),
+.live-shell .small-btn:active:not(:disabled), .live-auth .small-btn:active:not(:disabled), .live-shell .navitem:active { transform: scale(.97); }
+.live-shell .operations input:not([type="checkbox"]), .live-shell .operations select, .live-shell .operations textarea, .live-auth .auth-form input {
+  transition: border-color var(--lv-fast) ease, box-shadow var(--lv-fast) ease; }
+.live-shell .operations input:not([type="checkbox"]):hover, .live-shell .operations select:hover, .live-shell .operations textarea:hover, .live-auth .auth-form input:hover { border-color: var(--lv-text-2); }
+.live-shell .operations input:not([type="checkbox"]):focus, .live-shell .operations select:focus, .live-shell .operations textarea:focus, .live-auth .auth-form input:focus {
+  border-color: var(--lv-gold-text); box-shadow: 0 0 0 4px rgba(125,83,19,.14); }
+.live-shell tbody tr { transition: background-color var(--lv-fast) ease; }
+.live-shell tbody tr:hover { background: var(--lv-muted); }
+.live-shell .tag { transition: background-color var(--lv-med) ease, color var(--lv-med) ease; }
+
+/* The top bar stays with you while you scroll, lightly see-through. */
+.live-shell .topbar { position: sticky; top: 0; z-index: 5; background: rgba(255,255,255,.88); -webkit-backdrop-filter: saturate(1.4) blur(10px); backdrop-filter: saturate(1.4) blur(10px); }
+
+/* Sizes grow and shrink with the screen instead of jumping at one width. */
+.live-shell .content { padding: clamp(16px, 2.6vw, 32px) clamp(16px, 2.8vw, 32px) 40px; }
+.live-shell .panel { padding: clamp(16px, 2.2vw, 24px); border-radius: clamp(16px, 1.8vw, 20px); }
+.live-shell .panel h2 { font-size: clamp(19px, 1vw + 14px, 22px); text-wrap: balance; }
+.live-shell .metric-value { font-size: clamp(24px, 1.6vw + 14px, 32px); font-variant-numeric: tabular-nums; }
+.live-shell td, .live-shell .finance-strip strong { font-variant-numeric: tabular-nums; }
+.live-shell .table-wrap { scrollbar-width: thin; scrollbar-color: #cfc6b8 transparent; }
+
+/* Loading: quiet placeholder cards under the "Loading…" text. */
+.live-shell .lv-skeleton { display: grid; gap: 16px; margin-top: 12px; animation: lv-fade var(--lv-med) ease-out both; }
+.live-shell .lv-skeleton span { display: block; height: 96px; border-radius: 20px; border: 1px solid var(--lv-line);
+  background: linear-gradient(90deg, var(--lv-surface) 25%, var(--lv-muted) 50%, var(--lv-surface) 75%) 0 0 / 200% 100%; animation: lv-shimmer 1.4s linear infinite; }
+.live-shell .lv-skeleton span:first-child { height: 180px; }
+
+@media (max-width: 790px) {
+  .live-shell .sidebar nav { scroll-snap-type: x proximity; scrollbar-width: none; scroll-padding-inline: 12px; }
+  .live-shell .sidebar nav::-webkit-scrollbar { display: none; }
+  .live-shell .navitem { scroll-snap-align: start; }
+}
+

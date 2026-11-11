@@ -30,6 +30,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - 2026-11-10, review fixes (migration 0008): dates use Israel time (Asia/Jerusalem, where the admin works; teachers in Ethiopia are one hour ahead in winter); family-wide periods retired (only per-child periods can be started; old family periods stay as they are); every verified parent of a child sees that child's periods. 132/132 DB checks. Owner ran migration 0008 on 2026-11-10 ("Success").
 - 2026-11-10: pull request #19 merged into `main`; drafts #1–#18 closed. Follow-up: the paying parent is now the first parent linked to the child (added to migration 0008), which also removes a random failure in the database tests.
 
+- Browser test now runs in CI (`browser` job): Playwright and axe-core are dev-only dependencies; `npm run test:e2e` runs it locally against a fake database (94/94, incl. accessibility scan of every role).
+
 ## Remaining
 Needs the owner:
 2. Teacher test account, then `tests/live-project-check.mjs` with test logins (`docs/NEXT_STEPS.md` steps 2–3).
@@ -43,4 +45,3 @@ Known and not yet built:
 - An old family-wide period that already counted a child is not detected when a per-child period is started for that child. Only matters for periods created before migration 0006 (test data).
 - Messages are still sent by staff from their own WhatsApp/email; no provider is connected.
 - Teacher logins are created by hand in the Supabase dashboard (a server-side invite needs hosting first).
-- The browser test is not in CI (Playwright is not a project dependency).

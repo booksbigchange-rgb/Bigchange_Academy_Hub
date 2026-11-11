@@ -14,16 +14,21 @@ test('dates are shown day first and money in dollars', () => {
 
 test('payment report validation mirrors the database rules', () => {
   const today = '2026-11-07';
-  assert.deepEqual(validateReport({ status: 'paid', paidOn: '2026-11-01', method: 'cash', note: ' ref 9 ' }, today, '2026-08-10'),
-    { p_status: 'paid', p_paid_on: '2026-11-01', p_method: 'cash', p_note: 'ref 9' });
-  assert.deepEqual(validateReport({ status: 'unpaid' }, today), { p_status: 'unpaid', p_paid_on: null, p_method: null, p_note: null });
-  assert.throws(() => validateReport({ status: 'paid', method: 'cash' }, today), /date the parent paid/);
-  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-11-08', method: 'cash' }, today), /future/);
-  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-11-01' }, today), /how the parent paid/);
-  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-06-01', method: 'bank' }, today, '2026-08-10'), /too far before/);
-  assert.throws(() => validateReport({ status: 'partial', paidOn: '2026-11-01', method: 'wire' }, today), /how the parent paid/);
+  const methods = ['israel', 'ria_tsegay', 'habesha_shop'];
+  assert.deepEqual(validateReport({ status: 'paid', paidOn: '2026-11-01', method: 'israel', note: ' ref 9 ', amount: '150' }, today, '2026-08-10', methods),
+    { p_status: 'paid', p_paid_on: '2026-11-01', p_method: 'israel', p_note: 'ref 9', p_amount: 150 });
+  assert.deepEqual(validateReport({ status: 'partial', paidOn: '2026-11-01', method: 'ria_tsegay', amount: '' }, today, '', methods).p_amount, null);
+  assert.equal(validateReport({ status: 'partial', paidOn: '2026-11-01', method: 'ria_tsegay', amount: '75.456' }, today, '', methods).p_amount, 75.46);
+  assert.deepEqual(validateReport({ status: 'unpaid' }, today), { p_status: 'unpaid', p_paid_on: null, p_method: null, p_note: null, p_amount: null });
+  assert.throws(() => validateReport({ status: 'paid', method: 'israel' }, today, '', methods), /date the parent paid/);
+  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-11-08', method: 'israel' }, today, '', methods), /future/);
+  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-11-01' }, today, '', methods), /how the parent paid/);
+  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-06-01', method: 'israel' }, today, '2026-08-10', methods), /too far before/);
+  assert.throws(() => validateReport({ status: 'partial', paidOn: '2026-11-01', method: 'cash' }, today, '', methods), /how the parent paid/);
+  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-11-01', method: 'israel', amount: '-5' }, today, '', methods), /amount between/);
+  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-11-01', method: 'israel', amount: 'abc' }, today, '', methods), /amount between/);
   assert.throws(() => validateReport({ status: 'weird' }, today), /unpaid, partly paid or paid/);
-  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-11-01', method: 'cash', note: '<b>' }, today), /cannot contain/);
+  assert.throws(() => validateReport({ status: 'paid', paidOn: '2026-11-01', method: 'israel', note: '<b>' }, today, '', methods), /cannot contain/);
 });
 
 test('phone and guardian validation', () => {

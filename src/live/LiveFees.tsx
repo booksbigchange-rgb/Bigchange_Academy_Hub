@@ -1,30 +1,40 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { approvePeriod, checkPeriod, childFee, createChildPeriod, logReminder, reportPayment, setGuardianConsent, setPeriodAmount, type FeeStatus } from './api';
-import { FEE_TEXT, METHODS, STAGE_LABEL, STATUS_LABEL, bulkReminderText, emailBatches, formatDate, needsReminder, reminderText, remindedText, todayIso, usd, whatsappLink } from './fees.mjs';
+import { FEE_TEXT, STAGE_LABEL, STATUS_LABEL, bulkReminderText, emailBatches, formatDate, needsReminder, reminderText, remindedText, todayIso, usd, whatsappLink } from './fees.mjs';
 import { useAction, type PanelProps, type Role } from './shared';
+import { TI } from './ti.mjs';
+import type { PaymentMethod } from './api';
+import { addPaymentMethod, updatePaymentMethod } from './api';
 
 const tagClass = (s: string) => 'tag ' + (s === 'paid' ? 'green' : s === 'overdue' ? 'red' : 'amber');
 const label = (map: Record<string, string>, key: string) => map[key] ?? key;
-const methodLabel = (m: string | null) => METHODS.find(([k]: string[]) => k === m)?.[1] ?? '—';
+const methodName = (methods: PaymentMethod[], code: string | null) => methods.find(m => m.code === code)?.label ?? (code ?? '—');
+const amountText = (n: number | null) => (n === null || n === undefined ? '' : ' · ' + usd(n));
+/** Tigrinya help line under an English label (lang attribute so screen readers pronounce it correctly). */
+const Ti = ({ text }: { text: string }) => <small className="ti-help" lang="ti">{text}</small>;
 
-type ReportTarget = { id: string; periodStart: string; status: FeeStatus; paidOn: string | null; method: string | null; note: string | null; title: string };
+type ReportTarget = { id: string; periodStart: string; status: FeeStatus; paidOn: string | null; method: string | null; note: string | null; amount: number | null; title: string };
 
 /** Report what a parent paid. Anyone allowed to report sees the same record, so every teacher of the parent's children stays up to date. */
-function ReportForm({ target, busy, onSubmit, onCancel }: { target: ReportTarget; busy: boolean; onSubmit: (v: { status: FeeStatus; paidOn: string; method: string; note: string }) => void; onCancel: () => void }) {
+function ReportForm({ target, methods, busy, onSubmit, onCancel }: { target: ReportTarget; methods: PaymentMethod[]; busy: boolean; onSubmit: (v: { status: FeeStatus; paidOn: string; method: string; note: string; amount: string }) => void; onCancel: () => void }) {
   const [status, setStatus] = useState<FeeStatus>(target.status === 'unpaid' ? 'paid' : target.status);
   const [paidOn, setPaidOn] = useState(target.paidOn ?? todayIso());
   const [method, setMethod] = useState(target.method ?? '');
   const [note, setNote] = useState(target.note ?? '');
-  function submit(event: FormEvent) { event.preventDefault(); onSubmit({ status, paidOn, method, note }); }
+  const [amount, setAmount] = useState(target.amount === null || target.amount === undefined ? '' : String(target.amount));
+  const active = methods.filter(m => m.active || m.code === target.method);
+  function submit(event: FormEvent) { event.preventDefault(); onSubmit({ status, paidOn, method, note, amount }); }
   return <form className="ops-form" onSubmit={submit}>
     <h3>Report payment · {target.title}</h3>
+    <Ti text={TI.reportIntro} />
     <label>Status<select value={status} onChange={e => setStatus(e.target.value as FeeStatus)}>
       <option value="paid">Paid</option><option value="partial">Partly paid</option><option value="unpaid">Unpaid (clear the report)</option></select></label>
     {status !== 'unpaid' && <>
-      <label>Date the parent paid<input type="date" required max={todayIso()} value={paidOn} onChange={e => setPaidOn(e.target.value)} /></label>
+      <label>Date the parent paid<input type="date" required max={todayIso()} value={paidOn} onChange={e => setPaidOn(e.target.value)} /><Ti text={TI.paidOn} /></label>
       <label>How they paid<select required value={method} onChange={e => setMethod(e.target.value)}><option value="">Choose</option>
-        {METHODS.map(([k, v]: string[]) => <option key={k} value={k}>{v}</option>)}</select></label></>}
-    <label>Note or reference (optional, max 120)<input maxLength={120} value={note} onChange={e => setNote(e.target.value)} /></label>
+        {active.map(m => <option key={m.code} value={m.code}>{m.label}</option>)}</select><Ti text={TI.method} /></label>
+      <label>Amount paid in USD (optional)<input type="number" inputMode="decimal" min="1" max="100000" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} /><Ti text={TI.amount} /></label></>}
+    <label>Note or reference (optional, max 120)<input maxLength={120} value={note} onChange={e => setNote(e.target.value)} /><Ti text={TI.note} /></label>
     <p className="quiet">Finance will check this and an administrator will approve it. Changing a report later sends it back for checking.</p>
     <button className="primary-btn" type="submit" disabled={busy}>Save report</button>
     <button className="text-btn" type="button" onClick={onCancel}>Cancel</button>
@@ -46,9 +56,9 @@ function TeacherFees({ data, client, reload }: PanelProps & { role: Role }) {
       <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Parent</th><th>Phone</th><th>My students</th><th>Period</th><th>Fee</th><th>Payment</th><th>Status</th><th>Action</th></tr></thead><tbody>
         {data.teacherPeriods.map(p => <tr key={p.period_id}><td>{p.guardian_name}</td><td>{p.guardian_phone ?? '—'}</td><td>{p.students.join(', ') || '—'}</td>
           <td>{formatDate(p.period_start)} – {formatDate(p.period_end)}</td><td>{usd(p.amount_due)}</td>
-          <td>{p.reported_status === 'unpaid' ? '—' : <>{label(STATUS_LABEL, p.reported_status)} on {formatDate(p.paid_on ?? '')} · {methodLabel(p.paid_method)}{p.paid_note ? ' · ' + p.paid_note : ''}</>}</td>
+          <td>{p.reported_status === 'unpaid' ? '—' : <>{label(STATUS_LABEL, p.reported_status)} on {formatDate(p.paid_on ?? '')} · {methodName(data.paymentMethods, p.paid_method)}{amountText(p.paid_amount)}{p.paid_note ? ' · ' + p.paid_note : ''}</>}</td>
           <td><span className={tagClass(p.status)}>{label(STATUS_LABEL, p.status)}</span><br /><small>{label(STAGE_LABEL, p.stage)}</small></td>
-          <td><button className="small-btn" onClick={() => setOpen({ id: p.period_id, periodStart: p.period_start, status: p.reported_status, paidOn: p.paid_on, method: p.paid_method, note: p.paid_note, title: p.guardian_name })}>Report payment</button>
+          <td><button className="small-btn" onClick={() => setOpen({ id: p.period_id, periodStart: p.period_start, status: p.reported_status, paidOn: p.paid_on, method: p.paid_method, note: p.paid_note, amount: p.paid_amount, title: p.guardian_name })}>Report payment</button>
             {needsReminder(p) && <ReminderAction phone={p.guardian_phone} allowed={p.whatsapp_opt_in} lastAt={p.last_reminded_at ?? ''} busy={busy}
               text={reminderText({ guardian: p.guardian_name, students: p.students, amount: p.amount_due, start: p.period_start, end: p.period_end })}
               onSent={() => void run(() => logReminder(client, p.period_id, 'whatsapp'), 'WhatsApp opened with the reminder. The date is recorded.')}
@@ -57,8 +67,8 @@ function TeacherFees({ data, client, reload }: PanelProps & { role: Role }) {
                 : () => setConfirmConsent(p.guardian_id)}
               confirming={confirmConsent === p.guardian_id} />}</td></tr>)}
       </tbody></table></div>}
-    {open && <ReportForm key={open.id} target={open} busy={busy} onCancel={() => setOpen(null)}
-      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart), 'Payment reported. Finance will check it.')) setOpen(null); }} />}
+    {open && <ReportForm key={open.id} target={open} methods={data.paymentMethods} busy={busy} onCancel={() => setOpen(null)}
+      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart, data.paymentMethods.filter(m => m.active).map(m => m.code)), 'Payment reported. Finance will check it.')) setOpen(null); }} />}
     <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
   </section>;
 }
@@ -185,15 +195,18 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
               <label>Reason<input required minLength={3} maxLength={200} value={amountReason} onChange={e => setAmountReason(e.target.value)} placeholder="e.g. second child joined" /></label>
               <button className="small-btn" type="submit" disabled={busy}>Save amount</button> <button className="text-btn" type="button" onClick={() => setAmountFor('')}>Cancel</button>
             </form>}</td>
-          <td>{p.reported_status === 'unpaid' ? '—' : <>{label(STATUS_LABEL, p.reported_status)} on {formatDate(p.paid_on ?? '')} · {methodLabel(p.paid_method)}{p.paid_note ? ' · ' + p.paid_note : ''}</>}</td>
+          <td>{p.reported_status === 'unpaid' ? '—' : <>{label(STATUS_LABEL, p.reported_status)} on {formatDate(p.paid_on ?? '')} · {methodName(data.paymentMethods, p.paid_method)}{amountText(p.paid_amount)}{p.paid_note ? ' · ' + p.paid_note : ''}</>}</td>
           <td><span className={tagClass(p.status)}>{label(STATUS_LABEL, p.status)}</span><br /><small>{label(STAGE_LABEL, p.stage)}</small></td>
-          <td><button className="small-btn" onClick={() => setOpen({ id: p.id, periodStart: p.period_start, status: p.reported_status, paidOn: p.paid_on, method: p.paid_method, note: p.paid_note, title: g?.display_name ?? 'Parent' })}>Report</button>
+          <td><button className="small-btn" onClick={() => setOpen({ id: p.id, periodStart: p.period_start, status: p.reported_status, paidOn: p.paid_on, method: p.paid_method, note: p.paid_note, amount: p.paid_amount, title: g?.display_name ?? 'Parent' })}>Report</button>
             {p.stage === 'reported' && <> <button className="small-btn" disabled={busy} onClick={() => void run(() => checkPeriod(client, p.id, p.reported_status), 'Checked. An administrator can now approve it.')}>Check “{label(STATUS_LABEL, p.reported_status)}”</button></>}
             {p.stage === 'checked' && role === 'admin' && <> <button className="small-btn" disabled={busy} onClick={() => void run(() => approvePeriod(client, p.id, p.checked_status), 'Approved.')}>Approve “{label(STATUS_LABEL, p.checked_status)}”</button></>}
           </td></tr>; })}
       </tbody></table></div>}
-    {open && <ReportForm key={open.id} target={open} busy={busy} onCancel={() => setOpen(null)}
-      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart), 'Payment reported. It now needs a finance check.')) setOpen(null); }} />}
+    {open && <ReportForm key={open.id} target={open} methods={data.paymentMethods} busy={busy} onCancel={() => setOpen(null)}
+      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart, data.paymentMethods.filter(m => m.active).map(m => m.code)), 'Payment reported. It now needs a finance check.')) setOpen(null); }} />}
+    {role === 'admin' && <PaymentMethods methods={data.paymentMethods} busy={busy}
+      onAdd={label => run(() => addPaymentMethod(client, label, data.paymentMethods), 'Payment method added.')}
+      onChange={(code, patch) => run(() => updatePaymentMethod(client, code, patch), patch.active === false ? 'Switched off. Old reports keep this name.' : 'Payment method updated.')} />}
     <p className="ops-feedback" role="status" aria-live="polite">{message || note}</p>
   </section>;
 }
@@ -209,4 +222,30 @@ function ReminderAction({ phone, allowed, lastAt, text, busy, onSent, onAllow, c
       : <small> No WhatsApp permission</small>}
     {lastAt !== null && <><br /><small>{remindedText(lastAt)}</small></>}
   </>;
+}
+
+/** Admin: the list of ways parents pay (e.g. Israel, Ria – Tsegay, Habesha shop). Options are switched off, never deleted. */
+function PaymentMethods({ methods, busy, onAdd, onChange }: { methods: PaymentMethod[]; busy: boolean;
+  onAdd: (label: string) => Promise<boolean>; onChange: (code: string, patch: { label?: string; active?: boolean }) => Promise<boolean> }) {
+  const [label, setLabel] = useState('');
+  const [editing, setEditing] = useState('');
+  const [newLabel, setNewLabel] = useState('');
+  return <div className="people-enroll" aria-label="Payment methods">
+    <h3>Payment methods</h3>
+    <p className="quiet">The choices teachers see under "How they paid". Switch off an option you no longer use; old reports keep its name.</p>
+    <div className="table-wrap" tabIndex={0} role="region" aria-label="Payment methods table"><table><thead><tr><th>Name</th><th>Shown to teachers</th><th>Action</th></tr></thead><tbody>
+      {methods.map(m => <tr key={m.code}><td>{editing === m.code
+        ? <form onSubmit={e => { e.preventDefault(); void onChange(m.code, { label: newLabel }).then(ok => { if (ok) setEditing(''); }); }}>
+            <label>New name<input required maxLength={60} value={newLabel} onChange={e => setNewLabel(e.target.value)} /></label>
+            <button className="small-btn" type="submit" disabled={busy}>Save name</button> <button className="text-btn" type="button" onClick={() => setEditing('')}>Cancel</button></form>
+        : m.label}</td>
+        <td><span className={'tag ' + (m.active ? 'green' : 'amber')}>{m.active ? 'Yes' : 'Switched off'}</span></td>
+        <td><button className="text-btn" type="button" onClick={() => { setEditing(m.code); setNewLabel(m.label); }}>Rename</button>{' '}
+          <button className="small-btn" type="button" disabled={busy} onClick={() => void onChange(m.code, { active: !m.active })}>{m.active ? 'Switch off' : 'Switch on'}</button></td></tr>)}
+    </tbody></table></div>
+    <form className="ops-form" onSubmit={e => { e.preventDefault(); void onAdd(label).then(ok => { if (ok) setLabel(''); }); }}>
+      <label>New payment method<input required maxLength={60} value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Telebirr" /></label>
+      <button className="small-btn" type="submit" disabled={busy}>+ Add method</button>
+    </form>
+  </div>;
 }

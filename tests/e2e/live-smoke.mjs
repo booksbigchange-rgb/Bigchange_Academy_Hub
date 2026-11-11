@@ -21,6 +21,8 @@ function freshDb() {
       { id: uid(2), auth_user_id: uid(902), role: 'teacher', display_name: 'Teacher Test' },
       { id: uid(3), auth_user_id: uid(903), role: 'finance', display_name: 'Finance Test' }],
     academy_learners: [], academy_guardians: [{ id: uid(40), auth_user_id: uid(904), display_name: 'Parent Test', email: 'p@example.com', phone_e164: '+251911000000', email_opt_in: true, whatsapp_opt_in: false }],
+    academy_payment_methods: [{ code: 'israel', label: 'Israel', active: true, sort_order: 10 }, { code: 'ria_tsegay', label: 'Ria – Tsegay', active: true, sort_order: 30 },
+      { code: 'habesha_shop', label: 'Habesha shop', active: true, sort_order: 60 }, { code: 'cash', label: 'Cash (old)', active: false, sort_order: 200 }],
     academy_learners_seed: [], academy_courses: [], academy_classes: [], academy_enrollments: [], academy_sessions: [],
     academy_attendance: [], academy_guardian_links: [], academy_fee_period_status: []
   };
@@ -76,11 +78,11 @@ async function install(page, db, role) {
       }
       if (fn === 'academy_report_payment') {
         const p = db.academy_fee_period_status.find(x => x.id === a.p_period);
-        Object.assign(p, { reported_status: a.p_status, paid_on: a.p_paid_on, paid_method: a.p_method, paid_note: a.p_note, stage: a.p_status === 'unpaid' ? 'none' : 'reported', checked_status: 'unpaid', approved_status: 'unpaid', status: 'unpaid' });
+        Object.assign(p, { reported_status: a.p_status, paid_on: a.p_paid_on, paid_method: a.p_method, paid_note: a.p_note, paid_amount: a.p_amount ?? null, stage: a.p_status === 'unpaid' ? 'none' : 'reported', checked_status: 'unpaid', approved_status: 'unpaid', status: 'unpaid' });
         return route.fulfill({ status: 204 });
       }
       if (fn === 'academy_teacher_fee_periods') return json(db.academy_fee_period_status.map(p => { const g = db.academy_guardians.find(x => x.id === p.guardian_id) ?? {}; return { period_id: p.id, guardian_id: p.guardian_id, guardian_name: g.display_name ?? 'Parent Test', guardian_phone: g.phone_e164 ?? null,
-        period_start: p.period_start, period_end: p.period_end, amount_due: p.amount_due, status: p.status, stage: p.stage, reported_status: p.reported_status, paid_on: p.paid_on, paid_method: p.paid_method, paid_note: p.paid_note, students: ['Kid Test'], courses: ['Course Test'],
+        period_start: p.period_start, period_end: p.period_end, amount_due: p.amount_due, status: p.status, stage: p.stage, reported_status: p.reported_status, paid_on: p.paid_on, paid_method: p.paid_method, paid_note: p.paid_note, paid_amount: p.paid_amount ?? null, students: ['Kid Test'], courses: ['Course Test'],
         whatsapp_opt_in: Boolean(g.whatsapp_opt_in), last_reminded_at: (db.academy_reminder_events ?? []).filter(r => r.period_id === p.id).map(r => r.sent_at).sort().pop() ?? null }; }));
       if (fn === 'academy_set_guardian_consent') { const g = db.academy_guardians.find(x => x.id === a.p_guardian); g.email_opt_in = a.p_email_opt ?? g.email_opt_in; g.whatsapp_opt_in = a.p_whatsapp_opt ?? g.whatsapp_opt_in; return route.fulfill({ status: 204 }); }
       if (fn === 'academy_log_reminder') {
@@ -151,7 +153,7 @@ async function session(browser, db, role, width, fn) {
   await page.goto(BASE);
   await page.getByLabel('Email address').fill(role + '@example.com');
   await page.getByLabel('Password').fill('correct-horse-battery');
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.getByText('Live database').waitFor({ timeout: 10000 });
   await page.getByText('Loading…').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
   try { await fn(page); } catch (e) { check(role + ': flow completed', false, e.message.split('\n')[0]); await page.screenshot({ path: (process.env.SHOTS || '.') + '/fail-' + role + '.png', fullPage: true }).catch(() => {}); }
@@ -166,6 +168,21 @@ const nav = (page, name) => page.getByRole('navigation', { name: 'Sections' }).g
 
 const browser = await chromium.launch(EXEC ? { executablePath: EXEC } : {});
 const db = freshDb();
+
+// Google sign-in: the button exists; while Google is not switched on in Supabase it explains instead of opening an error page.
+{
+  const p = await (await browser.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
+  await p.route(API + '/**', r => r.request().url().includes('/auth/v1/settings')
+    ? r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ external: { email: true, google: false }, disable_signup: true }) })
+    : r.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
+  await p.goto(BASE);
+  await p.getByRole('button', { name: 'Sign in with Google' }).click();
+  check('Google sign-in explains when it is not switched on yet', await seen(p.getByText(/Google sign-in is not switched on yet/)));
+  await p.goto('about:blank');
+  await p.goto(BASE + '/?error=access_denied&error_description=Signups+not+allowed+for+this+instance');
+  check('a Google account that was not added gets a clear message', await seen(p.getByText(/has not been added to the Academy/)));
+  await p.context().close();
+}
 
 await session(browser, db, 'admin', 1366, async page => {
   check('admin lands on Overview', await seen(page.getByRole('heading', { name: 'Welcome back' })));
@@ -227,11 +244,15 @@ await session(browser, db, 'admin', 1366, async page => {
   await page.getByRole('button', { name: 'Start 3 months' }).click();
   await page.getByRole('button', { name: 'Report', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Report', exact: true }).click();
-  await page.getByLabel('How they paid').selectOption('cash');
+  check('switched-off methods are not offered', (await page.getByLabel('How they paid').locator('option', { hasText: 'Cash (old)' }).count()) === 0);
+  check('Tigrinya help is shown on the report form', await seen(page.locator('.ti-help[lang="ti"]').first()));
+  await page.getByLabel('How they paid').selectOption('ria_tsegay');
+  await page.getByLabel('Amount paid in USD (optional)').fill('150');
   await page.getByLabel('Note or reference (optional, max 120)').fill('Receipt 1');
   await page.getByRole('button', { name: 'Save report' }).click();
   await page.getByRole('button', { name: /^Check/ }).waitFor();
   check('payment report moves to "awaiting finance check"', await seen(page.getByText('Reported, awaiting finance check')));
+  check('the report shows the method name and the amount', await seen(page.getByText(/Ria – Tsegay · USD 150/).first()));
   await page.getByRole('button', { name: /^Check/ }).click();
   await page.getByRole('button', { name: /^Approve/ }).waitFor();
   await page.getByRole('button', { name: /^Approve/ }).click();
@@ -245,6 +266,9 @@ await session(browser, db, 'admin', 1366, async page => {
   await page.getByLabel('Reason').fill('Second child joined');
   await page.getByRole('button', { name: 'Save amount' }).click();
   check('admin changes the amount with a reason', await seen(page.getByRole('cell', { name: /USD 120/ })));
+  await page.getByLabel('New payment method').fill('Telebirr');
+  await page.getByRole('button', { name: '+ Add method' }).click();
+  check('admin adds a payment method', await seen(page.getByLabel('Payment methods').getByRole('cell', { name: 'Telebirr' })));
   await nav(page, 'Overview');
   check('overview cards render', (await page.locator('.metric').count()) === 4);
   await nav(page, 'Courses');
@@ -385,7 +409,7 @@ if (process.env.AXE_PATH) {
   // Sign-in screen (before signing in), at phone and desktop width.
   for (const width of [390, 1366]) {
     const p = await (await browser.newContext({ viewport: { width, height: 900 } })).newPage();
-    await p.goto(BASE); await p.getByRole('button', { name: 'Sign in' }).waitFor();
+    await p.goto(BASE); await p.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
     if (process.env.SCREENSHOTS) await p.screenshot({ path: `${process.env.SCREENSHOTS}/signin-${width}.png` });
     await p.addScriptTag({ path: process.env.AXE_PATH });
     const v = await p.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations

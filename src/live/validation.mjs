@@ -102,23 +102,28 @@ export function validateGuardian({ name, email = '', phone = '', emailOptIn = fa
   return { p_name: n, p_email: e || null, p_phone: p, p_email_opt: Boolean(emailOptIn), p_whatsapp_opt: Boolean(whatsappOptIn) };
 }
 
-export const PAYMENT_METHODS = Object.freeze(['cash', 'bank', 'mobile_money', 'other']);
 
-/** Validate a payment report; mirrors academy_report_payment. `today` is a YYYY-MM-DD string. */
-export function validateReport({ status, paidOn = '', method = '', note = '' }, today, periodStart = '') {
+/**
+ * Validate a payment report; mirrors academy_report_payment. `today` is a YYYY-MM-DD string.
+ * `methods` are the active payment-method codes from the admin's list. `amount` (USD) is optional.
+ */
+export function validateReport({ status, paidOn = '', method = '', note = '', amount = '' }, today, periodStart = '', methods = []) {
   if (!['unpaid', 'partial', 'paid'].includes(status)) throw Error('Choose unpaid, partly paid or paid');
   const n = clean(note);
   if (n.length > 120) throw Error('Note: up to 120 characters');
   if (unsafe.test(n)) throw Error('Notes cannot contain < or >');
-  if (status === 'unpaid') return { p_status: 'unpaid', p_paid_on: null, p_method: null, p_note: n || null };
+  if (status === 'unpaid') return { p_status: 'unpaid', p_paid_on: null, p_method: null, p_note: n || null, p_amount: null };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(paidOn)) throw Error('Enter the date the parent paid');
   if (paidOn > today) throw Error('The payment date cannot be in the future');
   if (periodStart) {
     const earliest = new Date(periodStart + 'T00:00:00Z'); earliest.setUTCDate(earliest.getUTCDate() - 31);
     if (paidOn < earliest.toISOString().slice(0, 10)) throw Error('The payment date is too far before this period');
   }
-  if (!PAYMENT_METHODS.includes(method)) throw Error('Choose how the parent paid');
-  return { p_status: status, p_paid_on: paidOn, p_method: method, p_note: n || null };
+  if (!methods.includes(method)) throw Error('Choose how the parent paid');
+  const raw = String(amount ?? '').trim();
+  const value = raw === '' ? null : Number(raw);
+  if (value !== null && !(Number.isFinite(value) && value > 0 && value <= 100000)) throw Error('Enter an amount between 1 and 100000, or leave it empty');
+  return { p_status: status, p_paid_on: paidOn, p_method: method, p_note: n || null, p_amount: value === null ? null : Math.round(value * 100) / 100 };
 }
 
 /** Dashboard counts from already-loaded, role-filtered data. Pure. */

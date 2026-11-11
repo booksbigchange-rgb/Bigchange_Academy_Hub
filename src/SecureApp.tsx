@@ -10,6 +10,15 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
   const [inviteFlow, setInviteFlow] = useState(() =>
     new URLSearchParams(window.location.hash.slice(1)).get('type') === 'invite'
     || new URLSearchParams(window.location.search).get('invite') === '1');
+  // Read a Google sign-in error from the URL before the SDK clears it (e.g. the account was not added by an admin).
+  const [oauthError] = useState(() => {
+    const params = new URLSearchParams(window.location.hash.slice(1) || window.location.search);
+    const err = params.get('error_description') ?? params.get('error');
+    if (!err) return '';
+    return /signup|not allowed|user not found/i.test(err)
+      ? 'This Google account has not been added to the Academy. Ask the administrator to add your email first.'
+      : 'Google sign-in did not complete. Please try again.';
+  });
   const client = useMemo(() => createClient(url, publishableKey, {
     auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
   }), [url, publishableKey]);
@@ -19,8 +28,9 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [userEmail, setUserEmail] = useState('');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(oauthError);
   const [working, setWorking] = useState(false);
+
 
   useEffect(() => {
     let active = true;
@@ -86,6 +96,19 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
     }
   }
 
+  // Google sign-in. Only people the admin already added in Supabase get in (public sign-up is off);
+  // their role still comes from the Academy tables. Check first that Google is switched on, so nobody lands on an error page.
+  async function signInWithGoogle() {
+    if (working) return;
+    setWorking(true); setMessage('');
+    try {
+      const settings = await fetch(url + '/auth/v1/settings', { headers: { apikey: publishableKey } }).then(r => r.json()).catch(() => null);
+      if (!settings?.external?.google) { setMessage('Google sign-in is not switched on yet. Use your email and password, or ask the administrator.'); return; }
+      const { error } = await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
+      if (error) setMessage('Could not start Google sign-in. Please try again.');
+    } finally { setWorking(false); }
+  }
+
   async function finishInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (working) return;
@@ -137,6 +160,8 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
         state === 'signed-out' ? <>
           <h1>Academy sign in</h1>
           <p>Staff and invited Academy members only. There is no public registration.</p>
+          <button className="small-btn google-btn" type="button" disabled={working} onClick={() => void signInWithGoogle()}>Sign in with Google</button>
+          <p className="auth-or">or with email and password</p>
           <form className="auth-form" onSubmit={signIn}>
             <label>Email address<input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} /></label>
             <label>Password<input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></label>

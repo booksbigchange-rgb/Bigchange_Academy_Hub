@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { addGuardian, guardiansForLearner, setGuardianConsent, verifyLink, type GuardianContact } from './api';
 import { useAction, type PanelProps, type Role } from './shared';
 import { parentDirectory } from './validation.mjs';
+import { TI } from './ti.mjs';
 
 export default function LiveGuardians({ data, client, role, reload }: PanelProps & { role: Role }) {
   const { message, busy, run } = useAction(reload);
@@ -78,7 +79,7 @@ export default function LiveGuardians({ data, client, role, reload }: PanelProps
           <h3>Add a guardian</h3>
           <p className="quiet">If this parent is already recorded (same email or phone), they are linked to this student instead of being duplicated. That is how a parent with several children is handled.</p>
           <label>Guardian name<input required maxLength={80} value={name} onChange={e => setName(e.target.value)} /></label>
-          <label>Phone (09XXXXXXXX or +251…)<input type="tel" value={phone} onChange={e => setPhone(e.target.value)} /></label>
+          <label>Phone (09XXXXXXXX or +251…)<input type="tel" value={phone} onChange={e => setPhone(e.target.value)} /><small className="ti-help" lang="ti">{TI.parentPhone}</small></label>
           <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} /></label>
           <label><input type="checkbox" checked={emailOk} onChange={e => setEmailOk(e.target.checked)} /> Parent agreed to be emailed</label>
           <label><input type="checkbox" checked={waOk} onChange={e => setWaOk(e.target.checked)} /> Parent agreed to be contacted on WhatsApp</label>

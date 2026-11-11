@@ -68,7 +68,7 @@ function TeacherFees({ data, client, reload }: PanelProps & { role: Role }) {
               confirming={confirmConsent === p.guardian_id} />}</td></tr>)}
       </tbody></table></div>}
     {open && <ReportForm key={open.id} target={open} methods={data.paymentMethods} busy={busy} onCancel={() => setOpen(null)}
-      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart, data.paymentMethods.filter(m => m.active).map(m => m.code)), 'Payment reported. Finance will check it.')) setOpen(null); }} />}
+      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart, data.paymentMethods.filter(m => m.active || m.code === open.method).map(m => m.code)), 'Payment reported. Finance will check it.')) setOpen(null); }} />}
     <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
   </section>;
 }
@@ -203,7 +203,7 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
           </td></tr>; })}
       </tbody></table></div>}
     {open && <ReportForm key={open.id} target={open} methods={data.paymentMethods} busy={busy} onCancel={() => setOpen(null)}
-      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart, data.paymentMethods.filter(m => m.active).map(m => m.code)), 'Payment reported. It now needs a finance check.')) setOpen(null); }} />}
+      onSubmit={async v => { if (await run(() => reportPayment(client, open.id, v, todayIso(), open.periodStart, data.paymentMethods.filter(m => m.active || m.code === open.method).map(m => m.code)), 'Payment reported. It now needs a finance check.')) setOpen(null); }} />}
     {role === 'admin' && <PaymentMethods methods={data.paymentMethods} busy={busy}
       onAdd={label => run(() => addPaymentMethod(client, label, data.paymentMethods), 'Payment method added.')}
       onChange={(code, patch) => run(() => updatePaymentMethod(client, code, patch), patch.active === false ? 'Switched off. Old reports keep this name.' : 'Payment method updated.')} />}

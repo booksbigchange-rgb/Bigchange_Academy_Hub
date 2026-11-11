@@ -107,7 +107,9 @@ begin
   if p_paid_on is null then raise exception 'Enter the date the parent paid'; end if;
   if p_paid_on > public.academy_today() then raise exception 'The payment date cannot be in the future'; end if;
   if p_paid_on < per.period_start - 31 then raise exception 'The payment date is too far before this period'; end if;
-  if p_method is null or not exists (select 1 from public.academy_payment_methods m where m.code = p_method and m.active) then
+  -- A new choice must be switched on; a report may keep the method it already has even if that was switched off later.
+  if p_method is null or not exists (select 1 from public.academy_payment_methods m
+      where m.code = p_method and (m.active or m.code = per.paid_method)) then
     raise exception 'Choose how the parent paid';
   end if;
   if p_amount is not null and (p_amount <= 0 or p_amount > 100000) then raise exception 'Enter an amount between 1 and 100000, or leave it empty'; end if;

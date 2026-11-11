@@ -165,6 +165,9 @@ chk "an invalid amount is refused" $TB "select academy_report_payment('$P1', 'pa
 chk "finance checks the report" $F "update academy_fee_periods set checked_status='partial' where guardian_id='$G1ID' and learner_id is null" "UPDATE 1"
 chk "changing only the amount sends it back for checking" $TB "select academy_report_payment('$P1', 'partial', current_date, 'telebirr', 'first half', 80)" ""
 chk "check was reset by the amount change" $A "select checked_status from academy_fee_periods where guardian_id='$G1ID' and learner_id is null" unpaid
+chk "admin switches off the method this report uses" $A "update academy_payment_methods set active=false where code='telebirr'" "UPDATE 1"
+chk "the report can still be saved with its own (now switched-off) method" $TB "select academy_report_payment('$P1', 'partial', current_date, 'telebirr', 'note fixed', 80)" ""
+chk "but a different switched-off method is still refused" $TB "select academy_report_payment('$P1', 'partial', current_date, 'other', null, 80)" ERR
 chk "methods cannot be deleted" $A "delete from academy_payment_methods where code='telebirr'" ERR
 chk "admin can enroll" $A "insert into academy_enrollments values ('50000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-000000000002')" "INSERT 0 1"
 # Migration 0008: Israel dates, and both verified parents see their child's period.

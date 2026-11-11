@@ -78,3 +78,14 @@ Make the hub feel calm, modern and easy for school staff on Chromebooks (1366×7
 **Sign-in card.** Page `#f3efe8`; white card max 440 px, radius 20 px, padding 32 px (20 px on phones); logo tile; inputs as above; full-width black primary button; all states (checking, set password, signed out, not enrolled/error) share the card.
 
 **Invariants.** `tests/e2e/live-smoke.mjs` passes unmodified: nav landmark "Sections" with plain-text buttons; four `.metric` cards on Overview; `.tag.green` "Paid"; exact button names (Report, View, Edit, Hide, …); headings and labelled regions/forms; implicit `<label>` wrapping; "Live database"; sign-in labels; no horizontal scroll at 390 px. axe: zero serious/critical on every screen it scans (admin and teacher screens, plus finance, guardian and sign-in added to the scan).
+
+## Motion and fluidity (added 2026-11-11)
+Goal: the live app should feel smooth, not jumpy. All of it is in one block at the end of `styles.css`, scoped as above, and switched off for people who ask their device to reduce motion.
+- **Changing section:** the new screen rises 8 px and fades in over 0.2 s; Overview cards follow 20 ms apart. Total stays under 0.3 s.
+- **Pressing and typing:** nav items, buttons, inputs and status chips change colour over 0.16 s; buttons shrink slightly while pressed; a focused input gets a soft gold ring in addition to the focus outline. Table rows tint on hover.
+- **Staying oriented:** the top bar stays at the top while scrolling (lightly see-through); on wide screens the section list stays in place too. On phones the section bar snaps while swiping and keeps the chosen section in view.
+- **Fluid sizes:** page padding, card padding, card corners, headings and big numbers scale with the screen width (`clamp`) instead of jumping at 790 px. Numbers in tables line up (`tabular-nums`).
+- **Loading:** quiet placeholder cards shimmer under the "Loading…" text.
+- **Saving feels quicker:** after a save the app reloads only what that save can change. Lessons and attendance marks (the largest lists) are reloaded only by the Attendance screen (`src/live/loadPlan.mjs`).
+- Not animated on purpose: cards that cannot be clicked do not lift on hover.
+

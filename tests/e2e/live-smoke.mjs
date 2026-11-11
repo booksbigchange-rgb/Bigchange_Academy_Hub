@@ -4,7 +4,8 @@
 //
 // Usage (Playwright is not a project dependency):
 //   npm i --no-save playwright            (or install it anywhere and set NODE_PATH)
-//   VITE_ACADEMY_SUPABASE_URL=https://smoketest.supabase.co VITE_ACADEMY_SUPABASE_PUBLISHABLE_KEY=sb_publishable_smoketest npx vite --port 5199 &
+//   VITE_ACADEMY_FAMILY_SIGNIN=on VITE_ACADEMY_SUPABASE_URL=https://smoketest.supabase.co VITE_ACADEMY_SUPABASE_PUBLISHABLE_KEY=sb_publishable_smoketest npx vite --port 5199 &
+//   (VITE_ACADEMY_FAMILY_SIGNIN=on opens the parent and student screens, which are paused by default; without it those 5 checks fail.)
 //   node tests/e2e/live-smoke.mjs [http://127.0.0.1:5199] [chromium executable path]
 import { chromium } from 'playwright';
 

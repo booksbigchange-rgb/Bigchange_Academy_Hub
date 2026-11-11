@@ -29,6 +29,7 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - 2026-11-10: pull request #19 opened to `main`. Re-ran everything on a clean checkout: 131 unit, 128/128 DB, 94/94 browser checks incl. axe, build OK. Database rule tests are now one command (`tests/sql/run_local.sh`, with `tests/sql/auth_stubs.sql`) and run in CI.
 - 2026-11-10, review fixes (migration 0008): dates use Israel time (Asia/Jerusalem, where the admin works; teachers in Ethiopia are one hour ahead in winter); family-wide periods retired (only per-child periods can be started; old family periods stay as they are); every verified parent of a child sees that child's periods. 132/132 DB checks. Owner ran migration 0008 on 2026-11-10 ("Success").
 - 2026-11-10: pull request #19 merged into `main`; drafts #1–#18 closed. Follow-up: the paying parent is now the first parent linked to the child (added to migration 0008), which also removes a random failure in the database tests.
+- 2026-11-11, owner decision: internal management system for now. Parent and student sign-in paused behind `VITE_ACADEMY_FAMILY_SIGNIN` (records stay). Smoothness pass: section transitions, press/hover/focus transitions, sticky top bar and section list, fluid sizes, loading placeholders; saves reload only what they change. 135 unit, 94/94 browser checks incl. axe (run with family sign-in on).
 
 ## Remaining
 Needs the owner:

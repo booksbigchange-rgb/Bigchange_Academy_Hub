@@ -14,6 +14,9 @@ SQL Editor → run, in order, `supabase/migrations/20261109_0005_reminders_and_g
 ## 1c. Migration 0008 (review fixes) — done (owner ran it on 2026-11-10, "Success")
 SQL Editor → run `supabase/migrations/20261112_0008_local_dates_and_parents.sql` → "Success". It makes "today" the date in Israel, where the admin works (no more refused payments just after midnight), retires family-wide periods (every new period belongs to one child), lets both verified parents of a child see that child's payments, and bills the parent who was linked to the child first. The verify script still shows 16 tables and 43 policies.
 
+## Scope for now (owner decision, 2026-11-11)
+The Hub is an **internal management system** for school staff. Parents and students are recorded, but their sign-in is **paused**: if one of them signs in they see "Parent and student sign-in is not open yet". To open it later, set `VITE_ACADEMY_FAMILY_SIGNIN=on` where the app is built. Policies and hosting are postponed; current focus is design and features.
+
 ## 2. Teacher test account
 1. SQL Editor: `select email, email_confirmed_at from auth.users order by created_at desc;` — find the teacher's exact email.
 2. If missing: Authentication → Users → Add user → Create new user, tick **Auto Confirm User**.

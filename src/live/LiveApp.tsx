@@ -4,7 +4,8 @@ import {
   addClass, addCourse, addLearnerWithGuardian, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, listReminders, type ReminderEvent, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
   unenroll, updateLearner, setClassTeacher, updateCourse, renameClass, setClassLevel, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
 } from './api';
-import { EMPTY, useAction, type Data, type PanelProps, type Role } from './shared';
+import { EMPTY, listsToLoad, useAction, type Data, type PanelProps, type Role, type SaveScope } from './shared';
+import { sectionsForRole } from './loadPlan.mjs';
 import LiveGuardians from './LiveGuardians';
 import LiveFees from './LiveFees';
 import LiveOverview from './LiveOverview';
@@ -14,37 +15,34 @@ import { addMonths, daysUntil, endingText, formatDate, nextLevelPlan, todayIso }
 import LiveFamily, { LivePayments } from './LiveFamily';
 import { ATTENDANCE_STATUSES, GRADE_LEVELS, studentHistory, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
 
+/** Parent and student sign-in is paused while this is an internal management system. Set VITE_ACADEMY_FAMILY_SIGNIN=on to open it. */
+const FAMILY_SIGN_IN = import.meta.env.VITE_ACADEMY_FAMILY_SIGNIN === 'on';
+
 type Section = 'Overview' | 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees' | 'My children' | 'My classes' | 'Payments' | 'Notices';
 
 export default function LiveApp({ client, role, email, onSignOut }: { client: SupabaseClient; role: Role; email: string; onSignOut: () => void }) {
   const isAdmin = role === 'admin';
-  const sections: Section[] = isAdmin ? ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Notices']
-    : role === 'teacher' ? ['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']
-    : role === 'finance' ? ['Fees', 'Overview', 'Guardians', 'Students']
-    : role === 'guardian' ? ['My children', 'Payments'] : role === 'learner' ? ['My classes'] : [];
-  const isFinance = role === 'finance';
+  const sections = useMemo(() => sectionsForRole(role, FAMILY_SIGN_IN) as Section[], [role]);
   const [section, setSection] = useState<Section>(sections[0] ?? 'Overview');
   const [noticeClassId, setNoticeClassId] = useState('');
   const [data, setData] = useState<Data>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (scope: SaveScope = 'all') => {
     setLoadError('');
+    const load: { [K in keyof Data]: () => Promise<Data[K]> } = {
+      learners: () => listLearners(client), courses: () => listCourses(client), staff: () => listStaff(client), classes: () => listClasses(client),
+      enrollments: () => listEnrollments(client), sessions: () => listSessions(client), attendance: () => listAttendance(client),
+      guardians: () => listGuardians(client), links: () => listLinks(client), periods: () => listPeriods(client),
+      teacherPeriods: () => teacherPeriods(client), reminders: () => listReminders(client) };
     try {
-      const staffView = isAdmin || isFinance;
-      const [learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriodRows, reminders] = await Promise.all([
-        listLearners(client), listCourses(client), isAdmin ? listStaff(client) : Promise.resolve([] as Staff[]),
-        listClasses(client), listEnrollments(client), listSessions(client), listAttendance(client),
-        staffView ? listGuardians(client) : Promise.resolve([] as Guardian[]),
-        staffView ? listLinks(client) : Promise.resolve([] as GuardianLink[]),
-        staffView || role === 'guardian' ? listPeriods(client) : Promise.resolve([] as PeriodRow[]),
-        role === 'teacher' ? teacherPeriods(client) : Promise.resolve([] as TeacherPeriod[]),
-        staffView ? listReminders(client) : Promise.resolve([] as ReminderEvent[])]);
-      setData({ learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriods: teacherPeriodRows, reminders });
+      const names = listsToLoad(scope, role);
+      const rows = await Promise.all(names.map(name => load[name]()));
+      setData(previous => ({ ...previous, ...Object.fromEntries(names.map((name, i) => [name, rows[i]])) }));
     } catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not load data'); }
     finally { setLoading(false); }
-  }, [client, isAdmin, isFinance, role]);
+  }, [client, role]);
   useEffect(() => { void reload(); }, [reload]);
   // On phones the section bar scrolls sideways: keep the chosen section in view.
   useEffect(() => { document.querySelector('.live-shell .navitem.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [section]);
@@ -66,8 +64,11 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
       </header>
       <main className="content live" id="main-content" tabIndex={-1}>
         <div role="note" className="notice"><strong>Live database</strong> — use test data only until the privacy and safeguarding checklist is complete. Changes are saved to the Academy database.</div>
-        {!sections.length && <section className="panel"><h2>No screens yet for your role</h2>
-          <p>Screens for the <strong>{role}</strong> role have not been built yet. Your account is verified, but nothing is available to you here for now.</p></section>}
+        {!sections.length && (role === 'guardian' || role === 'learner'
+          ? <section className="panel"><h2>Parent and student sign-in is not open yet</h2>
+            <p>The Academy Hub is used by school staff for now. Your record is kept by the school; please contact the school office if you need anything.</p></section>
+          : <section className="panel"><h2>No screens yet for your role</h2>
+            <p>Screens for the <strong>{role}</strong> role have not been built yet. Your account is verified, but nothing is available to you here for now.</p></section>)}
         {sections.length > 0 && loading && <p role="status">Loading…</p>}
         {sections.length > 0 && loading && <div className="lv-skeleton" aria-hidden="true"><span /><span /><span /></div>}
         {sections.length > 0 && loadError && <p className="ops-feedback" role="alert">{loadError} <button className="small-btn" onClick={() => void reload()}>Retry</button></p>}
@@ -290,12 +291,12 @@ function Attendance({ data, client, reload }: PanelProps) {
   async function createLesson(event: FormEvent) {
     event.preventDefault();
     if (duplicateSession(data.sessions, classId, date)) return void run(async () => { throw Error('This class already has a lesson on that date'); }, '');
-    await run(() => addSession(client, classId, { date, time }), 'Lesson added. Select it below to take attendance.');
+    await run(() => addSession(client, classId, { date, time }), 'Lesson added. Select it below to take attendance.', 'attendance');
   }
   async function save() {
     const missing = roster.filter(l => !marks[l.id]).length;
     if (missing) return void run(async () => { throw Error('Mark every student (' + missing + ' left) before saving'); }, '');
-    await run(() => saveAttendance(client, sessionId, marks), 'Attendance saved.');
+    await run(() => saveAttendance(client, sessionId, marks), 'Attendance saved.', 'attendance');
   }
   const classRecords = data.attendance.filter(a => classSessions.some(s => s.id === a.session_id));
   const overall = attendanceSummary(classRecords);

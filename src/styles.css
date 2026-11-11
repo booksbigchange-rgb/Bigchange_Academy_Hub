@@ -1235,4 +1235,5 @@ html:has(.live-shell) { scroll-behavior: smooth; }
   .live-shell .sidebar nav::-webkit-scrollbar { display: none; }
   .live-shell .navitem { scroll-snap-align: start; }
 }
-
+/* On wide screens the section list stays in place while a long page scrolls. */
+@media (min-width: 791px) { .live-shell .sidebar { position: sticky; top: 0; align-self: start; height: 100dvh; min-height: 0; overflow-y: auto; box-sizing: border-box; } }

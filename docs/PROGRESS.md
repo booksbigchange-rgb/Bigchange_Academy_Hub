@@ -30,9 +30,11 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - 2026-11-10, review fixes (migration 0008): dates use Israel time (Asia/Jerusalem, where the admin works; teachers in Ethiopia are one hour ahead in winter); family-wide periods retired (only per-child periods can be started; old family periods stay as they are); every verified parent of a child sees that child's periods. 132/132 DB checks. **Owner must run migration 0008.**
 - 2026-11-10: pull request #19 merged into `main`; drafts #1–#18 closed. Follow-up: the paying parent is now the first parent linked to the child (added to migration 0008), which also removes a random failure in the database tests.
 
+- 2026-11-11, scale pass: data loading moved to `src/live/store.ts` (a save reloads only the lists it changed; screens fade in; loading placeholders). Deep-dive benchmark on a throwaway PostgreSQL at the planned size (3,000 students, one year = 288,000 attendance rows) showed the attendance rule running per row: teacher query 18.8 s, admin 7.3 s. Migration 0009 rewrites the attendance and lesson rules to resolve "my classes/children" once per query (teacher 0.5 s, admin 0.04 s; same access, 141/141 DB checks, the new ones also pass on the old rules). Staff no longer download all attendance at sign-in: the Attendance screen loads one class, student history loads one student; parents and students still load their own. 133 unit, 95/95 browser checks incl. axe. **Owner must run migration 0009.**
+
 ## Remaining
 Needs the owner:
-0. Run migration 0008 (`docs/NEXT_STEPS.md` step 1c).
+0. Run migrations 0008 and 0009 (`docs/NEXT_STEPS.md` steps 1c and 1d).
 2. Teacher test account, then `tests/live-project-check.mjs` with test logins (`docs/NEXT_STEPS.md` steps 2–3).
 3. One manual run-through with fake names (step 4), including a Chromebook, a phone and a screen reader.
 4. Hosting (`docs/HOSTING.md`); invitations need it.

@@ -33,6 +33,15 @@ chk "attendance cannot be attributed to another staff" $TB "insert into academy_
 chk "learner cannot edit attendance" $L1 "update academy_attendance set status='present'" "UPDATE 0"
 chk "guardian sees own child's attendance" $G1 "select count(*) from academy_attendance" 1
 chk "teacherB cannot see teacherA attendance" $TB "select count(*) from academy_attendance" 0
+chk "teacherA sees the marks of their own class" $TA "select count(*) from academy_attendance" 1
+chk "student sees their own mark" $L1 "select count(*) from academy_attendance" 1
+chk "admin sees all marks" $A "select count(*) from academy_attendance" 1
+chk "teacherA sees only their class's lessons" $TA "select count(*) from academy_sessions" 1
+chk "teacherB sees only their class's lessons" $TB "select count(*) from academy_sessions" 1
+chk "student sees only their class's lessons" $L1 "select count(*) from academy_sessions" 1
+chk "parent sees only their child's class lessons" $G1 "select count(*) from academy_sessions" 1
+chk "admin sees all lessons" $A "select count(*) from academy_sessions" 2
+chk "finance sees no marks" $F "select count(*) from academy_attendance" 0
 chk "audit visible to admin only" $F "select count(*) from academy_audit_events" 0
 chk "audit rows cannot be altered by admin" $A "update academy_audit_events set action='x'" ERR
 chk "teacher cannot enroll" $TA "insert into academy_enrollments values ('50000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-000000000002')" ERR

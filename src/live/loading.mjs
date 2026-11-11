@@ -5,6 +5,8 @@ export function keysForRole(role) {
   const staffView = role === 'admin' || role === 'finance';
   return ALL_KEYS.filter(key => {
     if (key === 'staff') return role === 'admin';
+    // Staff read attendance for one class or one student at a time (it can reach hundreds of thousands of rows).
+    if (key === 'attendance') return role === 'guardian' || role === 'learner';
     if (key === 'guardians' || key === 'links' || key === 'reminders') return staffView;
     if (key === 'periods') return staffView || role === 'guardian';
     if (key === 'teacherPeriods') return role === 'teacher';
@@ -19,7 +21,6 @@ export const TOUCHES = {
   classes: ['classes'],
   enrollment: ['enrollments'],
   lesson: ['sessions'],
-  attendance: ['attendance'],
   reminder: ['reminders'],
   guardianLink: ['guardians', 'links', 'periods', 'teacherPeriods'],
   consent: ['guardians', 'periods', 'teacherPeriods'],

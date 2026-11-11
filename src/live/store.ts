@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   listAttendance, listClasses, listCourses, listEnrollments, listGuardians, listLearners, listLinks, listPeriods, listReminders, listSessions, listStaff, teacherPeriods
@@ -38,4 +38,29 @@ export function useAcademyData(client: SupabaseClient, role: Role) {
 
   useEffect(() => { void reload(); }, [reload]);
   return { data, loading, loadError, reload };
+}
+
+/**
+ * A list that belongs to one thing on screen (a class, a student), loaded when that thing is chosen.
+ * `scope` is the id of the thing ('' = nothing chosen). `ready` is false until its rows have arrived,
+ * so a screen never acts on rows that belong to the previous choice. `refresh` loads it again after a save.
+ */
+export function useScoped<T>(scope: string, load: () => Promise<T[]>) {
+  const [state, setState] = useState<{ scope: string; rows: T[]; error: string }>({ scope: '', rows: [], error: '' });
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  useEffect(() => {
+    if (!scope) return;
+    let live = true;
+    loadRef.current().then(rows => { if (live) setState({ scope, rows, error: '' }); })
+      .catch(error => { if (live) setState({ scope, rows: [], error: error instanceof Error ? error.message : 'Could not load' }); });
+    return () => { live = false; };
+  }, [scope]);
+  const refresh = useCallback(async () => {
+    if (!scope) return;
+    const rows = await loadRef.current();
+    setState({ scope, rows, error: '' });
+  }, [scope]);
+  const current = state.scope === scope && scope !== '';
+  return { rows: current ? state.rows : [] as T[], ready: current && !state.error, error: current ? state.error : '', refresh };
 }

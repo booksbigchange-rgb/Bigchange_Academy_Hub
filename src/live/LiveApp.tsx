@@ -2,10 +2,10 @@ import { useMemo, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   addClass, addCourse, addLearnerWithGuardian, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, listReminders, type ReminderEvent, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
-  unenroll, updateLearner, setClassTeacher, updateCourse, renameClass, setClassLevel, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
+  unenroll, updateLearner, listAttendanceForLearner, listAttendanceForSessions, setClassTeacher, updateCourse, renameClass, setClassLevel, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
 } from './api';
 import { useAction, type PanelProps, type Role } from './shared';
-import { TOUCHES, useAcademyData } from './store';
+import { TOUCHES, useAcademyData, useScoped } from './store';
 import LiveGuardians from './LiveGuardians';
 import LiveFees from './LiveFees';
 import LiveOverview from './LiveOverview';
@@ -85,6 +85,7 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
   const [editGrade, setEditGrade] = useState('');
   const [editNote, setEditNote] = useState('');
   const [historyId, setHistoryId] = useState('');
+  const history = useScoped(historyId, () => listAttendanceForLearner(client, historyId));
   const shown = data.learners.filter(l => matchesSearch(l.display_name, search));
   const editing = data.learners.find(l => l.id === editId);
   const classCount = (id: string) => data.enrollments.filter(e => e.learner_id === id).length;
@@ -128,7 +129,8 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
           <td><button className="small-btn" onClick={() => setHistoryId(historyId === l.id ? '' : l.id)}>{historyId === l.id ? 'Hide history' : 'Attendance'}</button>
             {isAdmin && <> <button className="small-btn" onClick={() => startEdit(l)}>Edit</button></>}</td></tr>)}
       </tbody></table></div>}
-    {historyId && <History name={data.learners.find(l => l.id === historyId)?.display_name ?? ''} {...studentHistory(historyId, data)} />}
+    {historyId && (history.error ? <p className="ops-feedback" role="alert">{history.error}</p> : !history.ready ? <p role="status" className="quiet">Loading attendance…</p>
+      : <History name={data.learners.find(l => l.id === historyId)?.display_name ?? ''} {...studentHistory(historyId, { ...data, attendance: history.rows })} />)}
     {isAdmin && editing && <form className="ops-form" onSubmit={save}>
       <h3>Edit {editing.display_name}</h3>
       <label>Name<input required maxLength={80} value={editName} onChange={e => setEditName(e.target.value)} /></label>
@@ -256,14 +258,15 @@ function Attendance({ data, client, reload }: PanelProps) {
   const [time, setTime] = useState('16:00');
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
   const classSessions = data.sessions.filter(s => s.class_id === classId);
+  const classMarks = useScoped(classId, () => listAttendanceForSessions(client, classSessions.map(s => s.id)));
   const roster = data.enrollments.filter(e => e.class_id === classId)
     .map(e => data.learners.find(l => l.id === e.learner_id)).filter((l): l is Learner => Boolean(l));
-  const saved = (learnerId: string) => data.attendance.find(a => a.session_id === sessionId && a.learner_id === learnerId)?.status;
+  const saved = (learnerId: string) => classMarks.rows.find(a => a.session_id === sessionId && a.learner_id === learnerId)?.status;
   function chooseClass(id: string) { setClassId(id); setSessionId(''); setMarks({}); }
   function chooseSession(id: string) {
     setSessionId(id);
     const existing: Record<string, AttendanceStatus> = {};
-    for (const a of data.attendance) if (a.session_id === id) existing[a.learner_id] = a.status;
+    for (const a of classMarks.rows) if (a.session_id === id) existing[a.learner_id] = a.status;
     setMarks(existing);
   }
   async function createLesson(event: FormEvent) {
@@ -274,10 +277,9 @@ function Attendance({ data, client, reload }: PanelProps) {
   async function save() {
     const missing = roster.filter(l => !marks[l.id]).length;
     if (missing) return void run(async () => { throw Error('Mark every student (' + missing + ' left) before saving'); }, '');
-    await run(() => saveAttendance(client, sessionId, marks), 'Attendance saved.', TOUCHES.attendance);
+    await run(async () => { await saveAttendance(client, sessionId, marks); await classMarks.refresh(); }, 'Attendance saved.', []);
   }
-  const classRecords = data.attendance.filter(a => classSessions.some(s => s.id === a.session_id));
-  const overall = attendanceSummary(classRecords);
+  const overall = attendanceSummary(classMarks.rows);
   return <section className="panel operations" aria-label="Attendance">
     <span className="eyebrow">ATTENDANCE</span><h2>Take and review attendance</h2>
     {data.classes.length === 0 ? <p className="quiet">No classes available yet.</p> : <>
@@ -290,6 +292,7 @@ function Attendance({ data, client, reload }: PanelProps) {
         <button className="small-btn" type="submit" disabled={busy}>+ Add lesson</button>
       </form>}
       {classId && (classSessions.length === 0 ? <p className="quiet">No lessons yet for this class. Add one above.</p> :
+        !classMarks.ready ? <p role="status" className="quiet">{classMarks.error || 'Loading attendance…'}</p> :
         <label>Lesson<select value={sessionId} onChange={e => chooseSession(e.target.value)}><option value="">Choose a lesson</option>
           {classSessions.map(s => <option key={s.id} value={s.id}>{localDay(s.starts_at)} · {new Date(s.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</option>)}</select></label>)}
       {sessionId && (roster.length === 0 ? <p className="quiet">No students are enrolled in this class. Enroll students under Classes first.</p> :
@@ -300,7 +303,7 @@ function Attendance({ data, client, reload }: PanelProps) {
             <td>{saved(l.id) ? STATUS_LABEL[saved(l.id) as AttendanceStatus] : '—'}</td></tr>)}
         </tbody></table>
         <button className="primary-btn" type="button" disabled={busy} onClick={() => void save()}>Save attendance</button></div>)}
-      {classId && <div className="people-enroll"><h3>Class summary</h3>
+      {classId && classMarks.ready && <div className="people-enroll"><h3>Class summary</h3>
         {overall.marked + overall.excused === 0 ? <p className="quiet">No attendance recorded for this class yet.</p> :
           <p>Present {overall.present} · Late {overall.late} · Absent {overall.absent} · Excused {overall.excused}
             {overall.rate !== null && <> · Attendance rate <strong>{overall.rate}%</strong></>} <span className="quiet">(excused lessons are not counted)</span></p>}

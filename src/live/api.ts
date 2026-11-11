@@ -93,6 +93,19 @@ export const listSessions = (c: SupabaseClient) =>
 export const listAttendance = (c: SupabaseClient) =>
   pages<AttendanceRow>(() => c.from('academy_attendance').select('session_id,learner_id,status').order('session_id').order('learner_id'), 'load attendance');
 
+/** Marks for some lessons (a class's lessons). Chunked so the request address stays short. */
+export async function listAttendanceForSessions(c: SupabaseClient, sessionIds: string[]): Promise<AttendanceRow[]> {
+  const out: AttendanceRow[] = [];
+  for (let i = 0; i < sessionIds.length; i += 100) {
+    const chunk = sessionIds.slice(i, i + 100);
+    out.push(...await pages<AttendanceRow>(() => c.from('academy_attendance').select('session_id,learner_id,status').in('session_id', chunk).order('session_id').order('learner_id'), 'load attendance'));
+  }
+  return out;
+}
+/** Every mark for one student. */
+export const listAttendanceForLearner = (c: SupabaseClient, learnerId: string) =>
+  pages<AttendanceRow>(() => c.from('academy_attendance').select('session_id,learner_id,status').eq('learner_id', learnerId).order('session_id').order('learner_id'), 'load attendance');
+
 export async function addSession(c: SupabaseClient, classId: string, input: { date: string; time: string }) {
   const { error } = await c.from('academy_sessions').insert({ class_id: classId, starts_at: validateSession(input) });
   if (error) fail(error, 'add the lesson');

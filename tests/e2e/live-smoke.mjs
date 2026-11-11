@@ -31,6 +31,7 @@ function filterRows(rows, params) {
   return rows.filter(r => [...params].every(([k, v]) => {
     if (['select', 'order', 'limit', 'on_conflict', 'columns'].includes(k)) return true;
     if (v.startsWith('eq.')) return String(r[k]) === v.slice(3);
+    if (v.startsWith('in.(')) return v.slice(4, -1).split(',').map(x => x.replace(/"/g, '')).includes(String(r[k]));
     return true;
   }));
 }
@@ -40,6 +41,7 @@ async function install(page, db, role) {
   const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
   const token = b64({ alg: 'HS256', typ: 'JWT' }) + '.' + b64({ sub: user.id, exp: Math.floor(Date.now() / 1000) + 3600, role: 'authenticated' }) + '.sig';
   const calls = [];
+  page.on('request', r => { if (r.url().includes('/rest/v1/academy_attendance')) page.attendanceRequests = (page.attendanceRequests || 0) + 1; });
   await page.route(API + '/**', async route => {
     const req = route.request(); const url = new URL(req.url()); const path = url.pathname; const method = req.method();
     const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -201,6 +203,7 @@ await session(browser, db, 'admin', 1366, async page => {
   check('admin creates a class and enrolls the student', true);
   await page.getByRole('button', { name: '+ Enroll' }).click();
   check('enrolling twice shows an error', await seen(page.getByText('Already enrolled in this class')));
+  check('admin does not download attendance at sign-in', !page.attendanceRequests, String(page.attendanceRequests));
   await nav(page, 'Attendance');
   await page.getByRole('combobox', { name: /^Class/ }).selectOption({ label: 'Class Test' });
   await page.getByLabel('Date').fill('2026-11-02');

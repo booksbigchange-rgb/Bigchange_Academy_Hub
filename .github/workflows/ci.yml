@@ -36,7 +36,8 @@ jobs:
       - name: Database access-rule tests on a throwaway PostgreSQL
         run: bash tests/sql/run_local.sh
   browser:
-    runs-on: ubuntu-latest
+    # Pinned: Playwright 1.55 does not support Chromium on ubuntu-latest (26.04) yet.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout repository

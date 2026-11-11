@@ -35,3 +35,19 @@ jobs:
         run: ls /usr/lib/postgresql/*/bin/initdb >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y postgresql)
       - name: Database access-rule tests on a throwaway PostgreSQL
         run: bash tests/sql/run_local.sh
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium for the browser test
+        run: npx playwright install --with-deps chromium
+      - name: Browser test of the live screens with accessibility scan (fake database)
+        run: npm run test:e2e

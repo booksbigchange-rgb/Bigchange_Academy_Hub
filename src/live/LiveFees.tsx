@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { approvePeriod, checkPeriod, childFee, createChildPeriod, logReminder, reportPayment, setGuardianConsent, setPeriodAmount, type FeeStatus } from './api';
-import { FEE_TEXT, STAGE_LABEL, STATUS_LABEL, bulkReminderText, emailBatches, formatDate, needsReminder, reminderText, remindedText, todayIso, usd, whatsappLink } from './fees.mjs';
+import { FEE_TEXT, STAGE_LABEL, STATUS_LABEL, toCsv, bulkReminderText, emailBatches, formatDate, needsReminder, reminderText, remindedText, todayIso, usd, whatsappLink } from './fees.mjs';
 import { useAction, type PanelProps, type Role } from './shared';
 import { TI } from './ti.mjs';
 import type { PaymentMethod } from './api';
@@ -134,6 +134,17 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
     try { await navigator.clipboard.writeText(waNumbers.join('\n')); setNote(waNumbers.length + ' WhatsApp numbers copied. In WhatsApp you can make a broadcast list with them. Nothing was sent.'); }
     catch { setNote('Copying was blocked by the browser.'); }
   }
+  function downloadCsv() {
+    const header = ['Child', 'Parent', 'Parent phone', 'Period start', 'Period end', 'Fee (USD)', 'Status', 'Stage', 'Reported', 'Paid on', 'How paid', 'Amount paid (USD)', 'Note', 'Last reminder'];
+    const rows = data.periods.map(p => { const g = guardian(p.guardian_id); return [
+      p.learner_id ? childName(p.learner_id) ?? '' : (info.get(p.guardian_id)?.students.join('; ') ?? ''), g?.display_name ?? '', g?.phone_e164 ?? '',
+      p.period_start, p.period_end, p.amount_due, label(STATUS_LABEL, p.status), label(STAGE_LABEL, p.stage), label(STATUS_LABEL, p.reported_status),
+      p.paid_on ?? '', p.paid_method ? methodName(data.paymentMethods, p.paid_method) : '', p.paid_amount ?? '', p.paid_note ?? '', (lastReminded(p.id) ?? '').slice(0, 10)]; });
+    const url = URL.createObjectURL(new Blob([toCsv(header, rows)], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'bigchange-payments-' + todayIso() + '.csv';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setNote('Downloaded ' + rows.length + ' payment period' + (rows.length === 1 ? '' : 's') + '. Keep the file private.');
+  }
   async function showFee() {
     setPreview('');
     try {
@@ -181,6 +192,8 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
       </>}
     </div>
 
+    <p><button className="small-btn" type="button" disabled={data.periods.length === 0} onClick={downloadCsv}>Download payments (CSV)</button>
+      <span className="quiet"> Opens in Google Sheets or Excel. Contains parents' names and phone numbers: share it only with school staff.</span></p>
     <label>Show<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All</option><option value="unpaid">Unpaid</option><option value="partial">Partly paid</option>
       <option value="paid">Paid</option><option value="overdue">Overdue</option><option value="review">Awaiting check</option><option value="approval">Awaiting approval</option></select></label>
     {rows.length === 0 ? <p className="quiet">No payment periods yet.</p> :

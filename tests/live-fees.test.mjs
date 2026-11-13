@@ -132,3 +132,12 @@ test('level dates: months, days, ending soon, next level', () => {
   assert.equal(endingText(5), 'Ends in 5 days'); assert.equal(endingText(1), 'Ends tomorrow'); assert.equal(endingText(0), 'Ends today');
   assert.equal(endingText(-3), 'Ended 3 days ago (break week)');
 });
+
+import { toCsv } from '../src/live/fees.mjs';
+test('CSV for Google Sheets: quoted, BOM, formula cells neutralised', () => {
+  const csv = toCsv(['Child', 'Note'], [['Kid "A"', '=HYPERLINK("x")'], ['Kid B', null], ['+251911', '-5']]);
+  assert.ok(csv.startsWith('﻿"Child","Note"\r\n'));
+  assert.match(csv, /"Kid ""A""","'=HYPERLINK\(""x""\)"/);
+  assert.match(csv, /"Kid B",""/);
+  assert.match(csv, /"'\+251911","'-5"/);
+});

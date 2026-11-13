@@ -32,6 +32,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - Browser test now runs in CI (`browser` job): Playwright and axe-core are dev-only dependencies; `npm run test:e2e` runs it locally against a fake database (94/94, incl. accessibility scan of every role).
 
+- Internal staff tool first. Google sign-in button for staff (only admin-added accounts; explains when Google is not switched on or the account was not added). Payment methods = the school's real channels, editable by the admin (migration 0009); optional USD amount on payment reports; Tigrinya help text on teacher forms (`src/live/ti.mjs`, drafts marked for a teacher to check). 147/147 DB checks, 131 unit tests, 100/100 browser checks. **Owner must run migration 0009** and, for Google, follow docs/GOOGLE_SIGNIN.md.
+
 ## Remaining
 Needs the owner:
 2. Teacher test account, then `tests/live-project-check.mjs` with test logins (`docs/NEXT_STEPS.md` steps 2–3).

@@ -121,10 +121,10 @@ export type GuardianLink = { learner_id: string; guardian_id: string; verified: 
 export type GuardianContact = { guardian_id: string; display_name: string; email: string | null; phone_e164: string | null; email_opt_in: boolean; whatsapp_opt_in: boolean; verified: boolean };
 export type FeeStatus = 'unpaid' | 'partial' | 'paid';
 export type PeriodRow = { id: string; guardian_id: string; learner_id: string | null; period_start: string; period_end: string; course_count: number; amount_due: number; currency_code: string;
-  reported_status: FeeStatus; paid_on: string | null; paid_method: string | null; paid_note: string | null; checked_status: FeeStatus; approved_status: FeeStatus;
+  reported_status: FeeStatus; paid_on: string | null; paid_method: string | null; paid_note: string | null; paid_amount: number | null; checked_status: FeeStatus; approved_status: FeeStatus;
   status: 'unpaid' | 'partial' | 'paid' | 'overdue'; stage: 'none' | 'reported' | 'checked' | 'approved' };
 export type TeacherPeriod = { period_id: string; guardian_id: string; guardian_name: string; guardian_phone: string | null; period_start: string; period_end: string; amount_due: number;
-  status: PeriodRow['status']; stage: PeriodRow['stage']; reported_status: FeeStatus; paid_on: string | null; paid_method: string | null; paid_note: string | null; students: string[]; courses: string[]; whatsapp_opt_in: boolean; last_reminded_at: string | null };
+  status: PeriodRow['status']; stage: PeriodRow['stage']; reported_status: FeeStatus; paid_on: string | null; paid_method: string | null; paid_note: string | null; students: string[]; courses: string[]; whatsapp_opt_in: boolean; last_reminded_at: string | null; paid_amount: number | null };
 
 export const listGuardians = (c: SupabaseClient) =>
   pages<Guardian>(() => c.from('academy_guardians').select('id,display_name,email,phone_e164,email_opt_in,whatsapp_opt_in').order('display_name').order('id'), 'load guardians');
@@ -171,8 +171,9 @@ export async function familyFee(c: SupabaseClient, guardianId: string): Promise<
   return row;
 }
 /** Report what a parent paid. A form teacher of any of the parent's children, finance or admin may do this; finance then checks and an admin approves. */
-export async function reportPayment(c: SupabaseClient, periodId: string, input: { status: FeeStatus; paidOn?: string; method?: string; note?: string }, today: string, periodStart: string) {
-  const { error } = await c.rpc('academy_report_payment', { p_period: periodId, ...validateReport(input, today, periodStart) });
+export async function reportPayment(c: SupabaseClient, periodId: string, input: { status: FeeStatus; paidOn?: string; method?: string; note?: string; amount?: string },
+  today: string, periodStart: string, methods: string[]) {
+  const { error } = await c.rpc('academy_report_payment', { p_period: periodId, ...validateReport(input, today, periodStart, methods) });
   if (error) workflowFail(error, 'report this payment');
 }
 export async function checkPeriod(c: SupabaseClient, periodId: string, status: FeeStatus) {
@@ -247,4 +248,31 @@ export async function setClassLevel(c: SupabaseClient, classId: string, title: s
   if (start && end && end <= start) throw Error('The level must end after it starts');
   const { error } = await c.rpc('academy_set_class_level', { p_class: classId, p_title: title, p_start: start, p_end: end });
   if (error) workflowFail(error, 'change this class');
+}
+
+export type PaymentMethod = { code: string; label: string; active: boolean; sort_order: number };
+export const listPaymentMethods = (c: SupabaseClient) =>
+  pages<PaymentMethod>(() => c.from('academy_payment_methods').select('code,label,active,sort_order').order('sort_order').order('code'), 'load payment methods');
+/** Admin: add a payment method. The code is made from the label (letters, digits and underscores). */
+export async function addPaymentMethod(c: SupabaseClient, label: string, existing: PaymentMethod[]) {
+  const clean = label.trim().replace(/\s+/g, ' ');
+  if (clean.length < 2 || clean.length > 60 || /[<>]/.test(clean)) throw Error('Enter a name (2 to 60 characters)');
+  if (existing.some(m => m.label.toLowerCase() === clean.toLowerCase())) throw Error('That payment method already exists');
+  let code = clean.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 36) || 'method';
+  if (code.length < 2) code = 'method_' + code;
+  while (existing.some(m => m.code === code)) code = code.slice(0, 33) + '_' + Math.floor(Math.random() * 90 + 10);
+  const sort = Math.max(0, ...existing.filter(m => m.active).map(m => m.sort_order)) + 10;
+  const { error } = await c.from('academy_payment_methods').insert({ code, label: clean, sort_order: sort });
+  if (error) fail(error, 'add the payment method');
+}
+/** Admin: rename or switch a payment method on/off (methods are never deleted so old reports keep their label). */
+export async function updatePaymentMethod(c: SupabaseClient, code: string, patch: { label?: string; active?: boolean }) {
+  if (patch.label !== undefined) {
+    const clean = patch.label.trim().replace(/\s+/g, ' ');
+    if (clean.length < 2 || clean.length > 60 || /[<>]/.test(clean)) throw Error('Enter a name (2 to 60 characters)');
+    patch = { ...patch, label: clean };
+  }
+  const { data, error } = await c.from('academy_payment_methods').update(patch).eq('code', code).select('code');
+  if (error) fail(error, 'change the payment method');
+  if (!data?.length) throw Error('You are not allowed to change payment methods');
 }

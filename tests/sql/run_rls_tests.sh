@@ -67,15 +67,15 @@ chk "ended unapproved period is overdue" $F "select status from academy_fee_peri
 chk "current unpaid period is unpaid" $F "select status from academy_fee_period_status where guardian_id='$G1ID'" unpaid
 chk "teacher sees the parent's period with phone" $TA "select count(*) from academy_teacher_fee_periods() where guardian_id='$G1ID'" 1
 chk "teacher of another parent's child sees nothing" $TB "select count(*) from academy_teacher_fee_periods() where guardian_id='$G1ID'" 0
-chk "unrelated teacher cannot report" $TB "select academy_report_payment('$P1', 'paid', current_date, 'cash', null)" ERR
-chk "report needs a date" $TA "select academy_report_payment($PRD, 'paid', null, 'cash', null)" ERR
-chk "report cannot be future-dated" $TA "select academy_report_payment($PRD, 'paid', current_date + 2, 'cash', null)" ERR
-chk "report needs a method" $TA "select academy_report_payment($PRD, 'paid', current_date, null, null)" ERR
-chk "report rejects markup in note" $TA "select academy_report_payment($PRD, 'paid', current_date, 'cash', '<b>x</b>')" ERR
-chk "form teacher reports a payment" $TA "select academy_report_payment($PRD, 'paid', current_date - 3, 'mobile_money', 'Receipt 123')" ""
+chk "unrelated teacher cannot report" $TB "select academy_report_payment('$P1', 'paid', current_date, 'israel', null, null)" ERR
+chk "report needs a date" $TA "select academy_report_payment($PRD, 'paid', null, 'israel', null, null)" ERR
+chk "report cannot be future-dated" $TA "select academy_report_payment($PRD, 'paid', current_date + 2, 'israel', null, null)" ERR
+chk "report needs a method" $TA "select academy_report_payment($PRD, 'paid', current_date, null, null, null)" ERR
+chk "report rejects markup in note" $TA "select academy_report_payment($PRD, 'paid', current_date, 'israel', '<b>x</b>', null)" ERR
+chk "form teacher reports a payment" $TA "select academy_report_payment($PRD, 'paid', current_date - 3, 'habesha_shop', 'Receipt 123', null)" ""
 chk "report is stage 'reported' and still not effective" $TA "select stage||'/'||status from academy_teacher_fee_periods() where guardian_id='$G1ID'" "reported/unpaid"
 chk "teacher cannot edit the table directly" $TA "update academy_fee_periods set approved_status='paid'" "UPDATE 0"
-chk "finance sees date, method and note" $F "select paid_on=current_date-3 and paid_method='mobile_money' and paid_note='Receipt 123' from academy_fee_period_status where guardian_id='$G1ID'" t
+chk "finance sees date, method and note" $F "select paid_on=current_date-3 and paid_method='habesha_shop' and paid_note='Receipt 123' from academy_fee_period_status where guardian_id='$G1ID'" t
 chk "admin cannot approve before finance checks" $A "update academy_fee_periods set approved_status='paid' where guardian_id='$G1ID'" ERR
 chk "finance cannot check something not reported" $F "update academy_fee_periods set checked_status='partial' where guardian_id='$G1ID'" ERR
 chk "finance checks what was reported" $F "update academy_fee_periods set checked_status='paid' where guardian_id='$G1ID'" "UPDATE 1"
@@ -87,7 +87,7 @@ chk "teacher now sees approved paid" $TA "select stage||'/'||status from academy
 chk "guardian sees own approved status only" $G1 "select status from academy_fee_period_status" paid
 chk "other guardian sees only own period" $E2 "select count(*) from academy_fee_period_status" 1
 chk "learner has no fee data" $L1 "select count(*) from academy_teacher_fee_periods()" 0
-chk "teacher changing the report resets check and approval" $TA "select academy_report_payment($PRD, 'partial', current_date - 1, 'cash', null)" ""
+chk "teacher changing the report resets check and approval" $TA "select academy_report_payment($PRD, 'partial', current_date - 1, 'israel', null, null)" ""
 chk "approval was reset to unpaid" $A "select approved_status||'/'||checked_status from academy_fee_periods where guardian_id='$G1ID'" "unpaid/unpaid"
 chk "status after reset is unpaid again" $F "select status from academy_fee_period_status where guardian_id='$G1ID'" unpaid
 $PSQL -q -c "insert into academy_fee_periods(guardian_id,period_start,period_end,course_count,amount_due,created_by_staff_id) values ('$G2ID',(current_date - interval '3 months' - interval '5 days')::date,((current_date - interval '3 months' - interval '5 days')::date + interval '3 months')::date,1,150,'10000000-0000-0000-0000-0000000000c1')" >/dev/null
@@ -114,8 +114,8 @@ chk "finance can read enrollments" $F "select count(*)>=2 from academy_enrollmen
 chk "admin adds a sibling in teacher B's class under the same parent" $A "insert into academy_learners(id,display_name) values ('20000000-0000-0000-0000-000000000003','Sample Learner 3'); insert into academy_guardian_links values ('20000000-0000-0000-0000-000000000003','$G1ID','10000000-0000-0000-0000-0000000000a1'); insert into academy_enrollments values ('50000000-0000-0000-0000-00000000000b','20000000-0000-0000-0000-000000000003')" "INSERT 0 1 INSERT 0 1 INSERT 0 1"
 chk "every teacher of the parent's children sees the same record" $TB "select count(*) from academy_teacher_fee_periods() where guardian_id='$G1ID'" 1
 chk "teacher B sees only own student's name" $TB "select students::text from academy_teacher_fee_periods() where guardian_id='$G1ID'" '{"Sample Learner 3"}'
-chk "teacher B can report for the same parent" $TB "select academy_report_payment($PRD, 'paid', current_date - 1, 'bank', null)" ""
-chk "teacher A sees teacher B's report" $TA "select reported_status||'/'||paid_method from academy_teacher_fee_periods() where guardian_id='$G1ID'" "paid/bank"
+chk "teacher B can report for the same parent" $TB "select academy_report_payment($PRD, 'paid', current_date - 1, 'website', null, null)" ""
+chk "teacher A sees teacher B's report" $TA "select reported_status||'/'||paid_method from academy_teacher_fee_periods() where guardian_id='$G1ID'" "paid/website"
 chk "same phone reuses the guardian (parent tracked by number)" $A "select count(*) from (select academy_add_guardian('20000000-0000-0000-0000-000000000003','Another Name',null,'+251911000000',false,false)) x" 1
 chk "one guardian per phone number" $A "select count(*) from academy_guardians where phone_e164='+251911000000'" 1
 CP="(select id from academy_fee_period_status where learner_id='20000000-0000-0000-0000-000000000003')"
@@ -151,11 +151,29 @@ chk "teacher moves the class to the next level; students stay" $TA "select acade
 chk "same students still enrolled after moving up" $A "select count(*) from academy_enrollments where class_id='$CA'" 1
 chk "level changes are audited" $A "select count(*) from academy_audit_events where action='SET_CLASS_LEVEL'" 2
 chk "dates cannot bypass the rules by direct update" $A "update academy_classes set level_end = level_start - 1 where id='$CA'" ERR
+chk "staff can read the payment methods" $TA "select count(*) >= 8 from academy_payment_methods where active" t
+chk "parents/learners cannot read payment methods" $L1 "select count(*) from academy_payment_methods" 0
+chk "teacher cannot add a payment method" $TA "insert into academy_payment_methods(code,label) values ('x_test','X test')" ERR
+chk "admin adds a payment method" $A "insert into academy_payment_methods(code,label,sort_order) values ('telebirr','Telebirr',80)" "INSERT 0 1"
+chk "admin switches an old method off" $A "update academy_payment_methods set active=false where code='other'" "UPDATE 1"
+chk "a switched-off method is refused" $TB "select academy_report_payment('$P1', 'paid', current_date, 'other', null, null)" ERR
+chk "an unknown method is refused" $TB "select academy_report_payment('$P1', 'paid', current_date, 'no_such_method', null, null)" ERR
+chk "a report can include the amount" $TB "select academy_report_payment('$P1', 'partial', current_date, 'telebirr', 'first half', 75)" ""
+chk "the amount is stored" $F "select paid_amount||'/'||paid_method from academy_fee_period_status where guardian_id='$G1ID' and learner_id is null" "75.00/telebirr"
+chk "teacher sees the amount" $TB "select paid_amount from academy_teacher_fee_periods() where guardian_id='$G1ID' and period_id='$P1'" "75.00"
+chk "an invalid amount is refused" $TB "select academy_report_payment('$P1', 'paid', current_date, 'telebirr', null, -5)" ERR
+chk "finance checks the report" $F "update academy_fee_periods set checked_status='partial' where guardian_id='$G1ID' and learner_id is null" "UPDATE 1"
+chk "changing only the amount sends it back for checking" $TB "select academy_report_payment('$P1', 'partial', current_date, 'telebirr', 'first half', 80)" ""
+chk "check was reset by the amount change" $A "select checked_status from academy_fee_periods where guardian_id='$G1ID' and learner_id is null" unpaid
+chk "admin switches off the method this report uses" $A "update academy_payment_methods set active=false where code='telebirr'" "UPDATE 1"
+chk "the report can still be saved with its own (now switched-off) method" $TB "select academy_report_payment('$P1', 'partial', current_date, 'telebirr', 'note fixed', 80)" ""
+chk "but a different switched-off method is still refused" $TB "select academy_report_payment('$P1', 'partial', current_date, 'other', null, 80)" ERR
+chk "methods cannot be deleted" $A "delete from academy_payment_methods where code='telebirr'" ERR
 chk "admin can enroll" $A "insert into academy_enrollments values ('50000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-000000000002')" "INSERT 0 1"
 # Migration 0008: Israel dates, and both verified parents see their child's period.
 chk "today is the date in Israel" $F "select academy_today() = (now() at time zone 'Asia/Jerusalem')::date" t
-chk "a payment dated today (Israel) is accepted" $F "select academy_report_payment($CP, 'paid', academy_today(), 'cash', null)" ""
-chk "a payment dated tomorrow is refused" $F "select academy_report_payment($CP, 'paid', academy_today() + 1, 'cash', null)" ERR
+chk "a payment dated today (Israel) is accepted" $F "select academy_report_payment($CP, 'paid', academy_today(), 'israel', null, null)" ""
+chk "a payment dated tomorrow is refused" $F "select academy_report_payment($CP, 'paid', academy_today() + 1, 'israel', null, null)" ERR
 chk "second parent sees nothing before being linked" $E2 "select count(*) from academy_fee_period_status where learner_id='20000000-0000-0000-0000-000000000003'" 0
 $PSQL -q -c "insert into academy_guardian_links(guardian_id,learner_id,verified_by_staff_id) values ('$G2ID','20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-0000000000a1')" >/dev/null
 chk "second verified parent sees the child's period" $E2 "select count(*) from academy_fee_period_status where learner_id='20000000-0000-0000-0000-000000000003'" 1

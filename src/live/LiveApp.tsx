@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  addClass, addCourse, addLearnerWithGuardian, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, listReminders, type ReminderEvent, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
+  addClass, addCourse, addLearnerWithGuardian, enroll, listClasses, listGuardians, listLinks, listPeriods, teacherPeriods, listReminders, listPaymentMethods, type PaymentMethod, type ReminderEvent, type Guardian, type GuardianLink, type PeriodRow, type TeacherPeriod, listCourses, listEnrollments, listLearners, listStaff,
   unenroll, updateLearner, setClassTeacher, updateCourse, renameClass, setClassLevel, listSessions, listAttendance, addSession, saveAttendance, type Session, type AttendanceRow, type AttendanceStatus, type ClassRow, type Course, type Enrollment, type Learner, type Staff
 } from './api';
 import { EMPTY, useAction, type Data, type PanelProps, type Role } from './shared';
@@ -9,6 +9,7 @@ import LiveGuardians from './LiveGuardians';
 import LiveFees from './LiveFees';
 import LiveOverview from './LiveOverview';
 import { NavIcon } from './icons';
+import { TI } from './ti.mjs';
 import LiveNotices from './LiveNotices';
 import { addMonths, daysUntil, endingText, formatDate, nextLevelPlan, todayIso } from './fees.mjs';
 import LiveFamily, { LivePayments } from './LiveFamily';
@@ -33,15 +34,16 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
     setLoadError('');
     try {
       const staffView = isAdmin || isFinance;
-      const [learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriodRows, reminders] = await Promise.all([
+      const [learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriodRows, reminders, paymentMethods] = await Promise.all([
         listLearners(client), listCourses(client), isAdmin ? listStaff(client) : Promise.resolve([] as Staff[]),
         listClasses(client), listEnrollments(client), listSessions(client), listAttendance(client),
         staffView ? listGuardians(client) : Promise.resolve([] as Guardian[]),
         staffView ? listLinks(client) : Promise.resolve([] as GuardianLink[]),
         staffView || role === 'guardian' ? listPeriods(client) : Promise.resolve([] as PeriodRow[]),
         role === 'teacher' ? teacherPeriods(client) : Promise.resolve([] as TeacherPeriod[]),
-        staffView ? listReminders(client) : Promise.resolve([] as ReminderEvent[])]);
-      setData({ learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriods: teacherPeriodRows, reminders });
+        staffView ? listReminders(client) : Promise.resolve([] as ReminderEvent[]),
+        staffView || role === 'teacher' ? listPaymentMethods(client) : Promise.resolve([] as PaymentMethod[])]);
+      setData({ learners, courses, staff, classes, enrollments, sessions, attendance, guardians, links, periods, teacherPeriods: teacherPeriodRows, reminders, paymentMethods });
     } catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not load data'); }
     finally { setLoading(false); }
   }, [client, isAdmin, isFinance, role]);
@@ -131,7 +133,7 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
       <h3>Parent or guardian</h3>
       <p className="quiet">If this phone or email is already recorded (for example a brother or sister is enrolled), the student is linked to the same parent.</p>
       <label>Parent name<input required maxLength={80} value={parentName} onChange={e => setParentName(e.target.value)} /></label>
-      <label>Parent phone (09XXXXXXXX or +251…)<input type="tel" value={parentPhone} onChange={e => setParentPhone(e.target.value)} /></label>
+      <label>Parent phone (09XXXXXXXX or +251…)<input type="tel" value={parentPhone} onChange={e => setParentPhone(e.target.value)} /><small className="ti-help" lang="ti">{TI.parentPhone}</small></label>
       <label>Parent email<input type="email" value={parentEmail} onChange={e => setParentEmail(e.target.value)} /></label>
       <label><input type="checkbox" checked={parentEmailOk} onChange={e => setParentEmailOk(e.target.checked)} /> Parent agreed to be emailed</label>
       <label><input type="checkbox" checked={parentWaOk} onChange={e => setParentWaOk(e.target.checked)} /> Parent agreed to be contacted on WhatsApp</label>
@@ -354,7 +356,7 @@ function LevelEditor({ cls, busy, onSave }: { cls: ClassRow; busy: boolean; onSa
     {!moving && cls.level_end && <p><button className="small-btn" type="button" onClick={planNext}>Move to next level</button>
       <span className="quiet"> Fills in the next level's name and dates after a one-week break.</span></p>}
     <label>Class name<input required maxLength={80} value={title} onChange={e => setTitle(e.target.value)} /></label>
-    <label>Level starts<input type="date" required value={start} onChange={e => { setStart(e.target.value); if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) setEnd(addMonths(e.target.value, 3)); }} /></label>
+    <label>Level starts<input type="date" required value={start} onChange={e => { setStart(e.target.value); if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) setEnd(addMonths(e.target.value, 3)); }} /><small className="ti-help" lang="ti">{TI.levelStart}</small></label>
     <label>Level ends (3 months later by default; change it for 6-month computer stages)<input type="date" required value={end} onChange={e => setEnd(e.target.value)} /></label>
     <button className="primary-btn" type="submit" disabled={busy}>{moving ? 'Move class to next level' : 'Save level dates'}</button>
     {moving && <> <button className="text-btn" type="button" onClick={() => { setTitle(cls.title); setStart(cls.level_start ?? todayIso()); setEnd(cls.level_end ?? addMonths(todayIso(), 3)); setMoving(false); }}>Cancel</button></>}

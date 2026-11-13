@@ -1,6 +1,6 @@
 # BigChange Academy Hub
 
-School management web app for BigChange Academy: students, guardians (parents), courses, classes, attendance and parent payment tracking, with separate screens for administrators, teachers, finance staff, parents and students.
+Internal school management web app for BigChange Academy staff (admin, teachers, finance) first: students, guardians (parents), courses, classes, attendance and parent payment tracking, with separate screens for administrators, teachers, finance staff, parents and students.
 
 It is an independent React + TypeScript + Vite app backed by Supabase (Postgres + Auth). It is **not a fork** of Globussoft School MIS; no code or assets were copied from it.
 
@@ -61,7 +61,7 @@ Use a **dedicated** Supabase project for the Academy. In the project: **SQL Edit
 7. [`supabase/migrations/20261110_0006_child_periods_and_amounts.sql`](supabase/migrations/20261110_0006_child_periods_and_amounts.sql) — each child's own 3 months, admin can change an amount (with a reason), email reminders.
 8. [`supabase/migrations/20261111_0007_class_level_dates.sql`](supabase/migrations/20261111_0007_class_level_dates.sql) — each class's level start and end dates, reminders before a level ends, move a class to its next level.
 9. [`supabase/migrations/20261112_0008_local_dates_and_parents.sql`](supabase/migrations/20261112_0008_local_dates_and_parents.sql) — dates follow Israel time (where the admin works), family-wide periods retired, both verified parents see their child's payments.
-10. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 16 tables, 0 missing RLS, 0 missing force RLS, 43 policies, 0 tables without policy, 0 anon/public policies.
+10. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 17 tables, 0 missing RLS, 0 missing force RLS, 46 policies, 0 tables without policy, 0 anon/public policies.
 
 Each migration is safe to run again. Do **not** run `supabase/policies/academy_profile_access.sql` (superseded by 0002).
 
@@ -135,6 +135,9 @@ The live screens have a browser smoke test against a fake in-memory Supabase (ad
 | `docs/` | Access rules, progress log, privacy checklist, milestone notes |
 
 GitHub Actions (`.github/workflows/`) type-checks, tests and builds on every push.
+
+## Google sign-in
+Staff can sign in with their Google account (free; one-time setup in Google Cloud and Supabase): see [docs/GOOGLE_SIGNIN.md](docs/GOOGLE_SIGNIN.md). Only people the admin added can get in.
 
 ## Putting it online
 So teachers can use it from their own devices and invitations work, host it (free plans exist on Netlify and Cloudflare Pages): see [docs/HOSTING.md](docs/HOSTING.md). Security headers ship in `public/_headers`.

@@ -1,8 +1,7 @@
 -- READ-ONLY Academy security verification.
 -- Run only in the NEW BigChange Academy Supabase project.
--- Expected AFTER migrations 0001, 0002 and 0003: 15 tables, 0 without RLS, 0 without FORCE RLS,
--- 42 policies (40 after 0002 alone, with 14 tables), and 0 tables with no policy. (If you applied the older profile-policy file
--- only, expect 3 policies and a nonzero unexpected_policy_count.)
+-- Expected after migrations 0001–0009: 17 tables, 0 without RLS, 0 without FORCE RLS, 46 policies,
+-- 0 tables without a policy, 0 policies open to anon/public.
 with academy_tables as (
   select c.relname, c.relrowsecurity, c.relforcerowsecurity
   from pg_class c join pg_namespace n on n.oid=c.relnamespace

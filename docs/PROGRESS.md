@@ -36,11 +36,14 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - Fees → **Download payments (CSV)** for finance/admin: opens in Google Sheets/Excel; formula-looking cells are neutralised; a privacy reminder sits next to the button. 132 unit tests, 101/101 browser checks.
 
+- 2026-11-15, finish pass for the internal staff version. Re-ran everything: type-check, 132 unit tests, 150/150 database checks (17 tables, 46 policies), 101/101 browser checks incl. accessibility scan, and 76/76 browser checks on the production build served with the hosting security headers (no blocked content; demo build also loads cleanly). Fixed: Playwright (test tool only) updated to 1.63.0, `npm audit` back to 0; invitation screen no longer says "test"; README setup now clones `main` and lists migration 0009; hosting guide explains that Supabase's built-in email does not deliver invitations outside the organization (use Add user + Google sign-in); owner checklist rewritten (`docs/NEXT_STEPS.md`). No database change.
+
 ## Remaining
-Needs the owner:
-2. Teacher test account, then `tests/live-project-check.mjs` with test logins (`docs/NEXT_STEPS.md` steps 2–3).
-3. One manual run-through with fake names (step 4), including a Chromebook, a phone and a screen reader.
-4. Hosting (`docs/HOSTING.md`); invitations need it.
+The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
+1. Run migration 0009 (if not done yet).
+2. Hosting (`docs/HOSTING.md`), then Google sign-in (`docs/GOOGLE_SIGNIN.md`).
+3. Add the staff logins and roles; `tests/live-project-check.mjs` with test logins.
+4. One manual run-through with fake names, including a phone, a Chromebook and a screen reader.
 5. Weekly backup and a second admin (`docs/BACKUPS.md`).
 6. Privacy and safeguarding checklist before any real family data.
 
@@ -48,4 +51,4 @@ Known and not yet built:
 - With two verified parents, the period is stored on the parent linked to the child first, so reminders go to that parent. Both see it. Choosing a different paying parent is not built.
 - An old family-wide period that already counted a child is not detected when a per-child period is started for that child. Only matters for periods created before migration 0006 (test data).
 - Messages are still sent by staff from their own WhatsApp/email; no provider is connected.
-- Teacher logins are created by hand in the Supabase dashboard (a server-side invite needs hosting first).
+- Staff logins are created by hand in the Supabase dashboard; there is no in-app invite or "forgot password" (Google sign-in covers it; email invitations need an email service connected to Supabase).

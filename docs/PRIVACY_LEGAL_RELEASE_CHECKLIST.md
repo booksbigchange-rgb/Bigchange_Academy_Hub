@@ -20,6 +20,10 @@ This is a planning checklist, **not legal advice**, a privacy notice ready for p
 - [ ] Ensure no unverified demo credentials or fictional role switcher is deployed as real access control.
 - [ ] Sign off with management and appropriate professional reviewers.
 
-## Prototype policy
+## Where the app stands (2026-11-15)
 
-No production database, payment gateway or external messaging yet. Only fabricated records in source. This checklist must be reviewed and updated per feature/release, not assumed to make every future project compliant.
+Internal staff tool. There is a real Supabase database, used with test data only. No payment gateway: the app records what staff report. No automatic messaging: staff send reminders and notices from their own WhatsApp or email, and only to parents whose agreement is recorded. Sign-in is restricted to accounts the admin created; public sign-up is off.
+
+Already covered by automated tests on every change (the box above stays open until the owner has also run `tests/live-project-check.mjs` on the real project): least-privilege access and Row Level Security (150 database checks), separation of each family's records, dependency audit (0 known vulnerabilities).
+
+This checklist must be reviewed and updated per feature/release, not assumed to make every future project compliant.

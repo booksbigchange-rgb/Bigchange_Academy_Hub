@@ -2,8 +2,7 @@
 // It checks that each role's screens render, the main buttons perform real calls, and nothing overflows on a phone.
 // Database rules are tested separately in tests/sql/run_rls_tests.sh; this test only exercises the UI wiring.
 //
-// Usage (Playwright is not a project dependency):
-//   npm i --no-save playwright            (or install it anywhere and set NODE_PATH)
+// Usage: npm run test:e2e   (starts the app, runs this file with the accessibility scan, stops the app). By hand:
 //   VITE_ACADEMY_SUPABASE_URL=https://smoketest.supabase.co VITE_ACADEMY_SUPABASE_PUBLISHABLE_KEY=sb_publishable_smoketest npx vite --port 5199 &
 //   node tests/e2e/live-smoke.mjs [http://127.0.0.1:5199] [chromium executable path]
 import { chromium } from 'playwright';

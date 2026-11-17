@@ -179,4 +179,41 @@ $PSQL -q -c "insert into academy_guardian_links(guardian_id,learner_id,verified_
 chk "second verified parent sees the child's period" $E2 "select count(*) from academy_fee_period_status where learner_id='20000000-0000-0000-0000-000000000003'" 1
 chk "second parent still cannot see the other parent's family period" $E2 "select count(*) from academy_fee_period_status where guardian_id='$G1ID' and learner_id is null" 0
 chk "second parent cannot change the period" $E2 "update academy_fee_periods set approved_status='paid' where learner_id='20000000-0000-0000-0000-000000000003'" "UPDATE 0"
+# Migration 0010: the admin manages staff roles in the app.
+N1=00000000-0000-0000-0000-0000000000f1; N2=00000000-0000-0000-0000-0000000000f2
+$PSQL -q -c "update auth.users set email_confirmed_at = now(); insert into auth.users(id,email,email_confirmed_at) values ('$N1','new.staff@example.com',now()),('$N2','unconfirmed@example.com',null)" >/dev/null
+N1S="(select id from academy_staff where auth_user_id='$N1')"
+chk "teacher cannot open the staff list" $TA "select count(*) from academy_staff_directory()" ERR
+chk "finance cannot open the staff list" $F "select count(*) from academy_staff_directory()" ERR
+chk "a new confirmed login waits for a role" $A "select count(*) from academy_staff_directory() where user_id='$N1' and staff_id is null" 1
+chk "an unconfirmed login is not listed" $A "select count(*) from academy_staff_directory() where user_id='$N2'" 0
+chk "student and parent logins are not listed" $A "select count(*) from academy_staff_directory() where user_id in ('$L1','$G1')" 0
+chk "the list shows a teacher's classes" $A "select class_count from academy_staff_directory() where user_id='$TA'" 1
+chk "teacher cannot give roles" $TA "select academy_set_staff_role('$N1','finance','New Person')" ERR
+chk "finance cannot give roles" $F "select academy_set_staff_role('$N1','finance','New Person')" ERR
+chk "a name is required" $A "select academy_set_staff_role('$N1','finance','N')" ERR
+chk "only teacher, finance or admin" $A "select academy_set_staff_role('$N1','owner','New Person')" ERR
+chk "admin gives the new login the finance role" $A "select academy_set_staff_role('$N1','finance','New Person')" ""
+chk "the new person now has the finance role" $N1 "select academy_staff_role()" finance
+chk "admin cannot change their own role" $A "select academy_set_staff_role('$A','teacher','Admin')" ERR
+chk "a student login cannot be made staff" $A "select academy_set_staff_role('$L1','teacher','Student')" ERR
+chk "an unconfirmed login cannot be given a role" $A "select academy_set_staff_role('$N2','teacher','Someone')" ERR
+chk "a teacher with classes cannot be moved to finance" $A "select academy_set_staff_role('$TA','finance','Teacher A')" ERR
+chk "roles cannot be changed by editing the table" $A "update academy_staff set role='admin' where auth_user_id='$N1'" ERR
+chk "access cannot be changed by editing the table" $A "update academy_staff set active=false where auth_user_id='$N1'" ERR
+chk "teacher cannot switch someone off" $TA "select academy_set_staff_active($N1S, false)" ERR
+chk "admin cannot switch themself off" $A "select academy_set_staff_active('10000000-0000-0000-0000-0000000000a1', false)" ERR
+chk "admin switches the new person off" $A "select academy_set_staff_active($N1S, false)" ""
+chk "a switched-off person has no role" $N1 "select coalesce(academy_staff_role(),'none')" none
+chk "a switched-off person cannot see their staff row" $N1 "select count(*) from academy_staff" 0
+chk "a switched-off person cannot read payments" $N1 "select count(*) from academy_fee_periods" 0
+chk "the list shows access off" $A "select active from academy_staff_directory() where user_id='$N1'" f
+chk "admin switches the person on again" $A "select academy_set_staff_active($N1S, true)" ""
+chk "access is back" $N1 "select academy_staff_role()" finance
+chk "a switched-off teacher sees no students" $A "select academy_set_staff_active('10000000-0000-0000-0000-0000000000b2', false)" ""
+chk "  (teacher B, while off)" $TB "select count(*) from academy_learners" 0
+chk "  (teacher B cannot record attendance while off)" $TB "insert into academy_attendance(session_id,learner_id,status,recorded_by_staff_id) values ('60000000-0000-0000-0000-00000000000b','20000000-0000-0000-0000-000000000002','late','10000000-0000-0000-0000-0000000000b2')" ERR
+chk "teacher B switched on again" $A "select academy_set_staff_active('10000000-0000-0000-0000-0000000000b2', true)" ""
+chk "  (teacher B sees students again)" $TB "select count(*) > 0 from academy_learners" t
+chk "staff changes are in the audit trail" $A "select count(*) >= 3 from academy_audit_events where entity_type='academy_staff'" t
 echo "RLS tests: $pass passed, $fail failed"; [ $fail = 0 ]

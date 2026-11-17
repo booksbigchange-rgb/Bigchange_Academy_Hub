@@ -17,7 +17,7 @@ It is an independent React + TypeScript + Vite app backed by Supabase (Postgres 
 
 | Role | Screens |
 |---|---|
-| Admin | Overview · Students (add, search, edit, deactivate, attendance history) · Guardians (parent directory, add, verify) · Courses (add, edit) · Classes (create, rename, assign teacher, roster, enroll/remove) · Attendance · Fees (start periods, report, check, **approve**) |
+| Admin | Staff (give roles, switch access off/on) · Overview · Students (add, search, edit, deactivate, attendance history) · Guardians (parent directory, add, verify) · Courses (add, edit) · Classes (create, rename, assign teacher, roster, enroll/remove) · Attendance · Fees (start periods, report, check, **approve**) |
 | Teacher | Overview · their students and their attendance history · Guardians (add for their students) · their classes · Attendance (their classes) · Parent payments (**report** a payment) |
 | Finance | Fees (start periods, report, **check**, reminders, **download payments as CSV** for Google Sheets) · Overview · Guardians · Students |
 | Parent | Their verified children's classes and attendance · their payments |
@@ -62,18 +62,19 @@ Use a **dedicated** Supabase project for the Academy. In the project: **SQL Edit
 8. [`supabase/migrations/20261111_0007_class_level_dates.sql`](supabase/migrations/20261111_0007_class_level_dates.sql) — each class's level start and end dates, reminders before a level ends, move a class to its next level.
 9. [`supabase/migrations/20261112_0008_local_dates_and_parents.sql`](supabase/migrations/20261112_0008_local_dates_and_parents.sql) — dates follow Israel time (where the admin works), family-wide periods retired, both verified parents see their child's payments.
 10. [`supabase/migrations/20261113_0009_payment_methods_and_amounts.sql`](supabase/migrations/20261113_0009_payment_methods_and_amounts.sql) — the school's own payment methods (the admin can add, rename or switch them off) and an optional amount on each payment report.
-11. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 17 tables, 0 missing RLS, 0 missing force RLS, 46 policies, 0 tables without policy, 0 anon/public policies.
+11. [`supabase/migrations/20261117_0010_staff_roles_in_app.sql`](supabase/migrations/20261117_0010_staff_roles_in_app.sql) — the admin gives staff their role and switches access off or on in the app (**Staff** screen), instead of SQL scripts.
+12. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 17 tables, 0 missing RLS, 0 missing force RLS, 46 policies, 0 tables without policy, 0 anon/public policies.
 
 Each migration is safe to run again. Do **not** run `supabase/policies/academy_profile_access.sql` (superseded by 0002).
 
 ### 4. Create logins (Supabase dashboard)
-For every person: **Authentication → Users → Add user**, their email, a password of 12+ characters, tick **Auto Confirm User**. Give them the password yourself. Then attach a role with one of these scripts. **Copy the script into a private SQL Editor tab and change only the `target_...` lines; leave the placeholder text in the `IF` checks alone; never edit or commit these files on GitHub with real emails.**
+For every person: **Authentication → Users → Add user**, their email, tick **Auto Confirm User** (a password of 12+ characters if they will not use Google; give it to them yourself).
 
-| Who | Script |
-|---|---|
-| Administrator | [`supabase/manual/provision_test_admin.sql`](supabase/manual/provision_test_admin.sql) |
-| Teacher or finance | [`supabase/manual/provision_staff.sql`](supabase/manual/provision_staff.sql) |
-| Parent or student (after they exist in the app) | [`supabase/manual/link_login.sql`](supabase/manual/link_login.sql) |
+- **The very first admin:** attach the role once with [`supabase/manual/provision_test_admin.sql`](supabase/manual/provision_test_admin.sql).
+- **Everyone else on staff (teachers, finance, more admins):** the admin opens **Staff** in the app → **Refresh list** → the new login is under **Waiting for a role** → **Give a role**. The same screen changes a role or switches someone's access off (and on again). No SQL needed.
+- **Parent or student** (after they exist in the app): [`supabase/manual/link_login.sql`](supabase/manual/link_login.sql).
+
+**For the scripts: copy them into a private SQL Editor tab and change only the `target_...` lines; leave the placeholder text in the `IF` checks alone; never edit or commit these files on GitHub with real emails.** (`supabase/manual/provision_staff.sql` still works if the app is unavailable.)
 
 Forgot a password? In SQL Editor (then delete the query, it contains the password):
 ```sql

@@ -20,7 +20,7 @@ Choose one person to do this every week (for example every Friday).
 ## A second admin
 So the school is not locked out if one person loses their phone or password:
 1. Supabase → **Authentication → Users → Add user → Create new user** with the second person's email, a password of 12+ characters, tick **Auto Confirm User**. Give them the password in person.
-2. SQL Editor → new query → paste `supabase/manual/provision_test_admin.sql`, change **only** the email on the `target_email` line (leave the placeholder in the `IF` line), **Run**. Expect "admin profile is provisioned".
+2. In the app, as admin: **Staff** → **Refresh list** → their email under **Waiting for a role** → **Give a role** → **Admin**. (Without the app: `supabase/manual/provision_test_admin.sql` in the SQL Editor, changing only the `target_email` line.)
 3. The second admin signs in once to check it works.
 
 Also give the second admin access to the Supabase dashboard (Supabase → Organization → Team → Invite) so they can manage logins if needed.

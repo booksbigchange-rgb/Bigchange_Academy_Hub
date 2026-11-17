@@ -7,6 +7,8 @@ end $$;
 create extension if not exists pgcrypto;
 create schema if not exists auth;
 create table if not exists auth.users(id uuid primary key default gen_random_uuid(), email text, email_confirmed_at timestamptz);
+alter table auth.users add column if not exists last_sign_in_at timestamptz;
+alter table auth.users add column if not exists deleted_at timestamptz;
 -- The tests choose the signed-in user with: select set_config('request.sub', '<uuid>', false);
 create or replace function auth.uid() returns uuid language sql stable as
 $$ select nullif(current_setting('request.sub', true), '')::uuid $$;

@@ -31,8 +31,16 @@ File: `supabase/migrations/20261107_0003_fees_and_guardians.sql` (run after 0001
 - **One record, every teacher:** teachers read the parent's record through `academy_teacher_fee_periods()` (only parents of their own students; their own students' and courses' names only). Teachers cannot read or update the table directly.
 - **Overdue** = not approved as paid after the period ended (UTC).
 - **Guardians:** contacts via `academy_add_guardian()` (admin or the student's teacher); one guardian per phone number and per email, so a parent with several children is one record. Teacher-added links are unverified until an admin verifies; guardians see a child only when verified.
-- **Staff logins** are created in the dashboard, then `supabase/manual/provision_staff.sql` (teacher/finance) or `provision_test_admin.sql` (admin).
+- **Staff logins** are created in the dashboard; the first admin gets the role with `provision_test_admin.sql`, everyone else on the **Staff** screen (migration 0010).
 - The older `academy_fee_obligations` and `academy_external_payments` tables from migration 0001 stay locked and unused. Nothing here moves money or sends messages.
 
 ## Migration 0004 — guardian contact privacy
 File: `supabase/migrations/20261108_0004_guardian_privacy.sql`. Teachers see a parent's name, phone and email only once an admin has verified the link; for pending links they see "Parent (waiting for verification)". Admin and finance are unaffected. Closes a gap where a teacher could type a known phone number and read that parent's details before verification. Local DB checks: 79/79.
+
+## Migration 0010 — staff roles in the app
+File: `supabase/migrations/20261117_0010_staff_roles_in_app.sql`. No new tables or policies (17 tables, 46 policies).
+- `academy_staff.active`: staff rows are never deleted; an admin switches access off. `academy_staff_id()` and `academy_staff_role()` return nothing for a switched-off person, so every rule that depends on them refuses, and they cannot see their own staff row (the app shows "no role assigned").
+- `academy_staff_directory()` (admin only): confirmed logins that are not students or parents, with email, role, access, class count and last sign-in.
+- `academy_set_staff_role(user, role, name)` (admin only): gives or changes teacher / finance / admin and switches access on. Refused for: your own account (no self-lockout), unconfirmed or unknown logins, student or parent logins, and a teacher who still has classes being moved to another role.
+- `academy_set_staff_active(staff, on/off)` (admin only, never yourself).
+- Roles and access still cannot be changed by editing the table (only `display_name` and `specialty` are writable). Every change to a staff row is audited.

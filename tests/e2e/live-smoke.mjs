@@ -16,9 +16,12 @@ let seq = 100;
 function freshDb() {
   return {
     academy_staff: [
-      { id: uid(1), auth_user_id: uid(901), role: 'admin', display_name: 'Admin Test' },
-      { id: uid(2), auth_user_id: uid(902), role: 'teacher', display_name: 'Teacher Test' },
-      { id: uid(3), auth_user_id: uid(903), role: 'finance', display_name: 'Finance Test' }],
+      { id: uid(1), auth_user_id: uid(901), role: 'admin', display_name: 'Admin Test', active: true },
+      { id: uid(2), auth_user_id: uid(902), role: 'teacher', display_name: 'Teacher Test', active: true },
+      { id: uid(3), auth_user_id: uid(903), role: 'finance', display_name: 'Finance Test', active: true }],
+    // Confirmed logins that are not students or parents (what academy_staff_directory reads from auth.users).
+    auth_users: [{ id: uid(901), email: 'admin@example.com' }, { id: uid(902), email: 'teacher@example.com' },
+      { id: uid(903), email: 'finance@example.com' }, { id: uid(906), email: 'new.teacher@example.com' }],
     academy_learners: [], academy_guardians: [{ id: uid(40), auth_user_id: uid(904), display_name: 'Parent Test', email: 'p@example.com', phone_e164: '+251911000000', email_opt_in: true, whatsapp_opt_in: false }],
     academy_payment_methods: [{ code: 'israel', label: 'Israel', active: true, sort_order: 10 }, { code: 'ria_tsegay', label: 'Ria – Tsegay', active: true, sort_order: 30 },
       { code: 'habesha_shop', label: 'Habesha shop', active: true, sort_order: 60 }, { code: 'cash', label: 'Cash (old)', active: false, sort_order: 200 }],
@@ -89,6 +92,18 @@ async function install(page, db, role) {
         if (a.p_channel === 'whatsapp' && !g.whatsapp_opt_in) return json({ message: 'This parent has not agreed to WhatsApp messages' }, 400);
         (db.academy_reminder_events ??= []).push({ id: uid(seq++), period_id: p.id, sent_at: new Date().toISOString() }); return json(new Date().toISOString());
       }
+      if (db.before0010 && fn.startsWith('academy_s') && fn.includes('staff')) return json({ code: 'PGRST202', message: 'Could not find the function public.' + fn }, 404);
+      if (fn === 'academy_staff_directory') return json(db.auth_users.map(u => { const st = db.academy_staff.find(x => x.auth_user_id === u.id);
+        return { user_id: u.id, email: u.email, staff_id: st?.id ?? null, display_name: st?.display_name ?? null, role: st?.role ?? null, active: Boolean(st?.active),
+          class_count: st ? db.academy_classes.filter(c => c.teacher_staff_id === st.id).length : 0, last_sign_in_at: null }; }));
+      if (fn === 'academy_set_staff_role') {
+        if (a.p_user === user.id) return json({ message: 'You cannot change your own role. Ask another administrator.' }, 400);
+        const st = db.academy_staff.find(x => x.auth_user_id === a.p_user);
+        if (st) Object.assign(st, { role: a.p_role, display_name: a.p_name, active: true });
+        else db.academy_staff.push({ id: uid(seq++), auth_user_id: a.p_user, role: a.p_role, display_name: a.p_name, active: true });
+        return json(db.academy_staff.find(x => x.auth_user_id === a.p_user).id);
+      }
+      if (fn === 'academy_set_staff_active') { db.academy_staff.find(x => x.id === a.p_staff).active = a.p_active; return route.fulfill({ status: 204 }); }
       return json({ message: 'unknown rpc ' + fn }, 404);
     }
     if (path.startsWith('/rest/v1/')) {
@@ -97,6 +112,8 @@ async function install(page, db, role) {
       const rows = db[store] ?? (db[store] = []);
       const single = (req.headers()['accept'] || '').includes('vnd.pgrst.object');
       if (method === 'GET') {
+        if (db.before0010 && table === 'academy_staff' && (url.searchParams.get('select') || '').includes('active'))
+          return json({ code: '42703', message: 'column academy_staff.active does not exist' }, 400);
         let out = filterRows(rows, url.searchParams);
         if (table === 'academy_guardians' && role === 'guardian') out = out.filter(g => g.auth_user_id === user.id);
         if (table === 'academy_staff' || table === 'academy_learners' || table === 'academy_guardians') {
@@ -303,6 +320,42 @@ await session(browser, db, 'admin', 1366, async page => {
   await nav(page, 'Students');
   await page.getByRole('row', { name: /Kid Test/ }).getByRole('button', { name: 'Attendance' }).click();
   check('student attendance history shows the saved mark', await seen(page.getByRole('cell', { name: 'Present' })) && await seen(page.getByText(/Attendance rate 100%/)));
+  // Staff screen (migration 0010): give a waiting login a role, then switch access off.
+  await nav(page, 'Staff');
+  const waitingTable = page.getByRole('region', { name: 'Logins waiting for a role' });
+  check('a new login waits for a role', await seen(waitingTable.getByRole('cell', { name: 'new.teacher@example.com' })));
+  const staffTable = page.getByRole('region', { name: 'Staff members' });
+  check('the admin cannot change their own row', await seen(staffTable.getByRole('row', { name: /admin@example.com/ }).getByText('You'))
+    && (await staffTable.getByRole('row', { name: /admin@example.com/ }).getByRole('button').count()) === 0);
+  await waitingTable.getByRole('button', { name: 'Give a role' }).click();
+  const roleForm = page.getByRole('form', { name: 'Staff role' });
+  await roleForm.getByLabel('Name shown in the app').fill('New Teacher');
+  await roleForm.getByLabel('Role').selectOption('teacher');
+  await roleForm.getByRole('button', { name: 'Save role' }).click();
+  await page.getByText('Role saved: New Teacher · Teacher.').waitFor();
+  check('admin gives the new login the teacher role', await seen(staffTable.getByRole('cell', { name: 'New Teacher' }))
+    && (await waitingTable.count()) === 0);
+  await nav(page, 'Classes');
+  check('the new teacher can be chosen for a class', (await page.getByLabel(/^Teacher for /).first().locator('option', { hasText: 'New Teacher' }).count()) === 1);
+  await nav(page, 'Staff');
+  await staffTable.getByRole('row', { name: /New Teacher/ }).getByRole('button', { name: 'Switch off' }).click();
+  await page.getByText(/Access switched off for New Teacher/).waitFor();
+  check('admin switches the new teacher off', await seen(staffTable.getByRole('row', { name: /New Teacher/ }).locator('.tag.red', { hasText: 'Off' })));
+  await nav(page, 'Classes');
+  check('a switched-off teacher is no longer offered for classes', (await page.getByLabel(/^Teacher for /).first().locator('option', { hasText: 'New Teacher' }).count()) === 0);
+  await nav(page, 'Staff');
+  await staffTable.getByRole('row', { name: /New Teacher/ }).getByRole('button', { name: 'Switch on' }).click();
+  await page.getByText(/Access switched on for New Teacher/).waitFor();
+  check('admin switches the teacher on again', await seen(staffTable.getByRole('row', { name: /New Teacher/ }).locator('.tag.green', { hasText: 'On' })));
+});
+
+// Before the owner runs migration 0010: the admin's app must still load; only the Staff screen explains what is missing.
+await session(browser, { ...freshDb(), before0010: true }, 'admin', 1366, async page => {
+  check('before migration 0010 the admin app still loads', await seen(page.getByRole('heading', { name: 'Welcome back' })));
+  await nav(page, 'Classes');
+  check('  and other screens work', await seen(page.getByRole('button', { name: '+ Create class' })));
+  await nav(page, 'Staff');
+  check('  and the Staff screen says update 0010 is needed', await seen(page.getByText(/needs database update 0010/)));
 });
 
 // An ended, unpaid period so reminders appear (the parent has not yet agreed to WhatsApp).
@@ -420,7 +473,7 @@ if (process.env.AXE_PATH) {
     check(`axe sign-in @${width}px: no serious/critical issues`, v.length === 0, v.join(' | '));
     await p.context().close();
   }
-  for (const [role, sections] of [['admin', ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees']], ['teacher', ['Overview', 'Classes', 'Fees', 'Notices']], ['finance', ['Fees', 'Overview', 'Guardians']]]) {
+  for (const [role, sections] of [['admin', ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Staff']], ['teacher', ['Overview', 'Classes', 'Fees', 'Notices']], ['finance', ['Fees', 'Overview', 'Guardians']]]) {
     await session(browser, db, role, role === 'teacher' ? 390 : 1366, async page => {
       for (const name of sections) {
         await nav(page, name);

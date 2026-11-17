@@ -1,7 +1,7 @@
 # Google sign-in (free, about 20 minutes, once)
 
 Staff can sign in with their Google (Gmail) account instead of a password. Email + password keeps working.
-**Who gets in does not change:** only people the admin has added in Supabase can sign in (public sign-up is off), and their role still comes from `provision_staff.sql` / `provision_test_admin.sql`. The Google account's email must be the same email the admin added.
+**Who gets in does not change:** only people the admin has added in Supabase can sign in (public sign-up is off), and the admin still gives their role (in the app, **Staff** screen). The Google account's email must be the same email the admin added.
 
 This is an internal staff tool first; parents and students do not need logins for now.
 
@@ -19,7 +19,7 @@ This is an internal staff tool first; parents and students do not need logins fo
 
 ## 3. Add a staff member
 1. **Authentication → Users → Add user** with their **Gmail address** (auto-confirm). A password is optional if they will only use Google.
-2. Give them their role with `supabase/manual/provision_staff.sql` (teacher / finance) or `provision_test_admin.sql` (admin).
+2. In the app, as admin: **Staff** → **Refresh list** → **Give a role** (teacher, finance or admin).
 3. They open the app and press **Sign in with Google**. If their Google email was not added, the app says so instead of letting them in.
 
 Note: Supabase links the Google login to the existing user with the same confirmed email. If a sign-in is refused for an added user, check the email is identical and confirmed.

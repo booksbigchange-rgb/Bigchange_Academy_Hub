@@ -1,8 +1,11 @@
 # Next steps for the owner (in order)
 
-Updated 2026-11-17. The code for the internal staff version is finished and tested. What is left can only be done by the owner, in the Supabase and hosting dashboards. Files are on branch `main`: https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub
+Updated 2026-11-17 (Staff screen added). The code for the internal staff version is finished and tested. What is left can only be done by the owner, in the Supabase and hosting dashboards. Files are on branch `main`: https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub
 
 ## To do
+
+### 0. Run migration 0010 (about 2 minutes)
+Supabase → SQL Editor → paste `supabase/migrations/20261117_0010_staff_roles_in_app.sql` → **Run** → "Success". Then run `supabase/checks/verify_academy_readonly.sql`: still **17 tables, 46 policies**. It adds the admin's **Staff** screen. Safe to run twice. Until it is run, the Staff screen says it could not load; everything else works.
 
 ### 1. Put it online (about 15 minutes, free)
 Follow `docs/HOSTING.md` (Netlify, deploying from `main`), then set the new address in Supabase **Authentication → URL Configuration**. After this, staff can use the app from their own phones and computers.
@@ -11,7 +14,7 @@ Follow `docs/HOSTING.md` (Netlify, deploying from `main`), then set the new addr
 Follow `docs/GOOGLE_SIGNIN.md`. Staff then need no password, and nobody needs a password reset. Do this after step 1 so the hosted address can be entered.
 
 ### 3. Add the staff
-For each person: Supabase → **Authentication → Users → Add user** (their email, tick **Auto Confirm User**), then give the role with `supabase/manual/provision_staff.sql` (teacher or finance) or `provision_test_admin.sql` (a second admin). Use **Add user**, not **Invite user**: Supabase's built-in email does not deliver invitations to people outside your Supabase organization (see `docs/HOSTING.md`).
+For each person: Supabase → **Authentication → Users → Add user** (their email, tick **Auto Confirm User**), then give the role in the app: **Staff** → **Refresh list** → **Give a role** (teacher, finance or admin). This needs migration 0010 (step 0 below). Use **Add user**, not **Invite user**: Supabase's built-in email does not deliver invitations to people outside your Supabase organization (see `docs/HOSTING.md`).
 As admin in the app: **Classes** → set each class's **Teacher**.
 
 ### 4. Check the roles on the real project (your computer, test accounts)

@@ -38,8 +38,11 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - 2026-11-15, finish pass for the internal staff version. Re-ran everything: type-check, 132 unit tests, 150/150 database checks (17 tables, 46 policies), 101/101 browser checks incl. accessibility scan, and 76/76 browser checks on the production build served with the hosting security headers (no blocked content; demo build also loads cleanly). Fixed: Playwright (test tool only) updated to 1.63.0, `npm audit` back to 0; invitation screen no longer says "test"; README setup now clones `main` and lists migration 0009; hosting guide explains that Supabase's built-in email does not deliver invitations outside the organization (use Add user + Google sign-in); owner checklist rewritten (`docs/NEXT_STEPS.md`). No database change.
 
+- 2026-11-17, **Staff screen** for the admin (migration 0010): lists every confirmed login that is not a student or parent; **Give a role** (teacher, finance, admin) to new logins, **Change role**, **Switch off / Switch on** access. Switched-off staff lose every right in the database (not just in the app). Refused: changing your own role or access, student/parent logins, unconfirmed logins, moving a teacher who still has classes. Staff changes are audited; class teacher pickers offer only staff whose access is on. 183/183 database checks (33 new), 132 unit tests, 109/109 browser checks incl. accessibility scan of the new screen. **Owner must run migration 0010.**
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
+0. Run migration 0010 (Staff screen).
 1. Hosting (`docs/HOSTING.md`), then Google sign-in (`docs/GOOGLE_SIGNIN.md`).
 2. Add the staff logins and roles; `tests/live-project-check.mjs` with test logins.
 3. One manual run-through with fake names, including a phone, a Chromebook and a screen reader.
@@ -52,4 +55,4 @@ Known and not yet built:
 - With two verified parents, the period is stored on the parent linked to the child first, so reminders go to that parent. Both see it. Choosing a different paying parent is not built.
 - An old family-wide period that already counted a child is not detected when a per-child period is started for that child. Only matters for periods created before migration 0006 (test data).
 - Messages are still sent by staff from their own WhatsApp/email; no provider is connected.
-- Staff logins are created by hand in the Supabase dashboard; there is no in-app invite or "forgot password" (Google sign-in covers it; email invitations need an email service connected to Supabase).
+- A new login is still created in the Supabase dashboard (Add user); the role is then given in the app (Staff screen). There is no in-app invite or "forgot password" (Google sign-in covers it; email invitations need an email service connected to Supabase).

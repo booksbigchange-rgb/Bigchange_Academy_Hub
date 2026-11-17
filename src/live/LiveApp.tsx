@@ -11,15 +11,16 @@ import LiveOverview from './LiveOverview';
 import { NavIcon } from './icons';
 import { TI } from './ti.mjs';
 import LiveNotices from './LiveNotices';
+import LiveStaff from './LiveStaff';
 import { addMonths, daysUntil, endingText, formatDate, nextLevelPlan, todayIso } from './fees.mjs';
 import LiveFamily, { LivePayments } from './LiveFamily';
 import { ATTENDANCE_STATUSES, GRADE_LEVELS, studentHistory, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
 
-type Section = 'Overview' | 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees' | 'My children' | 'My classes' | 'Payments' | 'Notices';
+type Section = 'Overview' | 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees' | 'My children' | 'My classes' | 'Payments' | 'Notices' | 'Staff';
 
 export default function LiveApp({ client, role, email, onSignOut }: { client: SupabaseClient; role: Role; email: string; onSignOut: () => void }) {
   const isAdmin = role === 'admin';
-  const sections: Section[] = isAdmin ? ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Notices']
+  const sections: Section[] = isAdmin ? ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Notices', 'Staff']
     : role === 'teacher' ? ['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']
     : role === 'finance' ? ['Fees', 'Overview', 'Guardians', 'Students']
     : role === 'guardian' ? ['My children', 'Payments'] : role === 'learner' ? ['My classes'] : [];
@@ -81,6 +82,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
           {section === 'Classes' && <Classes data={data} client={client} isAdmin={isAdmin} canEditLevels={isAdmin || role === 'teacher'} reload={reload} />}
           {section === 'Attendance' && <Attendance data={data} client={client} reload={reload} />}
           {section === 'Guardians' && <LiveGuardians data={data} client={client} role={role} reload={reload} />}
+          {section === 'Staff' && isAdmin && <LiveStaff client={client} email={email} reload={reload} />}
           {section === 'Fees' && <LiveFees data={data} client={client} role={role} reload={reload} />}
         </>}
       </main>
@@ -211,7 +213,11 @@ function Classes({ data, client, isAdmin, canEditLevels, reload }: PanelProps & 
   const [newTitle, setNewTitle] = useState('');
   const course = (id: string) => data.courses.find(c => c.id === id)?.title ?? '—';
   const teacher = (id: string | null) => id ? (data.staff.find(s => s.id === id)?.display_name ?? 'Assigned teacher') : 'Unassigned';
-  const teachers = data.staff.filter(s => s.role === 'teacher');
+  const teachers = data.staff.filter(s => s.role === 'teacher' && s.active !== false);
+  const teacherOptions = (current: string | null) => {
+    const off = data.staff.find(s => s.id === current && s.active === false);
+    return off ? [...teachers, { ...off, display_name: (off.display_name ?? 'Teacher') + ' (access off)' }] : teachers;
+  };
   const open = data.classes.find(c => c.id === openId);
   const roster = useMemo(() => data.enrollments.filter(e => e.class_id === openId)
     .map(e => data.learners.find(l => l.id === e.learner_id)).filter((l): l is Learner => Boolean(l)), [data, openId]);
@@ -241,7 +247,7 @@ function Classes({ data, client, isAdmin, canEditLevels, reload }: PanelProps & 
       <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Class</th><th>Course</th><th>Teacher</th><th>Current level</th><th>Students</th><th>Roster</th></tr></thead><tbody>
         {data.classes.map(c => <tr key={c.id}><td>{c.title}</td><td>{course(c.course_id)}</td><td>{isAdmin ? <select aria-label={'Teacher for ' + c.title} value={c.teacher_staff_id ?? ''} disabled={busy}
             onChange={e => void run(() => setClassTeacher(client, c.id, e.target.value), 'Teacher updated.')}><option value="">Unassigned</option>
-            {teachers.map(t => <option key={t.id} value={t.id}>{t.display_name ?? 'Unnamed teacher'}</option>)}</select> : teacher(c.teacher_staff_id)}</td>
+            {teacherOptions(c.teacher_staff_id).map(t => <option key={t.id} value={t.id}>{t.display_name ?? 'Unnamed teacher'}</option>)}</select> : teacher(c.teacher_staff_id)}</td>
           <td>{c.level_start && c.level_end ? <>{formatDate(c.level_start)} – {formatDate(c.level_end)}
             {daysUntil(c.level_end) <= 14 && <><br /><span className={'tag ' + (daysUntil(c.level_end) < 0 ? 'red' : 'amber')}>{endingText(daysUntil(c.level_end))}</span></>}</> : <span className="quiet">Dates not set</span>}</td>
           <td>{data.enrollments.filter(e => e.class_id === c.id).length}</td>

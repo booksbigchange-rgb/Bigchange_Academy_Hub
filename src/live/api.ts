@@ -4,7 +4,7 @@ import { validateClass, validateCourse, validateGuardian, validateLearner, valid
 
 export type Learner = { id: string; display_name: string; active: boolean; grade_level: string | null; note: string | null };
 export type Course = { id: string; title: string; description: string | null };
-export type Staff = { id: string; role: 'admin' | 'teacher' | 'finance'; display_name: string | null };
+export type Staff = { id: string; role: 'admin' | 'teacher' | 'finance'; display_name: string | null; active: boolean };
 export type ClassRow = { id: string; title: string; course_id: string; teacher_staff_id: string | null; level_start: string | null; level_end: string | null };
 export type Enrollment = { class_id: string; learner_id: string };
 
@@ -34,7 +34,7 @@ export const listLearners = (c: SupabaseClient) =>
 export const listCourses = (c: SupabaseClient) =>
   pages<Course>(() => c.from('academy_courses').select('id,title,description').order('title').order('id'), 'load courses');
 export const listStaff = (c: SupabaseClient) =>
-  pages<Staff>(() => c.from('academy_staff').select('id,role,display_name').order('display_name').order('id'), 'load staff');
+  pages<Staff>(() => c.from('academy_staff').select('id,role,display_name,active').order('display_name').order('id'), 'load staff');
 export const listClasses = (c: SupabaseClient) =>
   pages<ClassRow>(() => c.from('academy_classes').select('id,title,course_id,teacher_staff_id,level_start,level_end').order('title').order('id'), 'load classes');
 export const listEnrollments = (c: SupabaseClient) =>
@@ -157,7 +157,7 @@ export async function verifyLink(c: SupabaseClient, learnerId: string, guardianI
   if (!data?.length) throw Error('You are not allowed to verify this guardian');
 }
 /** Messages raised deliberately by the database workflow rules are safe to show. */
-const WORKFLOW = /^(Not allowed|Enter|Choose|Class not found|The level must|A level can|The payment|Note|This parent|This child|Only an administrator can change|Add a phone|Add an email|Parent not found|Unknown reminder|Check only|Approve only|Only finance|Only an administrator|Payment period|Period details)/;
+const WORKFLOW = /^(Not allowed|Enter|Choose|Class not found|The level must|A level can|The payment|Note|This parent|This child|Only an administrator can change|Add a phone|Add an email|Parent not found|Unknown reminder|Check only|Approve only|Only finance|Only an administrator|Payment period|Period details|You cannot|Login not found|This login|This teacher still|Staff member not found)/;
 function workflowFail(error: { message: string; code?: string }, action: string): never {
   if (error.code === '42501') throw Error('You are not allowed to ' + action);
   if (WORKFLOW.test(error.message)) throw Error(error.message);
@@ -275,4 +275,27 @@ export async function updatePaymentMethod(c: SupabaseClient, code: string, patch
   const { data, error } = await c.from('academy_payment_methods').update(patch).eq('code', code).select('code');
   if (error) fail(error, 'change the payment method');
   if (!data?.length) throw Error('You are not allowed to change payment methods');
+}
+
+/** One login in the admin's staff list. staff_id is null while the login is waiting for a role. */
+export type StaffMember = { user_id: string; email: string; staff_id: string | null; display_name: string | null;
+  role: 'admin' | 'teacher' | 'finance' | null; active: boolean; class_count: number; last_sign_in_at: string | null };
+/** Admin only: every confirmed login that is not a student or parent, with its role and access. */
+export async function staffDirectory(c: SupabaseClient): Promise<StaffMember[]> {
+  const { data, error } = await c.rpc('academy_staff_directory');
+  if (error) workflowFail(error, 'load the staff list');
+  return (data as StaffMember[] | null) ?? [];
+}
+/** Admin only: give or change a role (also switches access on). */
+export async function setStaffRole(c: SupabaseClient, userId: string, role: string, name: string) {
+  const clean = name.trim();
+  if (!['admin', 'teacher', 'finance'].includes(role)) throw Error('Choose teacher, finance or admin');
+  if (clean.length < 2 || clean.length > 80) throw Error('Enter the person\'s name (2 to 80 characters)');
+  const { error } = await c.rpc('academy_set_staff_role', { p_user: userId, p_role: role, p_name: clean });
+  if (error) workflowFail(error, 'change the role');
+}
+/** Admin only: switch a staff member's access off or on again. */
+export async function setStaffActive(c: SupabaseClient, staffId: string, active: boolean) {
+  const { error } = await c.rpc('academy_set_staff_active', { p_staff: staffId, p_active: active });
+  if (error) workflowFail(error, active ? 'switch access on' : 'switch access off');
 }

@@ -33,8 +33,14 @@ export const listLearners = (c: SupabaseClient) =>
   pages<Learner>(() => c.from('academy_learners').select('id,display_name,active,grade_level,note').order('display_name').order('id'), 'load students');
 export const listCourses = (c: SupabaseClient) =>
   pages<Course>(() => c.from('academy_courses').select('id,title,description').order('title').order('id'), 'load courses');
-export const listStaff = (c: SupabaseClient) =>
-  pages<Staff>(() => c.from('academy_staff').select('id,role,display_name,active').order('display_name').order('id'), 'load staff');
+/** Before migration 0010 the `active` column does not exist; then everyone counts as active, so the rest of the app keeps working. */
+export async function listStaff(c: SupabaseClient): Promise<Staff[]> {
+  try { return await pages<Staff>(() => c.from('academy_staff').select('id,role,display_name,active').order('display_name').order('id'), 'load staff'); }
+  catch {
+    const rows = await pages<Omit<Staff, 'active'>>(() => c.from('academy_staff').select('id,role,display_name').order('display_name').order('id'), 'load staff');
+    return rows.map(r => ({ ...r, active: true }));
+  }
+}
 export const listClasses = (c: SupabaseClient) =>
   pages<ClassRow>(() => c.from('academy_classes').select('id,title,course_id,teacher_staff_id,level_start,level_end').order('title').order('id'), 'load classes');
 export const listEnrollments = (c: SupabaseClient) =>
@@ -283,6 +289,7 @@ export type StaffMember = { user_id: string; email: string; staff_id: string | n
 /** Admin only: every confirmed login that is not a student or parent, with its role and access. */
 export async function staffDirectory(c: SupabaseClient): Promise<StaffMember[]> {
   const { data, error } = await c.rpc('academy_staff_directory');
+  if (error?.code === 'PGRST202') throw Error('The Staff screen needs database update 0010. Run supabase/migrations/20261117_0010_staff_roles_in_app.sql in Supabase (see docs/NEXT_STEPS.md).');
   if (error) workflowFail(error, 'load the staff list');
   return (data as StaffMember[] | null) ?? [];
 }

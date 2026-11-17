@@ -92,6 +92,7 @@ async function install(page, db, role) {
         if (a.p_channel === 'whatsapp' && !g.whatsapp_opt_in) return json({ message: 'This parent has not agreed to WhatsApp messages' }, 400);
         (db.academy_reminder_events ??= []).push({ id: uid(seq++), period_id: p.id, sent_at: new Date().toISOString() }); return json(new Date().toISOString());
       }
+      if (db.before0010 && fn.startsWith('academy_s') && fn.includes('staff')) return json({ code: 'PGRST202', message: 'Could not find the function public.' + fn }, 404);
       if (fn === 'academy_staff_directory') return json(db.auth_users.map(u => { const st = db.academy_staff.find(x => x.auth_user_id === u.id);
         return { user_id: u.id, email: u.email, staff_id: st?.id ?? null, display_name: st?.display_name ?? null, role: st?.role ?? null, active: Boolean(st?.active),
           class_count: st ? db.academy_classes.filter(c => c.teacher_staff_id === st.id).length : 0, last_sign_in_at: null }; }));
@@ -111,6 +112,8 @@ async function install(page, db, role) {
       const rows = db[store] ?? (db[store] = []);
       const single = (req.headers()['accept'] || '').includes('vnd.pgrst.object');
       if (method === 'GET') {
+        if (db.before0010 && table === 'academy_staff' && (url.searchParams.get('select') || '').includes('active'))
+          return json({ code: '42703', message: 'column academy_staff.active does not exist' }, 400);
         let out = filterRows(rows, url.searchParams);
         if (table === 'academy_guardians' && role === 'guardian') out = out.filter(g => g.auth_user_id === user.id);
         if (table === 'academy_staff' || table === 'academy_learners' || table === 'academy_guardians') {
@@ -344,6 +347,15 @@ await session(browser, db, 'admin', 1366, async page => {
   await staffTable.getByRole('row', { name: /New Teacher/ }).getByRole('button', { name: 'Switch on' }).click();
   await page.getByText(/Access switched on for New Teacher/).waitFor();
   check('admin switches the teacher on again', await seen(staffTable.getByRole('row', { name: /New Teacher/ }).locator('.tag.green', { hasText: 'On' })));
+});
+
+// Before the owner runs migration 0010: the admin's app must still load; only the Staff screen explains what is missing.
+await session(browser, { ...freshDb(), before0010: true }, 'admin', 1366, async page => {
+  check('before migration 0010 the admin app still loads', await seen(page.getByRole('heading', { name: 'Welcome back' })));
+  await nav(page, 'Classes');
+  check('  and other screens work', await seen(page.getByRole('button', { name: '+ Create class' })));
+  await nav(page, 'Staff');
+  check('  and the Staff screen says update 0010 is needed', await seen(page.getByText(/needs database update 0010/)));
 });
 
 // An ended, unpaid period so reminders appear (the parent has not yet agreed to WhatsApp).

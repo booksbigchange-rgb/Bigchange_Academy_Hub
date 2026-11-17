@@ -40,12 +40,13 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
-1. Run migration 0009 (if not done yet).
-2. Hosting (`docs/HOSTING.md`), then Google sign-in (`docs/GOOGLE_SIGNIN.md`).
-3. Add the staff logins and roles; `tests/live-project-check.mjs` with test logins.
-4. One manual run-through with fake names, including a phone, a Chromebook and a screen reader.
-5. Weekly backup and a second admin (`docs/BACKUPS.md`).
-6. Privacy and safeguarding checklist before any real family data.
+1. Hosting (`docs/HOSTING.md`), then Google sign-in (`docs/GOOGLE_SIGNIN.md`).
+2. Add the staff logins and roles; `tests/live-project-check.mjs` with test logins.
+3. One manual run-through with fake names, including a phone, a Chromebook and a screen reader.
+4. Weekly backup and a second admin (`docs/BACKUPS.md`).
+5. Privacy and safeguarding checklist before any real family data.
+
+Migration 0009 is on the real project (confirmed 2026-11-17 with a signed-out check).
 
 Known and not yet built:
 - With two verified parents, the period is stored on the parent linked to the child first, so reminders go to that parent. Both see it. Choosing a different paying parent is not built.

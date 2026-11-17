@@ -1,56 +1,45 @@
 # Next steps for the owner (in order)
 
-Files are on branch `main`: https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub
+Updated 2026-11-15. The code for the internal staff version is finished and tested. What is left can only be done by the owner, in the Supabase and hosting dashboards. Files are on branch `main`: https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub
 
-## 0. Sign-in settings — done
-Verified on 2026-11-08: email sign-in ON, public sign-up OFF.
+## To do
 
-## 1. Privacy fix — done
-Owner ran migration 0004 on 2026-11-08 (confirmed when a teacher sees "Parent (waiting for verification)" for a pending parent).
+### 1. Run migration 0009 (about 2 minutes)
+Supabase → SQL Editor → paste `supabase/migrations/20261113_0009_payment_methods_and_amounts.sql` → **Run** → "Success". Then run `supabase/checks/verify_academy_readonly.sql`: expect **17 tables, 46 policies**.
+Without it, staff screens cannot load (the app expects the payment-methods table). Skip if you already ran it (the check shows 17 tables). It is safe to run twice.
 
-## 1b. Migrations 0005, 0006 and 0007 (your decisions) — done (confirmed live 2026-11-11)
-SQL Editor → run, in order, `supabase/migrations/20261109_0005_reminders_and_grace.sql`, `supabase/migrations/20261110_0006_child_periods_and_amounts.sql`, `supabase/migrations/20261111_0007_class_level_dates.sql` → each "Success". Then the verify script should show 16 tables and 43 policies.
+### 2. Put it online (about 15 minutes, free)
+Follow `docs/HOSTING.md` (Netlify, deploying from `main`), then set the new address in Supabase **Authentication → URL Configuration**. After this, staff can use the app from their own phones and computers.
 
-## 1c. Migration 0008 (review fixes) — done (owner ran it on 2026-11-10, "Success")
-SQL Editor → run `supabase/migrations/20261112_0008_local_dates_and_parents.sql` → "Success". It makes "today" the date in Israel, where the admin works (no more refused payments just after midnight), retires family-wide periods (every new period belongs to one child), lets both verified parents of a child see that child's payments, and bills the parent who was linked to the child first. The verify script still shows 16 tables and 43 policies.
+### 3. Google sign-in for staff (about 20 minutes, free, recommended)
+Follow `docs/GOOGLE_SIGNIN.md`. Staff then need no password, and nobody needs a password reset. Do this after step 2 so the hosted address can be entered.
 
-## 1d. Migration 0009 (payment methods and amounts)
-SQL Editor → run `supabase/migrations/20261113_0009_payment_methods_and_amounts.sql` → "Success". Verify: 17 tables, 46 policies.
+### 4. Add the staff
+For each person: Supabase → **Authentication → Users → Add user** (their email, tick **Auto Confirm User**), then give the role with `supabase/manual/provision_staff.sql` (teacher or finance) or `provision_test_admin.sql` (a second admin). Use **Add user**, not **Invite user**: Supabase's built-in email does not deliver invitations to people outside your Supabase organization (see `docs/HOSTING.md`).
+As admin in the app: **Classes** → set each class's **Teacher**.
 
-## 1e. Google sign-in (optional, free)
-Follow `docs/GOOGLE_SIGNIN.md`.
-
-## 2. Teacher test account
-1. SQL Editor: `select email, email_confirmed_at from auth.users order by created_at desc;` — find the teacher's exact email.
-2. If missing: Authentication → Users → Add user → Create new user, tick **Auto Confirm User**.
-3. Run the one-step teacher script (sets password, confirms, gives the teacher role) with that exact email; delete the query afterwards (it contains the password).
-4. As admin: **Classes** → set the class **Teacher**; make sure a student is enrolled.
-
-## 3. Role check on the real project (your computer)
+### 5. Check the roles on the real project (your computer, test accounts)
 In `D:\Codex\Academy_Hub_Live`: `git pull`, then
 ```
 set ADMIN_EMAIL=...&& set ADMIN_PASSWORD=...
 set TEACHER_EMAIL=...&& set TEACHER_PASSWORD=...
 node tests/live-project-check.mjs
 ```
-Send any FAIL lines. Close the window afterwards.
+Every line should say PASS. Send any FAIL lines. Close the window afterwards.
 
-## 4. Manual run-through (fake names)
-Admin: course → student **with parent** → class with teacher → enroll → Fees: start period.
-Teacher (private window): Fees → Report payment; Attendance → mark a lesson.
-Finance: Check. Admin: Approve → everyone sees **Paid**.
+### 6. One run-through with fake names
+Admin: course → student **with parent** → class with teacher → enroll → Fees: start the child's 3 months.
+Teacher (private window, and once on a phone): Fees → Report payment; Attendance → mark a lesson; Notices → write a notice.
+Finance: Check → Download payments (CSV). Admin: Approve → everyone sees **Paid**.
 
-## 5. Put it online (optional, needs a free hosting account)
-Follow `docs/HOSTING.md` (Netlify or Cloudflare Pages), then set Supabase **URL Configuration** to the new address. Invitations then work.
+### 7. Weekly backup and a second admin
+Follow `docs/BACKUPS.md`. Choose who makes the weekly copy.
 
-## 6. Merge into main
-Done on 2026-11-10: pull request #19 merged, drafts #1–#18 closed. Everything is on `main`.
+### 8. Before real families' data goes in
+Complete `docs/PRIVACY_LEGAL_RELEASE_CHECKLIST.md`. Until then, test data only. This is the owner's decision with legal advice; the app shows a reminder on every screen until then.
 
-## 7. Decisions
-All five answered and built (see `docs/DECISIONS.md`).
-
-## 7b. Weekly backup and second admin
-Follow `docs/BACKUPS.md`.
-
-## 8. Before real families
-Complete `docs/PRIVACY_LEGAL_RELEASE_CHECKLIST.md`. Until then, test data only.
+## Done
+- Sign-in settings: email sign-in ON, public sign-up OFF (verified 2026-11-08).
+- Migrations 0001–0008 run on the real project (0008 on 2026-11-10).
+- Everything merged into `main` (pull requests #19–#23); CI green.
+- The five owner decisions answered and built (`docs/DECISIONS.md`).

@@ -148,11 +148,11 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
       {state === 'checking' ? <><h1>Verifying your account</h1><p>Checking your identity and approved Academy membership.</p></> :
         state === 'set-password' ? <>
           <h1>Complete your invitation</h1>
-          <p>Set a password for the verified invitation account. This is a test-only setup.</p>
+          <p>Choose a password for your Academy account. You will use it with your email address to sign in.</p>
           <form className="auth-form" onSubmit={finishInvite}>
             <label>New password (12+ characters)<input type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)} /></label>
             <label>Confirm password<input type="password" autoComplete="new-password" minLength={12} required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></label>
-            <button className="primary-btn" type="submit" disabled={working}>{working ? 'Saving…' : 'Set test password'}</button>
+            <button className="primary-btn" type="submit" disabled={working}>{working ? 'Saving…' : 'Set password'}</button>
           </form>
           <p role="status" aria-live="polite" className="auth-feedback">{message}</p>
           <button className="text-btn" type="button" onClick={() => void signOut()} disabled={working}>Sign out</button>
@@ -171,7 +171,6 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
           <h1>Account verified</h1>
           <p>Signed in as <strong>{userEmail}</strong>.</p>
           <p>Approved Academy identity: <span className="auth-role">{role}</span>.</p>
-          <p className="auth-restricted">Secure foundation only: all real student profiles, attendance, fees, grades and messages remain disabled until permissions and safeguarding tests pass.</p>
           <button className="small-btn" onClick={() => void signOut()} disabled={working}>Sign out</button>
         </> : <>
           <h1>{state === 'not-enrolled' ? 'Awaiting Academy approval' : 'Unable to verify account'}</h1>

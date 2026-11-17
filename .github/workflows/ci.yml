@@ -1,7 +1,7 @@
 name: CI — Student Hub
 on:
   push:
-    branches: [main, "feature/**", "ccr-**"]
+    branches: [main, "feature/**", "ccr-**", "claude/**"]
   pull_request:
     branches: [main]
 permissions:
@@ -36,7 +36,7 @@ jobs:
       - name: Database access-rule tests on a throwaway PostgreSQL
         run: bash tests/sql/run_local.sh
   browser:
-    # Pinned: Playwright 1.55 does not support Chromium on ubuntu-latest (26.04) yet.
+    # Pinned to a release Playwright's Chromium is known to install on.
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

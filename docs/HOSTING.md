@@ -22,7 +22,9 @@ Security headers (`public/_headers`) are published with the app: a strict Conten
    - **Site URL** = your new address, e.g. `https://bigchange-academy.netlify.app`
    - **Redirect URLs:** add the same address (and `http://127.0.0.1:5173` if you still test locally).
 2. **Authentication → Sign In / Providers:** make sure **Allow new users to sign up** is **off**.
-3. Now invitations work: **Authentication → Users → Invite user**. The person opens the email, lands on "Complete your invitation", and sets their own password. Then give them a role with `supabase/manual/provision_staff.sql` (staff) or `link_login.sql` (parents/students).
+3. Add each staff member: **Authentication → Users → Add user** with their email, tick **Auto Confirm User**, then give them a role with `supabase/manual/provision_staff.sql`. They sign in with **Sign in with Google** (see `docs/GOOGLE_SIGNIN.md`) or with the password you gave them.
+
+   **About "Invite user":** Supabase's built-in email only delivers to people who are members of your Supabase organization, a few messages an hour. An invitation to anyone else fails with "Email address not authorized". Invitations (the person sets their own password on "Complete your invitation") work for everyone only after you connect an email service (custom SMTP) in Supabase's Authentication settings. Until then use the step above.
 
 ## Before real families use it
 Complete `docs/PRIVACY_LEGAL_RELEASE_CHECKLIST.md`. Until then, keep using test data.

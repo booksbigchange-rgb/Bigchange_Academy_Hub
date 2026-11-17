@@ -111,3 +111,18 @@ export function endingText(daysLeft) {
   if (daysLeft === 0) return 'Ends today';
   return `Ended ${-daysLeft} day${daysLeft === -1 ? '' : 's'} ago (break week)`;
 }
+
+/**
+ * CSV for Google Sheets / Excel. Every cell is quoted; cells that a spreadsheet would run as a formula
+ * (starting with = + - @ or a tab) get a leading apostrophe so they are shown as text.
+ * @param {string[]} header
+ * @param {Array<Array<string | number | null | undefined>>} rows
+ */
+export function toCsv(header, rows) {
+  const cell = v => {
+    let s = v === null || v === undefined ? '' : String(v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return '"' + s.replace(/"/g, '""') + '"';
+  };
+  return '﻿' + [header, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
+}

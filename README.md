@@ -4,7 +4,7 @@ Internal school management web app for BigChange Academy staff (admin, teachers,
 
 It is an independent React + TypeScript + Vite app backed by Supabase (Postgres + Auth). It is **not a fork** of Globussoft School MIS; no code or assets were copied from it.
 
-> **Use test data only** until the privacy and safeguarding checklist ([docs/PRIVACY_LEGAL_RELEASE_CHECKLIST.md](docs/PRIVACY_LEGAL_RELEASE_CHECKLIST.md)) is complete. The app records payment *status*; it never takes money and never sends messages.
+> **Use test data only** until the privacy and safeguarding checklist ([docs/PRIVACY_LEGAL_RELEASE_CHECKLIST.md](docs/PRIVACY_LEGAL_RELEASE_CHECKLIST.md)) is complete. The app records payment *status*; it never takes money and never sends messages by itself (staff send from their own WhatsApp or email).
 
 ## Two modes
 
@@ -19,7 +19,7 @@ It is an independent React + TypeScript + Vite app backed by Supabase (Postgres 
 |---|---|
 | Admin | Overview · Students (add, search, edit, deactivate, attendance history) · Guardians (parent directory, add, verify) · Courses (add, edit) · Classes (create, rename, assign teacher, roster, enroll/remove) · Attendance · Fees (start periods, report, check, **approve**) |
 | Teacher | Overview · their students and their attendance history · Guardians (add for their students) · their classes · Attendance (their classes) · Parent payments (**report** a payment) |
-| Finance | Fees (start periods, report, **check**, copy reminders) · Overview · Guardians · Students |
+| Finance | Fees (start periods, report, **check**, reminders, **download payments as CSV** for Google Sheets) · Overview · Guardians · Students |
 | Parent | Their verified children's classes and attendance · their payments |
 | Student | Their classes and attendance |
 
@@ -43,7 +43,7 @@ The database enforces all of this with Row Level Security (RLS); hiding a button
 
 ### 2. Get the code
 ```
-git clone -b ccr-7b420966-pk4uiw https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub.git Academy_Hub_Live
+git clone https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub.git Academy_Hub_Live
 cd Academy_Hub_Live
 npm ci
 ```
@@ -61,7 +61,8 @@ Use a **dedicated** Supabase project for the Academy. In the project: **SQL Edit
 7. [`supabase/migrations/20261110_0006_child_periods_and_amounts.sql`](supabase/migrations/20261110_0006_child_periods_and_amounts.sql) — each child's own 3 months, admin can change an amount (with a reason), email reminders.
 8. [`supabase/migrations/20261111_0007_class_level_dates.sql`](supabase/migrations/20261111_0007_class_level_dates.sql) — each class's level start and end dates, reminders before a level ends, move a class to its next level.
 9. [`supabase/migrations/20261112_0008_local_dates_and_parents.sql`](supabase/migrations/20261112_0008_local_dates_and_parents.sql) — dates follow Israel time (where the admin works), family-wide periods retired, both verified parents see their child's payments.
-10. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 17 tables, 0 missing RLS, 0 missing force RLS, 46 policies, 0 tables without policy, 0 anon/public policies.
+10. [`supabase/migrations/20261113_0009_payment_methods_and_amounts.sql`](supabase/migrations/20261113_0009_payment_methods_and_amounts.sql) — the school's own payment methods (the admin can add, rename or switch them off) and an optional amount on each payment report.
+11. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 17 tables, 0 missing RLS, 0 missing force RLS, 46 policies, 0 tables without policy, 0 anon/public policies.
 
 Each migration is safe to run again. Do **not** run `supabase/policies/academy_profile_access.sql` (superseded by 0002).
 
@@ -122,8 +123,9 @@ npm test            # unit tests (node --test)
 npm run build       # production build
 npm run test:e2e    # browser test of every role against a fake database, with accessibility scan
                     # (first time: npx playwright install chromium)
+bash tests/sql/run_local.sh   # database access rules on a throwaway PostgreSQL 16 (never the real project)
 ```
-The live screens have a browser smoke test against a fake in-memory Supabase (admin, teacher and finance flows, phone-width layout): see the header of [`tests/e2e/live-smoke.mjs`](tests/e2e/live-smoke.mjs); set `AXE_PATH` to an `axe.min.js` to add an accessibility scan of every screen. Database access rules have their own test against a throwaway PostgreSQL (needs PostgreSQL 16 locally; never point it at the real project): see the header of [`tests/sql/run_rls_tests.sh`](tests/sql/run_rls_tests.sh).
+The browser test ([`tests/e2e/live-smoke.mjs`](tests/e2e/live-smoke.mjs)) drives every role's screens against a fake in-memory Supabase, at desktop and phone width, with an axe accessibility scan of every screen. The database test applies every migration to a throwaway PostgreSQL and checks who may see and do what ([`tests/sql/run_rls_tests.sh`](tests/sql/run_rls_tests.sh)).
 
 | Path | What |
 |---|---|
@@ -134,7 +136,7 @@ The live screens have a browser smoke test against a fake in-memory Supabase (ad
 | `supabase/manual/` | One-off admin scripts (copy to a private tab) |
 | `docs/` | Access rules, progress log, privacy checklist, milestone notes |
 
-GitHub Actions (`.github/workflows/`) type-checks, tests and builds on every push.
+GitHub Actions (`.github/workflows/ci.yml`) runs all of the above on every push and pull request.
 
 ## Google sign-in
 Staff can sign in with their Google account (free; one-time setup in Google Cloud and Supabase): see [docs/GOOGLE_SIGNIN.md](docs/GOOGLE_SIGNIN.md). Only people the admin added can get in.
@@ -143,9 +145,9 @@ Staff can sign in with their Google account (free; one-time setup in Google Clou
 So teachers can use it from their own devices and invitations work, host it (free plans exist on Netlify and Cloudflare Pages): see [docs/HOSTING.md](docs/HOSTING.md). Security headers ship in `public/_headers`.
 
 ## Known limits
-- No automatic email/WhatsApp: needs a provider and recorded parent consent. Fees has a **Copy reminder** button instead.
-- Staff, parent and student logins are created in the Supabase dashboard (above), not inside the app; once hosted, use Supabase **Invite user** so people set their own password.
+- No automatic email/WhatsApp: the app writes the message and opens WhatsApp or the email app; a staff member presses send.
+- Staff, parent and student logins are created in the Supabase dashboard (above), not inside the app. There is no "forgot password" link: staff use Google sign-in, or the admin resets the password (step 4).
 - The free Supabase plan pauses inactive projects; restore from the dashboard.
 - Manual testing on Chromebooks, phones and screen readers has not been done yet.
 
-Weekly backup and a second admin: [docs/BACKUPS.md](docs/BACKUPS.md). Progress and open items: [docs/PROGRESS.md](docs/PROGRESS.md). Owner to-do list: [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md). Latest audit: [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md). Open questions for the owner: [docs/DECISIONS.md](docs/DECISIONS.md). Merging into `main`: [docs/MERGE_PLAN.md](docs/MERGE_PLAN.md).
+Weekly backup and a second admin: [docs/BACKUPS.md](docs/BACKUPS.md). Progress and open items: [docs/PROGRESS.md](docs/PROGRESS.md). Owner to-do list: [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md). Latest audit: [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md). Open questions for the owner: [docs/DECISIONS.md](docs/DECISIONS.md).

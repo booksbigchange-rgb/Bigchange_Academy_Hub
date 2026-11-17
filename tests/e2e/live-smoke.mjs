@@ -2,8 +2,7 @@
 // It checks that each role's screens render, the main buttons perform real calls, and nothing overflows on a phone.
 // Database rules are tested separately in tests/sql/run_rls_tests.sh; this test only exercises the UI wiring.
 //
-// Usage (Playwright is not a project dependency):
-//   npm i --no-save playwright            (or install it anywhere and set NODE_PATH)
+// Usage: npm run test:e2e   (starts the app, runs this file with the accessibility scan, stops the app). By hand:
 //   VITE_ACADEMY_SUPABASE_URL=https://smoketest.supabase.co VITE_ACADEMY_SUPABASE_PUBLISHABLE_KEY=sb_publishable_smoketest npx vite --port 5199 &
 //   node tests/e2e/live-smoke.mjs [http://127.0.0.1:5199] [chromium executable path]
 import { chromium } from 'playwright';
@@ -351,6 +350,10 @@ await session(browser, db, 'teacher', 390, async page => {
 await session(browser, db, 'finance', 390, async page => {
   check('finance lands on Fees', await seen(page.getByRole('heading', { name: 'Parent payment periods' })));
   check('finance has no Approve button', (await page.getByRole('button', { name: /^Approve/ }).count()) === 0);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download payments (CSV)' }).click()]);
+  const csvText = await (await import('node:fs')).promises.readFile(await download.path(), 'utf8');
+  check('finance downloads payments as CSV for Google Sheets', /^bigchange-payments-\d{4}-\d{2}-\d{2}\.csv$/.test(download.suggestedFilename())
+    && csvText.includes('"Child","Parent","Parent phone"') && csvText.includes("'+251911000000"), download.suggestedFilename());
   check('finance sees the parents-to-remind list', await seen(page.getByRole('heading', { name: /Parents to remind \(\d+\)/ })));
   check('finance list shows the WhatsApp button and last reminder', await seen(page.getByLabel('Parents to remind').getByRole('link', { name: 'Send on WhatsApp' })) && await seen(page.getByLabel('Parents to remind').getByText(/^Reminded /)));
   check('finance can copy numbers for a broadcast list', await seen(page.getByRole('button', { name: /Copy WhatsApp numbers \(1\)/ })));

@@ -19,11 +19,15 @@ It is an independent React + TypeScript + Vite app backed by Supabase (Postgres 
 |---|---|
 | Admin | Staff (give roles, switch access off/on) · Overview · Students (add, **import from a spreadsheet**, search, edit, deactivate, attendance history) · Guardians (parent directory, add, verify) · Courses (add, edit) · Classes (create, rename, assign teacher, roster, enroll/remove) · Attendance · Fees (start periods, report, check, **approve**) |
 | Teacher | Overview · their students and their attendance history · Guardians (add for their students) · their classes · Attendance (their classes) · Parent payments (**report** a payment) |
-| Finance | Fees (start periods, report, **check**, reminders, **download payments as CSV** for Google Sheets) · Overview · Guardians · Students |
+| Finance | Fees (**needs the next 3 months** list, start periods, report, **check**, reminders, **download payments as CSV** for Google Sheets) · Overview · Guardians · Students |
 | Parent | Their verified children's classes and attendance · their payments |
 | Student | Their classes and attendance |
 
 **Reminders:** once a family's 3 months have ended unpaid, teachers (for their own students' parents) and finance get a **Send on WhatsApp** button that opens WhatsApp with the reminder written; staff press send. Only parents who agreed to WhatsApp get the button; the date of every reminder is recorded. Finance also gets a list of everyone to remind, can copy the numbers for a WhatsApp broadcast list, and can email everyone who agreed to email in one go (opens their own email app with parents in BCC; free).
+
+**Next 3 months:** Fees lists every enrolled child whose 3 months have ended or end within 14 days, and every enrolled child who never had a period, with **Start next 3 months** (starts on the day the last ones ended, so no days are lost).
+
+**Downloads (CSV, for Google Sheets or Excel):** payments (Fees, finance/admin) and attendance (Attendance: one class or all, optional dates; teachers get their own classes).
 
 **Level dates:** each class stores its current level's start and end (3 months by default; change it for 6-month computer stages). The Overview lists **levels ending soon** (within 14 days, or in the break week) with a **Write notice to parents** button, and **Move to next level** renames the class ("English – Level 2" → "Level 3", "Canva" → "Wix") with new dates after the one-week break; the same students stay enrolled.
 

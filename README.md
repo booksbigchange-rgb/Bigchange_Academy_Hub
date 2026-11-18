@@ -17,7 +17,7 @@ It is an independent React + TypeScript + Vite app backed by Supabase (Postgres 
 
 | Role | Screens |
 |---|---|
-| Admin | Staff (give roles, switch access off/on) · Overview · Students (add, search, edit, deactivate, attendance history) · Guardians (parent directory, add, verify) · Courses (add, edit) · Classes (create, rename, assign teacher, roster, enroll/remove) · Attendance · Fees (start periods, report, check, **approve**) |
+| Admin | Staff (give roles, switch access off/on) · Overview · Students (add, **import from a spreadsheet**, search, edit, deactivate, attendance history) · Guardians (parent directory, add, verify) · Courses (add, edit) · Classes (create, rename, assign teacher, roster, enroll/remove) · Attendance · Fees (start periods, report, check, **approve**) |
 | Teacher | Overview · their students and their attendance history · Guardians (add for their students) · their classes · Attendance (their classes) · Parent payments (**report** a payment) |
 | Finance | Fees (start periods, report, **check**, reminders, **download payments as CSV** for Google Sheets) · Overview · Guardians · Students |
 | Parent | Their verified children's classes and attendance · their payments |
@@ -98,7 +98,7 @@ Open http://127.0.0.1:5173 and sign in. Stop with Ctrl+C. After changing `.env`,
 
 ### 7. First-day checklist (as admin, fake names)
 1. **Courses** → add a course (put levels in the name, e.g. "English Level 2").
-2. **Students** → add a student together with the parent's name, phone and/or email (a parent already on file by phone or email is reused for siblings).
+2. **Students** → add a student together with the parent's name, phone and/or email (a parent already on file by phone or email is reused for siblings). Many students at once: **Import from a spreadsheet (CSV)** (Google Sheets: File → Download → CSV); a template can be downloaded there. Create the classes first if the sheet has a Class column.
 3. **Classes** → create a class, pick the teacher, **View** → enroll the student.
 4. **Guardians** → check the parent is there; add a second parent here if needed. Teacher-added parents must be **Verified** by an admin.
 5. **Fees** → choose the parent → **Show fee** → **Start period**.

@@ -126,3 +126,43 @@ export function toCsv(header, rows) {
   };
   return '﻿' + [header, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
+
+/**
+ * Children whose next 3 months should be started: active, with a verified parent, enrolled in at least one class, and
+ * either never given a period ('never'), or whose latest period has ended or ends within `ahead` days ('ended' / 'soon').
+ * The next period starts on the day the last one ends (the database treats the end date as the next period's first day),
+ * or today for a child who never had one. Ended first (longest ago first), then ending soon, then never started.
+ */
+export function periodsToStart({ learners, links, enrollments, periods }, today = todayIso(), ahead = 14) {
+  const order = { ended: 0, soon: 1, never: 2 };
+  return learners
+    .filter(l => l.active && links.some(k => k.learner_id === l.id && k.verified) && enrollments.some(e => e.learner_id === l.id))
+    .map(l => {
+      const own = periods.filter(p => p.learner_id === l.id);
+      if (!own.length) return { learnerId: l.id, name: l.display_name, lastEnd: null, start: today, reason: 'never', days: 0 };
+      const lastEnd = own.map(p => p.period_end).sort().pop();
+      const days = daysUntil(lastEnd, today);
+      return { learnerId: l.id, name: l.display_name, lastEnd, start: lastEnd, reason: days <= 0 ? 'ended' : 'soon', days };
+    })
+    .filter(r => r.reason === 'never' || r.days <= ahead)
+    .sort((a, b) => order[a.reason] - order[b.reason] || a.days - b.days || a.name.localeCompare(b.name));
+}
+
+/**
+ * Attendance as spreadsheet rows: Date, Time, Class, Student, Status, sorted by date, class and student.
+ * Optional filters: classId, from and to (YYYY-MM-DD, inclusive, by the lesson's local day).
+ */
+export const ATTENDANCE_CSV_HEADER = ['Date', 'Time', 'Class', 'Student', 'Status'];
+const MARK_LABEL = { present: 'Present', late: 'Late', absent: 'Absent', excused: 'Excused' };
+export function attendanceCsvRows({ sessions, attendance, classes, learners }, { classId = '', from = '', to = '' } = {}) {
+  const pad = n => String(n).padStart(2, '0');
+  const day = iso => { const d = new Date(iso); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  const time = iso => { const d = new Date(iso); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+  const sessionById = new Map(sessions.map(s => [s.id, s]));
+  const title = id => classes.find(c => c.id === id)?.title ?? 'Class';
+  const name = id => learners.find(l => l.id === id)?.display_name ?? 'Student';
+  return attendance.map(a => ({ a, s: sessionById.get(a.session_id) }))
+    .filter(({ s }) => s && (!classId || s.class_id === classId) && (!from || day(s.starts_at) >= from) && (!to || day(s.starts_at) <= to))
+    .map(({ a, s }) => [day(s.starts_at), time(s.starts_at), title(s.class_id), name(a.learner_id), MARK_LABEL[a.status] ?? a.status])
+    .sort((x, y) => x[0].localeCompare(y[0]) || x[1].localeCompare(y[1]) || x[2].localeCompare(y[2]) || x[3].localeCompare(y[3]));
+}

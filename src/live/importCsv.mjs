@@ -32,13 +32,14 @@ export function parseCsv(text) {
 
 // Column names we recognise (compared without case, punctuation or extra spaces). Checked in this order, so
 // "parent phone" is found before the shorter "parent". A header also matches when it starts with a name,
-// e.g. "Parent phone number (WhatsApp)". Grade, class, subject and level must match exactly, so that a column
+// e.g. "Parent phone number (WhatsApp)". Consent columns are matched first. Grade, class, subject and level must match exactly, so that a column
 // such as "Level start date" is not mistaken for the level.
 const FIELDS = [
-  ['phone', ['parent phone', 'parent phone number', 'phone', 'phone number', 'mobile', 'telephone', 'whatsapp number']],
-  ['email', ['parent email', 'email', 'email address', 'e mail']],
+  // Consent first, so "Email OK" is never taken for the email address (or "WhatsApp OK" for the phone).
   ['whatsappOk', ['whatsapp ok', 'whatsapp permission', 'agreed to whatsapp', 'whatsapp consent']],
   ['emailOk', ['email ok', 'email permission', 'agreed to email', 'email consent']],
+  ['phone', ['parent phone', 'parent phone number', 'phone', 'phone number', 'mobile', 'telephone', 'whatsapp number']],
+  ['email', ['parent email', 'email', 'email address', 'e mail']],
   ['parentName', ['parent name', 'parent', 'guardian name', 'guardian', 'parent full name', 'mother or father']],
   ['name', ['student name', 'student', 'student full name', 'child name', 'child', 'name']],
   ['grade', ['grade', 'grade level', 'school grade'], true],

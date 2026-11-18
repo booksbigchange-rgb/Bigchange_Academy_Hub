@@ -19,12 +19,14 @@ function download(name: string, text: string) {
 const err = (e: unknown) => (e instanceof Error ? e.message : 'unknown error');
 
 /** Admin: add many students and their parents from a CSV file, with a preview first. Uses the same database calls as the form. */
-export default function LiveImport({ data, client, reload }: { data: Data; client: SupabaseClient; reload: () => Promise<void> }) {
+export default function LiveImport({ data, client, reload, onBusyChange }: { data: Data; client: SupabaseClient; reload: () => Promise<void>; onBusyChange?: (busy: boolean) => void }) {
   const [fileName, setFileName] = useState('');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
   const [done, setDone] = useState<Done[]>([]);
+  const [inputKey, setInputKey] = useState(0);
+  const working = (b: boolean) => { setBusy(b); onBusyChange?.(b); };
   const plan: Plan | null = text ? planImport(parseCsv(text), data) as Plan : null;
   const items: Item[] = plan?.items ?? [];
   const ready = items.filter(i => i.status === 'ready');
@@ -36,10 +38,11 @@ export default function LiveImport({ data, client, reload }: { data: Data; clien
     if (!file) { setText(''); setFileName(''); return; }
     if (file.size > MAX_BYTES) { setText(''); setFileName(''); setProgress('That file is too big (over 1 MB). Split it into smaller files.'); return; }
     setFileName(file.name); setText(await file.text());
+    event.target.value = ''; // so choosing the same (corrected) file again is read again
   }
   async function runImport() {
     if (busy || !ready.length) return;
-    setBusy(true); setDone([]);
+    working(true); setDone([]);
     const results: Done[] = [];
     for (const [n, item] of ready.entries()) {
       setProgress(`Importing ${n + 1} of ${ready.length}…`);
@@ -54,9 +57,9 @@ export default function LiveImport({ data, client, reload }: { data: Data; clien
     }
     await reload();
     const added = results.filter(r => !r.result.startsWith('Not added')).length;
-    setDone(results); setText(''); setFileName('');
+    setDone(results); setText(''); setFileName(''); setInputKey(k => k + 1);
     setProgress(`Finished: ${added} of ${ready.length} students added.` + (results.some(r => !r.ok) ? ' Check the rows marked below.' : ''));
-    setBusy(false);
+    working(false);
   }
 
   return <div className="people-enroll">
@@ -68,7 +71,7 @@ export default function LiveImport({ data, client, reload }: { data: Data; clien
     </ol>
     <p className="quiet">Classes must already exist (Classes screen). A parent already on file with the same phone or email is reused for brothers and sisters. Parents are only marked as agreeing to WhatsApp or email where the sheet says yes. Use test data only until the privacy checklist is complete.</p>
     <p><button className="small-btn" type="button" onClick={() => download('bigchange-students-template.csv', toCsv(TEMPLATE_HEADER, [TEMPLATE_EXAMPLE]))}>Download template (CSV)</button></p>
-    <label>Spreadsheet file (.csv)<input type="file" accept=".csv,text/csv" disabled={busy} onChange={e => void choose(e)} /></label>
+    <label>Spreadsheet file (.csv)<input key={inputKey} type="file" accept=".csv,text/csv" disabled={busy} onChange={e => void choose(e)} /></label>
     {plan?.error && <p className="ops-feedback" role="alert">{fileName}: {plan.error}</p>}
     {items.length > 0 && <>
       <p role="status"><strong>{fileName}</strong>: {items.length} rows · <strong>{ready.length} ready</strong> · {count('skip')} skipped · {count('problem')} with problems</p>

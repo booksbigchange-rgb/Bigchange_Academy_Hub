@@ -109,6 +109,7 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
   const [editNote, setEditNote] = useState('');
   const [historyId, setHistoryId] = useState('');
   const [importing, setImporting] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
   const shown = data.learners.filter(l => matchesSearch(l.display_name, search));
   const editing = data.learners.find(l => l.id === editId);
   const classCount = (id: string) => data.enrollments.filter(e => e.learner_id === id).length;
@@ -144,8 +145,8 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
       <button className="primary-btn" type="submit" disabled={busy}>+ Add student</button>
       {warning && <p className="ops-feedback" role="alert">{warning}</p>}
     </form>}
-    {isAdmin && <p><button className="small-btn" type="button" aria-expanded={importing} onClick={() => setImporting(!importing)}>{importing ? 'Close import' : 'Import from a spreadsheet (CSV)'}</button></p>}
-    {isAdmin && importing && <LiveImport data={data} client={client} reload={reload} />}
+    {isAdmin && <p><button className="small-btn" type="button" aria-expanded={importing} disabled={importBusy} onClick={() => setImporting(!importing)}>{importing ? 'Close import' : 'Import from a spreadsheet (CSV)'}</button></p>}
+    {isAdmin && importing && <LiveImport data={data} client={client} reload={reload} onBusyChange={setImportBusy} />}
     <label>Search students<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name" /></label>
     {shown.length === 0 ? <p className="quiet">{data.learners.length === 0 ? (isAdmin ? 'No students yet. Add the first one above.' : 'No students are in your classes yet.') : 'No students match your search.'}</p> :
       <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Name</th><th>Grade</th><th>Status</th><th>Classes</th><th>Action</th></tr></thead><tbody>

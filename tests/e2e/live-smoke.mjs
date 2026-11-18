@@ -123,6 +123,7 @@ async function install(page, db, role) {
         return json(out);
       }
       if (method === 'POST') {
+        if (db.delayMs && table === 'academy_learners') await new Promise(r => setTimeout(r, db.delayMs));
         const body = req.postDataJSON(); const list = Array.isArray(body) ? body : [body];
         const created = list.map(r => {
           if (table === 'academy_attendance') {
@@ -352,8 +353,12 @@ await session(browser, db, 'admin', 1366, async page => {
     const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
     check('axe import preview: no serious/critical issues', v.length === 0, v.join(' | '));
   }
+  db.delayMs = 400;
   await page.getByRole('button', { name: 'Import 2 students' }).click();
+  check('"Close import" cannot be pressed while the import is running', await page.getByRole('button', { name: 'Close import' }).isDisabled());
   await page.getByText('Finished: 2 of 2 students added.').waitFor();
+  db.delayMs = 0;
+  check('"Close import" works again when the import has finished', await page.getByRole('button', { name: 'Close import' }).isEnabled());
   const kidOne = db.academy_learners.find(l => l.display_name === 'Import Kid One');
   check('imported students appear in the list', await seen(page.getByRole('cell', { name: 'Import Kid One' })) && await seen(page.getByRole('cell', { name: 'Import Kid Two' })));
   check('imported student has grade, parent with WhatsApp consent, and class',
@@ -361,6 +366,8 @@ await session(browser, db, 'admin', 1366, async page => {
     && db.academy_guardians.some(g => g.phone_e164 === '+251911222001' && g.whatsapp_opt_in === true && g.email_opt_in === false)
     && db.academy_enrollments.some(e => e.learner_id === kidOne?.id));
   check('the skipped and problem rows were not imported', db.academy_learners.filter(l => l.display_name === 'Kid Test').length === 1 && !db.academy_learners.some(l => l.display_name === 'X'));
+  await page.getByLabel('Spreadsheet file (.csv)').setInputFiles({ name: 'students.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  check('choosing the same file again shows the imported rows as skipped', await seen(page.getByText(/4 rows · 0 ready · 3 skipped · 1 with problems/)));
   await page.getByRole('button', { name: 'Close import' }).click();
   // Staff screen (migration 0010): give a waiting login a role, then switch access off.
   await nav(page, 'Staff');

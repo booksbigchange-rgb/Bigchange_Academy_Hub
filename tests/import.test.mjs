@@ -68,3 +68,8 @@ test('planImport: names with < or > are refused', () => {
   const { items } = planImport([['Student', 'Parent', 'Phone'], ['<b>Kid</b>', 'Parent', '0911000011']], existing);
   assert.equal(items[0].status, 'problem');
 });
+test('matchColumns: consent columns are not mistaken for the email address, whatever the order', () => {
+  assert.deepEqual(matchColumns(['Student', 'Parent', 'Email OK', 'Parent email', 'WhatsApp OK', 'Phone']).columns,
+    { name: 0, parentName: 1, emailOk: 2, email: 3, whatsappOk: 4, phone: 5 });
+  assert.deepEqual(matchColumns(['Student', 'Parent', 'Phone', 'Email permission']).columns, { name: 0, parentName: 1, phone: 2, emailOk: 3 });
+});

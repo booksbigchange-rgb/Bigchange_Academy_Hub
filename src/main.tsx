@@ -15,6 +15,11 @@ try {
   configError = error instanceof Error ? error.message : 'Invalid Academy authentication configuration.';
 }
 
+// Installable website: register the offline helper in the built app only (not while developing).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {}); });
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     {configError

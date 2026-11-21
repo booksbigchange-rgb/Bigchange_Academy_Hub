@@ -159,8 +159,8 @@ async function install(page, db, role) {
 const results = []; let failed = 0;
 function check(name, ok, detail = '') { results.push((ok ? 'PASS ' : 'FAIL ') + name + (ok || !detail ? '' : ' — ' + detail)); if (!ok) failed++; }
 
-async function session(browser, db, role, width, fn) {
-  const context = await browser.newContext({ viewport: { width, height: 900 } });
+async function session(browser, db, role, width, fn, contextOptions = {}) {
+  const context = await browser.newContext({ viewport: { width, height: 900 }, ...contextOptions });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -367,6 +367,11 @@ db.academy_fee_period_status.push({ id: uid(seq++), guardian_id: parentOfKid?.id
 await session(browser, db, 'teacher', 390, async page => {
   const sections = await page.getByRole('navigation', { name: 'Sections' }).getByRole('button').allInnerTexts();
   check('teacher sees teacher sections only', JSON.stringify(sections) === JSON.stringify(['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']), sections.join(','));
+  const bar = await page.getByRole('navigation', { name: 'Sections' }).boundingBox();
+  check('phone: the menu is a tab bar at the bottom of the screen', !!bar && bar.y + bar.height >= 890 && bar.y > 700, JSON.stringify(bar));
+  check('phone: install banner is not shown when the browser cannot install', await page.getByRole('heading', { name: 'Put the Hub on your phone' }).count() === 0);
+  const manifest = await page.evaluate(async () => { const href = document.querySelector('link[rel=manifest]')?.getAttribute('href'); return href ? (await fetch(href)).json() : null; });
+  check('installable: manifest is linked and loads', manifest?.display === 'standalone' && manifest.icons.length >= 3);
   check('teacher cannot add students', (await nav(page, 'Students'), await page.getByRole('button', { name: '+ Add student' }).count()) === 0);
   await nav(page, 'Fees');
   check('teacher sees the parent payment with phone', await seen(page.getByText('+251911000000').first()));
@@ -487,6 +492,25 @@ if (process.env.AXE_PATH) {
     });
   }
 }
+
+// iPhone (Safari): the Add to Home Screen steps appear for staff, can be dismissed, and stay dismissed.
+await session(browser, db, 'teacher', 390, async page => {
+  const banner = page.getByRole('region', { name: 'Put the Hub on your phone' });
+  check('iPhone: install steps shown to staff', await seen(banner) && await seen(page.getByText('Add to Home Screen')));
+  await page.addScriptTag({ path: process.env.AXE_PATH });
+  const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
+    .filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+  check('axe iPhone install banner: no serious/critical issues', v.length === 0, v.join(' | '));
+  await banner.getByRole('button', { name: 'Got it' }).click();
+  check('iPhone: install steps can be dismissed', await banner.count() === 0);
+  await page.reload(); await page.getByText('Live database').waitFor({ timeout: 10000 }).catch(() => {});
+  check('iPhone: dismissed install steps stay hidden', await page.getByRole('region', { name: 'Put the Hub on your phone' }).count() === 0);
+}, { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1', hasTouch: true, isMobile: true });
+
+// A parent never sees the install banner (the phone app is for staff only).
+await session(browser, db, 'guardian', 390, async page => {
+  check('parent: no install banner', await page.getByRole('region', { name: 'Put the Hub on your phone' }).count() === 0);
+}, { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1', hasTouch: true, isMobile: true });
 
 await browser.close();
 console.log(results.join('\n'));

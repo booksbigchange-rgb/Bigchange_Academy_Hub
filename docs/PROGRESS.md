@@ -40,6 +40,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - 2026-11-17, **Staff screen** for the admin (migration 0010): lists every confirmed login that is not a student or parent; **Give a role** (teacher, finance, admin) to new logins, **Change role**, **Switch off / Switch on** access. Switched-off staff lose every right in the database (not just in the app). Refused: changing your own role or access, student/parent logins, unconfirmed logins, moving a teacher who still has classes. Staff changes are audited; class teacher pickers offer only staff whose access is on. 183/183 database checks (33 new), 132 unit tests, 109/109 browser checks incl. accessibility scan of the new screen. **Owner must run migration 0010.**
 
+- 2026-11-21, **M6 step 1: installable phone app** (`docs/M6_PHONE_AND_STAFF_CHAT_PLAN.md`). Staff can add the Hub to their home screen: Android/Chrome shows an Install button, iPhone Safari shows the three Add to Home Screen steps (staff only; parents never see it; "Not now" is remembered). On phones the menu is a tab bar at the bottom. The offline helper stores only the app's own files, never school data, so the sign-in page opens without internet. No database change. 138 unit tests, 126/126 browser checks incl. axe.
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
 0. Run migration 0010 (Staff screen).

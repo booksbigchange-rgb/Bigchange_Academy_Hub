@@ -12,6 +12,7 @@ import { NavIcon } from './icons';
 import { TI } from './ti.mjs';
 import LiveNotices from './LiveNotices';
 import LiveStaff from './LiveStaff';
+import InstallBanner from './InstallBanner';
 import { addMonths, daysUntil, endingText, formatDate, nextLevelPlan, todayIso } from './fees.mjs';
 import LiveFamily, { LivePayments } from './LiveFamily';
 import { ATTENDANCE_STATUSES, GRADE_LEVELS, studentHistory, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
@@ -67,6 +68,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
       </header>
       <main className="content live" id="main-content" tabIndex={-1}>
         <div role="note" className="notice"><strong>Live database</strong> — use test data only until the privacy and safeguarding checklist is complete. Changes are saved to the Academy database.</div>
+        {(isAdmin || isFinance || role === 'teacher') && <InstallBanner />}
         {!sections.length && <section className="panel"><h2>No screens yet for your role</h2>
           <p>Screens for the <strong>{role}</strong> role have not been built yet. Your account is verified, but nothing is available to you here for now.</p></section>}
         {sections.length > 0 && loading && <p role="status">Loading…</p>}

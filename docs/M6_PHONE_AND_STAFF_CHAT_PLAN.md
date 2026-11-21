@@ -1,6 +1,6 @@
 # M6 plan: Hub on phones + staff chat
 
-Status: **plan only, nothing built yet.** Agreed with the owner on 2026-11-21 through the planning interview.
+Status: **step 1 built (2026-11-21); steps 2–9 not started.** Agreed with the owner on 2026-11-21 through the planning interview.
 
 ## Goal
 Make the Hub an **installable website** (PWA) that staff add to their phone's home screen, and add **staff chat** so the school no longer needs staff WhatsApp groups.
@@ -29,7 +29,10 @@ Parents/students in chat, staff-made groups, voice notes, editing messages, read
 
 ## Steps (each one a branch + pull request, tested before the next)
 
-### Step 1. Phone-ready Hub (PWA) — no database change
+### Step 1. Phone-ready Hub (PWA) — no database change — ✅ built
+Built: manifest + icons (`public/manifest.webmanifest`, `public/icons/`), offline helper `public/sw.js` (app files only; school data never stored), install banner for staff only (`src/live/InstallBanner.tsx`, logic in `src/live/install.mjs`), bottom tab bar on phones, CSP updated. Checked: 138 unit tests, 126/126 browser checks incl. axe, production build with the real headers opens offline with no blocked content. Still to do on real phones: install on one Android and one iPhone once the Hub is online. Wide tables already scroll inside their card; turning them into cards is left for later if staff find them hard to use.
+
+Planned:
 - `public/manifest.webmanifest` (name, icons 192/512 + maskable, theme colour, `display: standalone`), linked from `index.html`.
 - Service worker (`public/sw.js`): caches the app shell only, **never** caches Supabase data or files (privacy).
 - "Install the Hub" banner: Android uses the browser's install prompt; iPhone shows a 3-step "Share → Add to Home Screen" guide.

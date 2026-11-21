@@ -1179,3 +1179,28 @@ footer {
 .live-shell .ti-help, .live-auth .ti-help { display: block; margin-top: 4px; font-size: 13px; font-weight: 400; color: var(--lv-text-2); line-height: 1.5; }
 .live-auth .google-btn { width: 100%; margin-top: 4px; }
 .live-auth .auth-or { text-align: center; color: var(--lv-text-2); font-size: 13px; margin: 14px 0; }
+
+/* M6 step 1: installable phone app. On phones the menu becomes a tab bar at the bottom (thumb reach). */
+@media (max-width: 790px) {
+  .live-shell { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+  .live-shell .sidebar nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; flex-direction: row; gap: 2px;
+    overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); background: var(--lv-surface); border-top: 1px solid var(--lv-line);
+    box-shadow: 0 -4px 16px rgba(31,27,22,.06); }
+  .live-shell .sidebar nav::-webkit-scrollbar { display: none; }
+  .live-shell .sidebar nav .navitem { flex: 1 0 68px; min-width: 68px; max-width: 96px; min-height: 54px; flex-direction: column; justify-content: center; gap: 3px;
+    padding: 6px 4px; border-radius: 14px; font-size: 11px; line-height: 1.15; text-align: center; white-space: normal; scroll-snap-align: start; }
+  .live-shell .sidebar nav .navitem.active { box-shadow: none; }
+  .live-shell .sidebar nav .nav-svg { width: 22px; height: 22px; }
+  .live-shell .sidebar { padding: 8px 16px; }
+  .live-shell .topbar { padding-top: max(8px, env(safe-area-inset-top)); }
+}
+
+.install-banner { display: grid; grid-template-columns: 44px 1fr auto; gap: 14px; align-items: start; margin: 0 0 16px; padding: 16px;
+  border: 1px solid var(--lv-line); border-radius: 16px; background: var(--lv-gold-tint); color: var(--lv-text); }
+.install-banner img { border-radius: 10px; }
+.install-banner h2 { margin: 0 0 4px; font-size: 16px; }
+.install-banner p, .install-banner ol { margin: 0; font-size: 14px; line-height: 1.5; color: var(--lv-text); }
+.install-banner ol { padding-left: 20px; }
+.install-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 520px) { .install-banner { grid-template-columns: 44px 1fr; } .install-actions { grid-column: 1 / -1; justify-content: stretch; } .install-actions button { flex: 1; } }

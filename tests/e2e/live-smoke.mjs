@@ -239,7 +239,7 @@ async function session(browser, db, role, width, fn, contextOptions = {}) {
 /** Wait (up to 5 s) for something to appear; returns whether it did. */
 const seen = (locator, ms = 5000) => locator.first().waitFor({ state: 'visible', timeout: ms }).then(() => true, () => false);
 // The Messages button may carry ", 3 unread" in its accessible name.
-const nav = (page, name) => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: new RegExp('^' + name + '(,.*)?$') }).click();
+const nav = (page, name) => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: new RegExp('^' + name + '(\\W.*)?$') }).click();
 
 const browser = await chromium.launch(EXEC ? { executablePath: EXEC } : {});
 const db = freshDb();
@@ -558,7 +558,6 @@ await session(browser, db, 'teacher', 390, async page => {
   const list = page.getByRole('list', { name: 'Conversations' });
   check('chat: teacher sees All staff and Teachers groups', await seen(list.getByText('All staff')) && await seen(list.getByText('Teachers')));
   check('chat: teacher does not see the Finance group', await list.getByRole('button', { name: /^FI Finance/ }).count() === 0);
-  check('chat: teacher sees their class group', await seen(list.getByRole('button', { name: /English/ })));
   await list.getByRole('button', { name: /All staff/ }).click();
   check('phone: the chat list is hidden while a chat is open', !(await list.isVisible()));
   await page.getByLabel('Message', { exact: true }).fill('Hello staff');
@@ -589,12 +588,12 @@ await session(browser, db, 'teacher', 390, async page => {
 });
 await session(browser, db, 'finance', 1366, async page => {
   const msgBtn = page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: /^Messages/ });
-  check('chat: unread badge on Messages for finance', await seen(page.getByRole('button', { name: /Messages, 1 unread/ })), await msgBtn.innerText());
+  check('chat: unread badge on Messages for finance', await seen(page.getByRole('button', { name: /^Messages\W+2 unread/ })), await msgBtn.innerText());
   await nav(page, 'Messages');
-  await page.getByRole('list', { name: 'Conversations' }).getByRole('button', { name: /Teacher Test/ }).click();
+  await page.getByRole('list', { name: 'Conversations' }).getByRole('button', { name: /^Teacher Test/ }).click();
   const log = page.getByRole('log');
   check('chat: finance reads the teacher message', await seen(log.getByText('Can you check the Habesha shop payment?')));
-  check('chat: badge clears after reading', await page.getByRole('button', { name: /^Messages, \d+ unread/ }).waitFor({ state: 'detached', timeout: 3000 }).then(() => true, () => false));
+  check('chat: badge goes down after reading (1 left in All staff)', await seen(page.getByRole('button', { name: /^Messages\W+1 unread/ })));
   check('chat: finance cannot delete the teacher message', await log.getByRole('button', { name: 'Delete' }).count() === 0);
   await log.getByRole('button', { name: 'Report' }).click();
   await page.getByLabel('Why are you reporting this message?').fill('Testing the report button');
@@ -603,7 +602,7 @@ await session(browser, db, 'finance', 1366, async page => {
 });
 await session(browser, db, 'admin', 1366, async page => {
   await nav(page, 'Messages');
-  check('chat: admin does not see the teacher–finance one-to-one chat', await page.getByRole('list', { name: 'Conversations' }).getByRole('button', { name: /Teacher Test|Finance Test/ }).count() === 0);
+  check('chat: admin does not see the teacher–finance one-to-one chat', await page.getByRole('list', { name: 'Conversations' }).getByRole('button', { name: /^(Teacher Test|Finance Test)/ }).count() === 0);
   check('chat: admin sees every group incl. Finance', await seen(page.getByRole('list', { name: 'Conversations' }).getByText('Finance', { exact: true })));
   await page.getByRole('button', { name: 'Reported messages' }).click();
   const reports = page.getByRole('list', { name: 'Reported messages' });

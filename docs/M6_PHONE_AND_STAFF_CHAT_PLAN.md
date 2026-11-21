@@ -1,6 +1,6 @@
 # M6 plan: Hub on phones + staff chat
 
-Status: **steps 1–2 built (2026-11-21); steps 3–9 not started.** Agreed with the owner on 2026-11-21 through the planning interview.
+Status: **steps 1–3 built (2026-11-21); steps 4–9 not started.** Agreed with the owner on 2026-11-21 through the planning interview.
 
 ## Goal
 Make the Hub an **installable website** (PWA) that staff add to their phone's home screen, and add **staff chat** so the school no longer needs staff WhatsApp groups.
@@ -51,7 +51,10 @@ Tables: `conversations`, `conversation_members`, `messages`, `message_attachment
 - Automatic groups: triggers keep membership in step with roles, class teachers and switched-off access (switched off = removed from every group at once).
 - Tests: SQL isolation checks in `tests/sql/` (teacher can't read another class group, switched-off staff lose access, parent sees nothing, admin can't read unreported chats, every admin view is logged).
 
-### Step 3. Chat screens
+### Step 3. Chat screens — ✅ built
+Built: `src/live/LiveMessages.tsx` (list, chat, new chat, members, report, admin Reported messages), `src/live/useChat.ts` (list + unread, Realtime with a 60-second backstop), `src/live/chat.mjs` (unit-tested rules), Messages tab with unread badge for admin, teacher and finance. Before migration 0011 the screen says chat is not switched on. Demo mode has no chat (it is the public preview with fictional data; left out on purpose). Live updates need the real project to check.
+
+Planned:
 - New **Messages** tab for staff: list of conversations (unread count, last message), chat view, new one-to-one chat (pick active staff).
 - Live updates with Supabase Realtime; unread counts in the tab badge.
 - Report message → admin's **Reports** list → open (logged) → mark handled.

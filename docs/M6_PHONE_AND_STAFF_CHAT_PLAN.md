@@ -1,6 +1,6 @@
 # M6 plan: Hub on phones + staff chat
 
-Status: **steps 1–4 built (2026-11-22); steps 5–9 not started.** Agreed with the owner on 2026-11-21 through the planning interview.
+Status: **steps 1–5 built (2026-11-22); steps 6–9 not started.** Agreed with the owner on 2026-11-21 through the planning interview.
 
 ## Goal
 Make the Hub an **installable website** (PWA) that staff add to their phone's home screen, and add **staff chat** so the school no longer needs staff WhatsApp groups.
@@ -70,7 +70,10 @@ Planned:
 - Photos shrunk on the phone before upload; Drive links shown as a card (no Drive API needed).
 - Tests: wrong type / too big refused, non-member can't fetch a file.
 
-### Step 5. Phone alerts (web push)
+### Step 5. Phone alerts (web push) — ✅ built (migration 0013)
+Built: `academy_push_subscriptions` + functions, Edge Function `supabase/functions/notify-message/` (logic in `core.mjs`), alert display and tap-to-open in `public/sw.js`, **Turn on alerts** in Messages (`src/live/alerts.ts`), alert link `./?chat=<id>` opens the chat, sign-out removes the device. 310/310 DB checks, 161 unit tests (incl. the function logic and the alert code run in a sandbox), 172/172 browser checks. Headless Chromium cannot display notifications, so a real two-phone test is in `docs/PUSH_ALERTS.md` step 6. Owner setup: `docs/PUSH_ALERTS.md`.
+
+Planned:
 - `push_subscriptions` table (migration 0012); "Turn on alerts" button.
 - Supabase Edge Function `notify-message` sends Web Push (VAPID keys stored as Supabase secrets) to the other members; alert shows the sender and "New message", **not** the message text (privacy on lock screens).
 - Removes dead subscriptions; unread counts stay the backstop.

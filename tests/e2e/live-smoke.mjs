@@ -14,6 +14,7 @@ const API = 'https://smoketest.supabase.co';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==', 'base64');
 const uid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
 let seq = 100;
+const ALL_STAFF_CHAT = uid(7001);
 
 function freshDb() {
   return {
@@ -30,7 +31,7 @@ function freshDb() {
     academy_learners_seed: [], academy_courses: [], academy_classes: [], academy_enrollments: [], academy_sessions: [],
     academy_attendance: [], academy_guardian_links: [], academy_fee_period_status: [],
     // Staff chat (migration 0011): the three school-wide groups; class groups are added when classes are created.
-    chat: { convs: [{ id: 'c-all', kind: 'group', group_key: 'all_staff' }, { id: 'c-teachers', kind: 'group', group_key: 'teachers' }, { id: 'c-finance', kind: 'group', group_key: 'finance' }],
+    chat: { convs: [{ id: ALL_STAFF_CHAT, kind: 'group', group_key: 'all_staff' }, { id: uid(7002), kind: 'group', group_key: 'teachers' }, { id: uid(7003), kind: 'group', group_key: 'finance' }],
       members: [], academy_chat_messages: [], reads: {}, reports: [], access: [], objects: {}, attachments: [] }
   };
 }
@@ -57,6 +58,7 @@ async function install(page, db, role) {
     if (path === '/auth/v1/token') return json({ access_token: token, token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'r', user });
     if (path === '/auth/v1/user') return json(user);
     if (path === '/auth/v1/logout') return route.fulfill({ status: 204 });
+    if (path === '/functions/v1/notify-message') { (db.alertRequests ??= []).push(req.postDataJSON()?.message_id); return json({ sent: 0, removed: 0 }); }
     // Fake Supabase Storage for chat files (migration 0012).
     if (path.startsWith('/storage/v1/object/sign/chat-files')) {
       if (method === 'GET') return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
@@ -587,12 +589,14 @@ await session(browser, db, 'teacher', 390, async page => {
   const list = page.getByRole('list', { name: 'Conversations' });
   check('chat: teacher sees All staff and Teachers groups', await seen(list.getByText('All staff')) && await seen(list.getByText('Teachers')));
   check('chat: teacher does not see the Finance group', await list.getByRole('button', { name: /^FI Finance/ }).count() === 0);
+  check('alerts: the screen says when phone alerts are not set up yet', await seen(page.getByText('Phone alerts are not set up yet')));
   await list.getByRole('button', { name: /All staff/ }).click();
   check('phone: the chat list is hidden while a chat is open', !(await list.isVisible()));
   await page.getByLabel('Message', { exact: true }).fill('Hello staff');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   const log = page.getByRole('log');
   check('chat: message appears after sending', await seen(log.getByText('Hello staff')));
+  check('alerts: sending asks the server to alert the others (with the message id only)', await page.waitForFunction(() => true).then(() => (db.alertRequests ?? []).length >= 1 && /^[0-9a-f-]{36}$/.test(db.alertRequests[0])), JSON.stringify(db.alertRequests));
   await page.getByRole('button', { name: 'Add link' }).click();
   await page.getByLabel('Google Drive or https link').fill('http://not-secure.example.com');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
@@ -615,7 +619,7 @@ await session(browser, db, 'teacher', 390, async page => {
   await page.getByLabel('Photo or file').setInputFiles({ name: 'classroom.png', mimeType: 'image/png', buffer: PNG });
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   check('files: a photo shows as a picture', await seen(log.getByRole('img', { name: 'Photo: classroom.png' })));
-  check('files: uploads go into the conversation folder', Object.keys(db.chat.objects).every(p => /^c-all\/[0-9a-f-]{36}\/[\w.\-]+$/.test(p)), Object.keys(db.chat.objects).join(','));
+  check('files: uploads go into the conversation folder', Object.keys(db.chat.objects).every(p => new RegExp('^' + ALL_STAFF_CHAT + '\\/[0-9a-f-]{36}\\/[\\w.\\-]+$').test(p)), Object.keys(db.chat.objects).join(','));
   await page.getByRole('button', { name: /^Back/ }).first().click();
   await page.getByRole('button', { name: '+ New chat' }).click();
   await page.getByRole('list', { name: 'Staff' }).getByRole('button', { name: /Finance Test/ }).click();
@@ -660,6 +664,13 @@ await session(browser, db, 'admin', 1366, async page => {
   await page.getByRole('button', { name: 'Mark as handled' }).click();
   check('chat: admin marks the report handled', await seen(page.getByText('Report marked as handled.')));
   check('chat: the list shows it was opened once', await seen(page.getByText('Opened 1 time')));
+});
+// Tapping a phone alert opens the Hub at ./?chat=<id>: that chat opens directly.
+await session(browser, db, 'admin', 390, async page => {
+  await page.goto(BASE + '/?chat=' + ALL_STAFF_CHAT);
+  await page.getByText('Live database').waitFor({ timeout: 10000 });
+  check('alerts: an alert link opens that chat', await seen(page.getByRole('heading', { name: 'All staff', level: 3 })) && await seen(page.getByRole('log').getByText('Hello staff')));
+  check('alerts: the address bar is cleaned afterwards', !page.url().includes('chat='), page.url());
 });
 // Before migration 0011 the Messages screen explains instead of failing.
 {

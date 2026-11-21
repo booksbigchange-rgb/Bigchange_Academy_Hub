@@ -383,3 +383,13 @@ export async function chatSignedUrls(c: SupabaseClient, paths: string[]): Promis
   for (const item of data) if (item.path && item.signedUrl && !item.error) out[item.path] = item.signedUrl;
   return out;
 }
+
+// ---- Phone alerts (migration 0013) ----
+export const pushSubscribe = (c: SupabaseClient, endpoint: string, p256dh: string, auth: string, label: string) =>
+  chatRpc<void>(c, 'academy_push_subscribe', { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_label: label }, 'turn on alerts');
+export const pushUnsubscribe = (c: SupabaseClient, endpoint: string) =>
+  chatRpc<void>(c, 'academy_push_unsubscribe', { p_endpoint: endpoint }, 'turn off alerts');
+/** Ask the server to alert the other members. Best effort: chat works without it (unread counts are the backstop). */
+export function requestAlerts(c: SupabaseClient, messageId: string): void {
+  void c.functions.invoke('notify-message', { body: { message_id: messageId } }).catch(() => {});
+}

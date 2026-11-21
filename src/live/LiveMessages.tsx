@@ -6,14 +6,17 @@ import {
 } from './api';
 import { canDelete, canShrink, chatTime, conversationKind, FILE_ACCEPT, FILE_TYPES, formatSize, isPhoto, linkLabel, storagePath, validateFile, validateMessage } from './chat.mjs';
 import { shrinkPhoto } from './shrink';
+import { requestAlerts } from './api';
+import { alertState, turnOffAlerts, turnOnAlerts, type AlertState } from './alerts';
 import type { ChatList } from './useChat';
 import { formatDate } from './fees.mjs';
 
 const errorText = (e: unknown) => e instanceof Error ? e.message : 'Something went wrong';
 
 /** Staff chat: conversation list, one conversation, new one-to-one chat, and (admin) reported messages. */
-export default function LiveMessages({ client, isAdmin, chat }: { client: SupabaseClient; isAdmin: boolean; chat: ChatList }) {
-  const [openId, setOpenId] = useState('');
+export default function LiveMessages({ client, isAdmin, chat, initialChat = '' }: { client: SupabaseClient; isAdmin: boolean; chat: ChatList; initialChat?: string }) {
+  const [openId, setOpenId] = useState(initialChat);
+  useEffect(() => { if (initialChat) { setOpenId(initialChat); setView('chats'); } }, [initialChat]);
   const [view, setView] = useState<'chats' | 'new' | 'reports'>('chats');
   const [me, setMe] = useState<string | null>(null);
   useEffect(() => { void myStaffId(client).then(setMe).catch(() => setMe(null)); }, [client]);
@@ -25,6 +28,7 @@ export default function LiveMessages({ client, isAdmin, chat }: { client: Supaba
   return <section className={'panel chat' + (open || view === 'new' ? ' chat-has-open' : '')} aria-label="Messages">
     <div className="chat-head">
       <div><span className="eyebrow">MESSAGES</span><h2>Staff chat</h2></div>
+      <Alerts client={client} />
       <div className="chat-tabs" role="group" aria-label="Messages view">
         <button className={view !== 'reports' ? 'small-btn active' : 'small-btn'} aria-pressed={view !== 'reports'} onClick={() => setView('chats')}>Chats</button>
         {isAdmin && <button className={view === 'reports' ? 'small-btn active' : 'small-btn'} aria-pressed={view === 'reports'} onClick={() => { setView('reports'); setOpenId(''); }}>Reported messages</button>}
@@ -56,6 +60,35 @@ export default function LiveMessages({ client, isAdmin, chat }: { client: Supaba
       </div>
     </div>}
   </section>;
+}
+
+const ALERT_TEXT: Record<AlertState, string> = {
+  'not-configured': 'Phone alerts are not set up yet (an administrator adds them once).',
+  'ios-needs-install': 'For alerts on iPhone, add the Hub to your home screen and open it from there.',
+  unsupported: 'This browser cannot show alerts. Unread counts still show here.',
+  blocked: 'Alerts are blocked for this site. Allow notifications in your phone or browser settings.',
+  available: '', on: ''
+};
+/** Turn phone alerts on or off for this device. Alerts say who wrote and in which chat, never the message. */
+function Alerts({ client }: { client: SupabaseClient }) {
+  const [state, setState] = useState<AlertState | null>(null);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { void alertState().then(setState).catch(() => setState('unsupported')); }, []);
+  if (!state) return null;
+  async function toggle() {
+    if (busy) return; setBusy(true); setMessage('');
+    try {
+      if (state === 'on') { await turnOffAlerts(client); setState('available'); setMessage('Alerts are off on this device.'); }
+      else { const next = await turnOnAlerts(client); setState(next); setMessage(next === 'on' ? 'Alerts are on. You will see who wrote, not what they wrote.' : ALERT_TEXT[next] || 'Alerts were not turned on.'); }
+    } catch (e) { setMessage(errorText(e)); } finally { setBusy(false); }
+  }
+  return <div className="chat-alerts">
+    {(state === 'on' || state === 'available')
+      ? <button className={state === 'on' ? 'small-btn active' : 'small-btn'} aria-pressed={state === 'on'} disabled={busy} onClick={() => void toggle()}>{state === 'on' ? 'Alerts on' : 'Turn on alerts'}</button>
+      : <p className="chat-item-sub">{ALERT_TEXT[state]}</p>}
+    {message && <p className="chat-item-sub" role="status">{message}</p>}
+  </div>;
 }
 
 function initials(name: string) {
@@ -151,7 +184,7 @@ function Conversation({ client, conv, me, onBack, onChanged }: { client: Supabas
     if (file) { await sendFile(file); return; }
     let args: { p_body: string | null; p_link: string | null };
     try { args = validateMessage(body, link); } catch (e) { setFeedback(errorText(e)); return; }
-    if (await act(() => chatSend(client, id, args))) { setBody(''); setLink(''); setShowLink(false); }
+    if (await act(async () => { requestAlerts(client, await chatSend(client, id, args)); })) { setBody(''); setLink(''); setShowLink(false); }
   }
   async function sendFile(chosen: File) {
     let type: string;
@@ -164,7 +197,7 @@ function Conversation({ client, conv, me, onBack, onChanged }: { client: Supabas
       const path = storagePath(id, crypto.randomUUID(), name);
       await chatUpload(client, path, blob, type);
       setProgress('Sending…');
-      await chatSendFile(client, id, body.trim() || null, path, name.slice(0, 200));
+      requestAlerts(client, await chatSendFile(client, id, body.trim() || null, path, name.slice(0, 200)));
     });
     setProgress('');
     if (ok) { setBody(''); setFile(null); if (fileRef.current) fileRef.current.value = ''; }

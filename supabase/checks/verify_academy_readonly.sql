@@ -1,7 +1,7 @@
 -- READ-ONLY Academy security verification.
 -- Run only in the NEW BigChange Academy Supabase project.
--- Expected after migrations 0001–0012: 24 tables, 0 without RLS, 0 without FORCE RLS, 53 policies,
--- (after 0001–0011: 23 tables and 52 policies; after 0001–0010: 17 tables and 46 policies),
+-- Expected after migrations 0001–0013: 25 tables, 0 without RLS, 0 without FORCE RLS, 54 policies,
+-- (after 0001–0012: 24 tables and 53 policies; after 0001–0011: 23 tables and 52 policies; after 0001–0010: 17 tables and 46 policies),
 -- 0 tables without a policy, 0 policies open to anon/public.
 with academy_tables as (
   select c.relname, c.relrowsecurity, c.relforcerowsecurity

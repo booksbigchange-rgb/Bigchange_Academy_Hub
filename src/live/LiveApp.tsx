@@ -16,6 +16,8 @@ import InstallBanner from './InstallBanner';
 import LiveMessages from './LiveMessages';
 import { useChatList } from './useChat';
 import { totalUnread } from './chat.mjs';
+import { chatFromUrl } from './push.mjs';
+import { turnOffAlerts } from './alerts';
 import { addMonths, daysUntil, endingText, formatDate, nextLevelPlan, todayIso } from './fees.mjs';
 import LiveFamily, { LivePayments } from './LiveFamily';
 import { ATTENDANCE_STATUSES, GRADE_LEVELS, studentHistory, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
@@ -36,6 +38,18 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
   const [loadError, setLoadError] = useState('');
   const isStaff = isAdmin || isFinance || role === 'teacher';
   const chat = useChatList(client, isStaff);
+  // Opened from a phone alert: ./?chat=<id> (or a message from the offline helper when the Hub is already open).
+  const [openChat, setOpenChat] = useState(() => isStaff ? chatFromUrl(window.location.search) : '');
+  useEffect(() => {
+    if (openChat) { setSection('Messages'); window.history.replaceState(null, '', window.location.pathname); }
+  }, [openChat]);
+  useEffect(() => {
+    if (!isStaff || !('serviceWorker' in navigator)) return;
+    const onMessage = (e: MessageEvent) => { if (e.data?.type === 'open-chat') { const id = chatFromUrl('?chat=' + (e.data.chat ?? '')); if (id) { setOpenChat(id); setSection('Messages'); } } };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [isStaff]);
+  const signOut = async () => { if (isStaff) await turnOffAlerts(client).catch(() => {}); onSignOut(); };
   const unread = totalUnread(chat.list);
 
   const reload = useCallback(async () => {
@@ -71,7 +85,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
     <div className="workspace">
       <header className="topbar">
         <nav className="crumb" aria-label="Breadcrumb">BigChange Academy <span aria-hidden="true">/</span> <span aria-current="page">{sections.length ? section : 'Account'}</span></nav>
-        <div className="top-actions"><span className="top-email">{email}</span> <button className="small-btn" onClick={onSignOut}>Sign out</button></div>
+        <div className="top-actions"><span className="top-email">{email}</span> <button className="small-btn" onClick={() => void signOut()}>Sign out</button></div>
       </header>
       <main className="content live" id="main-content" tabIndex={-1}>
         <div role="note" className="notice"><strong>Live database</strong> — use test data only until the privacy and safeguarding checklist is complete. Changes are saved to the Academy database.</div>
@@ -85,7 +99,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
             onWriteNotice={id => { setNoticeClassId(id); setSection('Notices'); }} />}
           {(section === 'My children' || section === 'My classes') && <LiveFamily data={data} role={role} />}
           {section === 'Payments' && <LivePayments data={data} />}
-          {section === 'Messages' && isStaff && <LiveMessages client={client} isAdmin={isAdmin} chat={chat} />}
+          {section === 'Messages' && isStaff && <LiveMessages client={client} isAdmin={isAdmin} chat={chat} initialChat={openChat} />}
           {section === 'Notices' && <LiveNotices key={noticeClassId} data={data} initialClassId={noticeClassId} />}
           {section === 'Students' && <Students data={data} client={client} isAdmin={isAdmin} reload={reload} />}
           {section === 'Courses' && isAdmin && <Courses data={data} client={client} reload={reload} />}

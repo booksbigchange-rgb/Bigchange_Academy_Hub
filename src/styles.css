@@ -1276,3 +1276,6 @@ footer {
 .live-shell .chat-attach { cursor: pointer; }
 .live-shell .chat-compose input[type=file]:focus-visible + .chat-compose-actions .chat-attach { outline: 2px solid var(--lv-gold-text); outline-offset: 2px; }
 @media (max-width: 790px) { .live-shell .chat-photo { max-width: 100%; } }
+.live-shell .chat-alerts { display: grid; gap: 4px; justify-items: end; max-width: 320px; margin-left: auto; }
+.live-shell .chat-alerts p { white-space: normal; text-align: right; margin: 0; }
+@media (max-width: 790px) { .live-shell .chat-alerts { justify-items: start; max-width: none; margin-left: 0; width: 100%; } .live-shell .chat-alerts p { text-align: left; } }

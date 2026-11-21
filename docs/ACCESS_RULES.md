@@ -53,7 +53,7 @@ File: `supabase/migrations/20261121_0011_staff_chat.sql`. Adds 6 tables and 6 po
 - **Writing:** only through functions — `academy_chat_send` (text up to 4,000 characters and/or an `https://` link), `academy_chat_mark_read`, `academy_chat_delete_message` (own message, within 15 minutes, not once reported; the text is removed), `academy_chat_report` (reason 3–500 characters, once per person per message).
 - **Reports (admin):** `academy_chat_report_list`, `academy_chat_open_report` (the only way to read a chat the admin is not in; every opening is written to `academy_chat_admin_access`), `academy_chat_handle_report`.
 - **Audit:** reports are audited; message text is never copied to the audit trail.
-- Not yet: phone alerts (step 5), removal after one school year (step 7).
+- Not yet: removal after one school year (step 7).
 - Local DB checks: 244/244 (61 for chat).
 
 ## Migration 0012 — chat photos and files
@@ -65,3 +65,11 @@ File: `supabase/migrations/20261122_0012_chat_files.sql`. Adds 1 table and 1 pol
 - **Deleting a message** (own, within 15 minutes, not reported) removes its attachment records, so the file can no longer be opened. Uploaded-but-unsent files and the stored copies of deleted files are removed by the clean-up job (step 7).
 - Photos are made smaller on the phone (long side 1600 px, JPEG) before upload; HEIC photos are sent as they are.
 - Local DB checks: 279/279 (35 for files).
+
+## Migration 0013 — phone alerts
+File: `supabase/migrations/20261122_0013_push_alerts.sql`. Adds 1 table and 1 policy (25 tables, 54 policies). Setup: `docs/PUSH_ALERTS.md`.
+- `academy_push_subscriptions`: devices that turned alerts on; each person sees only their own; written only by `academy_push_subscribe` / `academy_push_unsubscribe` (own devices only).
+- `academy_chat_claim_push(message)`: only the sender, within 2 minutes, once per message.
+- `academy_chat_push_targets(message)` and `academy_push_remove_dead(ids)`: **service role only** (the Edge Function); staff cannot see where alerts go. Targets are the conversation's other **active** members.
+- The alert text is "New message from <name> in <chat>"; the message text never leaves the database.
+- Local DB checks: 310/310 (31 for alerts).

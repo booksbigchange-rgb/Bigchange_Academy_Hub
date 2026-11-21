@@ -48,6 +48,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - 2026-11-22, **M6 step 4: photos and files in chat** (migration 0012). **Photo or file** button in every chat: PDF, Word, Excel, PowerPoint, CSV, text and photos up to 10 MB; photos are made smaller on the phone first; photos show as pictures, other files as cards; files open through one-hour signed links from a private bucket. Only the chat's members can open them, or an admin after opening a report (recorded). Deleting a message makes its file unreachable. 279/279 database checks (35 new), 147 unit tests, 166/166 browser checks incl. accessibility. **Owner must run migration 0012** (after 0011).
 
+- 2026-11-22, **M6 step 5: phone alerts** (migration 0013, Edge Function `notify-message`). Staff press **Turn on alerts** in Messages; colleagues' new messages then show as "New message from <name> in <chat>" on their phone (never the text); tapping opens that chat. Only the sender can trigger alerts, once, within 2 minutes; only active members receive them; signing out removes the device. iPhone needs the Hub on the home screen. 310/310 database checks (31 new), 161 unit tests, 172/172 browser checks. **Owner setup: `docs/PUSH_ALERTS.md`.**
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
 0. Run migration 0010 (Staff screen).

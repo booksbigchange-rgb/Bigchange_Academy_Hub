@@ -65,7 +65,8 @@ Use a **dedicated** Supabase project for the Academy. In the project: **SQL Edit
 11. [`supabase/migrations/20261117_0010_staff_roles_in_app.sql`](supabase/migrations/20261117_0010_staff_roles_in_app.sql) — the admin gives staff their role and switches access off or on in the app (**Staff** screen), instead of SQL scripts.
 12. [`supabase/migrations/20261121_0011_staff_chat.sql`](supabase/migrations/20261121_0011_staff_chat.sql) — staff chat: one-to-one chats and automatic groups (All staff, Teachers, Finance, one per class), private by default, reported messages open to the admin with every opening recorded.
 13. [`supabase/migrations/20261122_0012_chat_files.sql`](supabase/migrations/20261122_0012_chat_files.sql) — photos and files in chat (up to 10 MB, private storage; only the chat's members, or an admin after opening a report, can open them).
-14. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 24 tables, 0 missing RLS, 0 missing force RLS, 53 policies, 0 tables without policy, 0 anon/public policies.
+14. [`supabase/migrations/20261122_0013_push_alerts.sql`](supabase/migrations/20261122_0013_push_alerts.sql) — phone alerts for chat ("New message from …", never the text). Setup: [`docs/PUSH_ALERTS.md`](docs/PUSH_ALERTS.md).
+15. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 25 tables, 0 missing RLS, 0 missing force RLS, 54 policies, 0 tables without policy, 0 anon/public policies.
 
 Each migration is safe to run again. Do **not** run `supabase/policies/academy_profile_access.sql` (superseded by 0002).
 

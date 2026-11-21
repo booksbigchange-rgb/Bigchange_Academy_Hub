@@ -12,6 +12,7 @@ fail=0; pass=0
 chk(){ # name, role(sub|anon), sql, expected (exact output, or ERR for any error)
   local name="$1" who="$2" sql="$3" want="$4" out pre="set role authenticated; select set_config('request.sub','$2',false);"
   [ "$who" = anon ] && pre="set role anon;"
+  [ "$who" = service ] && pre="set role service_role;"
   out=$($PSQL -c "$pre $sql" 2>&1 | grep -v '^set_config\|^SET$\|^[0-9a-f-]\{36\}$\|^$' | tr '\n' ' ' | sed 's/ *$//')
   if [ "$want" = ERR ]; then echo "$out" | grep -q -i "error\|violates" && ok=1 || ok=0
   else [ "$out" = "$want" ] && ok=1 || ok=0; fi
@@ -340,4 +341,42 @@ chk "  (admin opens the report: recorded)" $A "select count(*) > 0 from academy_
 chk "files: then the admin sees the file name" $A "select file_name from academy_chat_report_files((select id from academy_chat_reports where reason='Not appropriate photo'))" photo.jpg
 chk "files: and can open the photo" $A "select count(*) from storage.objects where name='$P3'" 1
 chk "files: teacher A (not in that chat) cannot open it" $TA "select count(*) from storage.objects where name='$P3'" 0
+
+# ---- Phone alerts (migration 0013) ----
+EP1="https://fcm.googleapis.com/fcm/send/teacherB-phone"; EP2="https://web.push.apple.com/finance-iphone"; EP3="https://fcm.googleapis.com/fcm/send/teacherA"
+KEY="BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM"; AU="tBHItJI5svbpez7KI4CCXg"
+chk "alerts: parent cannot turn on alerts" $G1 "select academy_push_subscribe('$EP1','$KEY','$AU','Phone')" ERR
+chk "alerts: plain http addresses are refused" $TB "select academy_push_subscribe('http://bad.example','$KEY','$AU','Phone')" ERR
+chk "alerts: teacher B turns on alerts" $TB "select academy_push_subscribe('$EP1','$KEY','$AU','Android phone')" ""
+chk "alerts: finance turns on alerts" $F "select academy_push_subscribe('$EP2','$KEY','$AU','iPhone')" ""
+chk "alerts: teacher A turns on alerts" $TA "select academy_push_subscribe('$EP3','$KEY','$AU','Laptop')" ""
+chk "alerts: turning on twice keeps one address" $TB "select academy_push_subscribe('$EP1','$KEY','$AU','Android phone')" ""
+chk "  (one row)" $TB "select count(*) from academy_push_subscriptions" 1
+chk "alerts: staff see only their own addresses" $F "select count(*) from academy_push_subscriptions" 1
+chk "alerts: addresses cannot be added directly" $TB "insert into academy_push_subscriptions(staff_id,endpoint,p256dh,auth_secret) values ('$TBS','https://x.example/y','$KEY','$AU')" ERR
+chk "alerts: staff cannot read where alerts go" $TA "select count(*) from academy_chat_push_targets((select id from academy_chat_messages limit 1))" ERR
+chk "alerts: staff cannot remove other addresses" $TA "select academy_push_remove_dead(array(select id from academy_push_subscriptions))" ERR
+OWNER "update academy_staff set display_name='Teacher A' where id='$TAS'"
+chk "alerts: teacher A posts in Teachers" $TA "select count(*) from (select academy_chat_send($(GRP teachers), 'Staff meeting at 3', null)) x" 1
+MSGT="(select id from academy_chat_messages where body='Staff meeting at 3')"
+chk "alerts: nothing goes out before the sender asks" service "select count(*) from academy_chat_push_targets($MSGT)" 0
+chk "alerts: another person cannot ask for alerts on it" $TB "select academy_chat_claim_push($MSGT)" f
+chk "alerts: the sender asks once" $TA "select academy_chat_claim_push($MSGT)" t
+chk "alerts: asking again does nothing" $TA "select academy_chat_claim_push($MSGT)" f
+chk "alerts: Teachers alert goes to teacher B only (not finance, not the sender)" service "select string_agg(endpoint, ',') from academy_chat_push_targets($MSGT)" "$EP1"
+chk "alerts: the alert names sender and chat, never the text" service "select body from academy_chat_push_targets($MSGT)" "New message from Teacher A in Teachers"
+chk "alerts: and does not contain the message" service "select count(*) from academy_chat_push_targets($MSGT) where body like '%meeting%' or title like '%meeting%'" 0
+OWNER "update academy_chat_messages set created_at = now() - interval '5 minutes', push_claimed_at = null where body='Staff meeting at 3'"
+chk "alerts: old messages cannot be alerted later" $TA "select academy_chat_claim_push($MSGT)" f
+chk "alerts: switched-off staff get no alerts" $A "select academy_set_staff_active('$TBS', false)" ""
+chk "  (teacher A posts again)" $TA "select count(*) from (select academy_chat_send($(GRP teachers), 'Second note', null)) x" 1
+chk "  (claims it)" $TA "select academy_chat_claim_push((select id from academy_chat_messages where body='Second note'))" t
+chk "  (no target while teacher B is off)" service "select count(*) from academy_chat_push_targets((select id from academy_chat_messages where body='Second note'))" 0
+chk "  (teacher B on again)" $A "select academy_set_staff_active('$TBS', true)" ""
+chk "alerts: the service removes dead addresses" service "select academy_push_remove_dead(array(select id from academy_push_subscriptions where endpoint='$EP2'))" ""
+chk "  (finance address gone)" $F "select count(*) from academy_push_subscriptions" 0
+chk "alerts: staff can turn their alerts off" $TB "select academy_push_unsubscribe('$EP1')" ""
+chk "  (teacher B address gone)" $TB "select count(*) from academy_push_subscriptions" 0
+chk "alerts: nobody can remove someone else's address" $TB "select academy_push_unsubscribe('$EP3')" ""
+chk "  (teacher A still subscribed)" $TA "select count(*) from academy_push_subscriptions" 1
 echo "RLS tests: $pass passed, $fail failed"; [ $fail = 0 ]

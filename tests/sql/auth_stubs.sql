@@ -25,3 +25,8 @@ create table if not exists storage.objects(id uuid primary key default gen_rando
 alter table storage.objects enable row level security;
 grant usage on schema storage to anon, authenticated;
 grant select, insert on storage.objects to authenticated;
+-- Supabase's service role (used only by Edge Functions on the server).
+do $$ begin if not exists (select from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if; end $$;
+grant usage on schema public to service_role;
+grant execute on function auth.uid() to service_role;
+alter default privileges in schema public grant all on tables to service_role;

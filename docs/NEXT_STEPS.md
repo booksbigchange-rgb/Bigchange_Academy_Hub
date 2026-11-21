@@ -13,6 +13,9 @@ Supabase → SQL Editor → paste `supabase/migrations/20261121_0011_staff_chat.
 ### 0c. Run migration 0012 — photos and files in chat (about 2 minutes, after 0011)
 Supabase → SQL Editor → paste `supabase/migrations/20261122_0012_chat_files.sql` → **Run** → "Success". Then the verify script: **24 tables, 53 policies**. It also creates a private storage bucket **chat-files** (check under Storage: it must say *Private*). Safe to run twice.
 
+### 0d. Phone alerts (optional, after 0012 and after hosting)
+Follow `docs/PUSH_ALERTS.md`: run migration 0013, make a key pair, add three Supabase secrets, deploy one function, add one Netlify setting. Chat works without it.
+
 ### 1. Put it online (about 15 minutes, free)
 Follow `docs/HOSTING.md` (Netlify, deploying from `main`), then set the new address in Supabase **Authentication → URL Configuration**. After this, staff can use the app from their own phones and computers.
 

@@ -12,7 +12,8 @@ import { NavIcon } from './icons';
 import { TI } from './ti.mjs';
 import LiveNotices from './LiveNotices';
 import LiveStaff from './LiveStaff';
-import { addMonths, daysUntil, endingText, formatDate, nextLevelPlan, todayIso } from './fees.mjs';
+import LiveImport from './LiveImport';
+import { addMonths, attendanceCsvRows, ATTENDANCE_CSV_HEADER, daysUntil, endingText, formatDate, nextLevelPlan, toCsv, todayIso } from './fees.mjs';
 import LiveFamily, { LivePayments } from './LiveFamily';
 import { ATTENDANCE_STATUSES, GRADE_LEVELS, studentHistory, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
 
@@ -107,6 +108,8 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
   const [editGrade, setEditGrade] = useState('');
   const [editNote, setEditNote] = useState('');
   const [historyId, setHistoryId] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
   const shown = data.learners.filter(l => matchesSearch(l.display_name, search));
   const editing = data.learners.find(l => l.id === editId);
   const classCount = (id: string) => data.enrollments.filter(e => e.learner_id === id).length;
@@ -142,6 +145,8 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
       <button className="primary-btn" type="submit" disabled={busy}>+ Add student</button>
       {warning && <p className="ops-feedback" role="alert">{warning}</p>}
     </form>}
+    {isAdmin && <p><button className="small-btn" type="button" aria-expanded={importing} disabled={importBusy} onClick={() => setImporting(!importing)}>{importing ? 'Close import' : 'Import from a spreadsheet (CSV)'}</button></p>}
+    {isAdmin && importing && <LiveImport data={data} client={client} reload={reload} onBusyChange={setImportBusy} />}
     <label>Search students<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name" /></label>
     {shown.length === 0 ? <p className="quiet">{data.learners.length === 0 ? (isAdmin ? 'No students yet. Add the first one above.' : 'No students are in your classes yet.') : 'No students match your search.'}</p> :
       <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Name</th><th>Grade</th><th>Status</th><th>Classes</th><th>Action</th></tr></thead><tbody>
@@ -302,6 +307,19 @@ function Attendance({ data, client, reload }: PanelProps) {
     if (missing) return void run(async () => { throw Error('Mark every student (' + missing + ' left) before saving'); }, '');
     await run(() => saveAttendance(client, sessionId, marks), 'Attendance saved.');
   }
+  const [exportFrom, setExportFrom] = useState('');
+  const [exportTo, setExportTo] = useState('');
+  const [exportNote, setExportNote] = useState('');
+  function downloadAttendance() {
+    const rows = attendanceCsvRows(data, { classId, from: exportFrom, to: exportTo });
+    if (!rows.length) { setExportNote('No attendance recorded for that choice. Nothing was downloaded.'); return; }
+    const cls = data.classes.find(c => c.id === classId)?.title;
+    const url = URL.createObjectURL(new Blob([toCsv(ATTENDANCE_CSV_HEADER, rows)], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url;
+    a.download = 'bigchange-attendance-' + (cls ? cls.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' : '') + todayIso() + '.csv';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setExportNote('Downloaded ' + rows.length + ' attendance mark' + (rows.length === 1 ? '' : 's') + (cls ? ' for ' + cls : ' for all your classes') + '. It contains students\' names: share it only with school staff.');
+  }
   const classRecords = data.attendance.filter(a => classSessions.some(s => s.id === a.session_id));
   const overall = attendanceSummary(classRecords);
   return <section className="panel operations" aria-label="Attendance">
@@ -331,6 +349,13 @@ function Attendance({ data, client, reload }: PanelProps) {
           <p>Present {overall.present} · Late {overall.late} · Absent {overall.absent} · Excused {overall.excused}
             {overall.rate !== null && <> · Attendance rate <strong>{overall.rate}%</strong></>} <span className="quiet">(excused lessons are not counted)</span></p>}
       </div>}
+      <div className="people-enroll" aria-label="Download attendance"><h3>Download attendance (CSV)</h3>
+        <p className="quiet">{classId ? 'For the class chosen above.' : 'For all your classes (choose a class above for one class only).'} Opens in Google Sheets or Excel. Leave the dates empty for everything.</p>
+        <label>From (optional)<input type="date" value={exportFrom} onChange={e => { setExportFrom(e.target.value); setExportNote(''); }} /></label>
+        <label>To (optional)<input type="date" value={exportTo} onChange={e => { setExportTo(e.target.value); setExportNote(''); }} /></label>
+        <button className="small-btn" type="button" disabled={data.attendance.length === 0} onClick={downloadAttendance}>Download attendance (CSV)</button>
+        {exportNote && <p role="status">{exportNote}</p>}
+      </div>
     </>}
     <p className="ops-feedback" role="status" aria-live="polite">{message}</p>
   </section>;

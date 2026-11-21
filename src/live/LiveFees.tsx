@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { approvePeriod, checkPeriod, childFee, createChildPeriod, logReminder, reportPayment, setGuardianConsent, setPeriodAmount, type FeeStatus } from './api';
-import { FEE_TEXT, STAGE_LABEL, STATUS_LABEL, toCsv, bulkReminderText, emailBatches, formatDate, needsReminder, reminderText, remindedText, todayIso, usd, whatsappLink } from './fees.mjs';
+import { periodsToStart, FEE_TEXT, STAGE_LABEL, STATUS_LABEL, toCsv, bulkReminderText, emailBatches, formatDate, needsReminder, reminderText, remindedText, todayIso, usd, whatsappLink } from './fees.mjs';
 import { useAction, type PanelProps, type Role } from './shared';
 import { TI } from './ti.mjs';
 import type { PaymentMethod } from './api';
@@ -160,6 +160,10 @@ function StaffFees({ data, client, role, reload }: PanelProps & { role: Role }) 
       <div><small>Unpaid</small><strong>{counts.unpaid}</strong></div><div><small>Overdue</small><strong>{counts.overdue}</strong></div>
       <div><small>Awaiting check</small><strong>{counts.review}</strong></div><div><small>Awaiting approval</small><strong>{counts.approval}</strong></div></div>
 
+    <NextPeriods data={data} busy={busy} coursesOf={coursesOf}
+      onStart={r => void run(() => createChildPeriod(client, r.learnerId, r.start), `Started for ${r.name}: 3 months from ${formatDate(r.start)}.`)}
+      onOtherDate={r => { setLearnerId(r.learnerId); setStart(r.start); setPreview(''); }} />
+
     <div className="people-enroll"><h3>Start a child's 3 months</h3>
       <p className="quiet">Each child's 3 months start on the day that child starts. A brother or sister who joins later gets their own dates; the parent may still pay for both on the same day.</p>
       <label>Child<select value={learnerId} onChange={e => { setLearnerId(e.target.value); setPreview(''); }}><option value="">Choose a child</option>
@@ -260,5 +264,25 @@ function PaymentMethods({ methods, busy, onAdd, onChange }: { methods: PaymentMe
       <label>New payment method<input required maxLength={60} value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Telebirr" /></label>
       <button className="small-btn" type="submit" disabled={busy}>+ Add method</button>
     </form>
+  </div>;
+}
+
+type NextRow = { learnerId: string; name: string; lastEnd: string | null; start: string; reason: 'ended' | 'soon' | 'never'; days: number };
+/** Finance's to-do list: children whose 3 months have ended (or end within 14 days), or who never had a period. */
+function NextPeriods({ data, busy, coursesOf, onStart, onOtherDate }: { data: PanelProps['data']; busy: boolean; coursesOf: (id: string) => string[];
+  onStart: (r: NextRow) => void; onOtherDate: (r: NextRow) => void }) {
+  const rows: NextRow[] = periodsToStart(data);
+  const state = (r: NextRow) => r.reason === 'never' ? <span className="tag amber">Not started</span>
+    : r.reason === 'soon' ? <span className="tag amber">Ends in {r.days} day{r.days === 1 ? '' : 's'}</span>
+    : <span className="tag red">{r.days === 0 ? 'Ended today' : `Ended ${-r.days} day${r.days === -1 ? '' : 's'} ago`}</span>;
+  return <div className="people-enroll" aria-label="Needs the next 3 months"><h3>Needs the next 3 months ({rows.length})</h3>
+    <p className="quiet">Enrolled children whose 3 months have ended or end within 14 days, and enrolled children who never had a period. The next 3 months start on the day the last ones end, so no days are lost; the fee is worked out by the database from the child's classes on that day.</p>
+    {rows.length === 0 ? <p className="quiet">Every enrolled child has a current period.</p> :
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Children who need the next 3 months"><table><thead><tr><th>Child</th><th>Courses</th><th>Last 3 months</th><th>Next starts</th><th>Action</th></tr></thead><tbody>
+        {rows.map(r => <tr key={r.learnerId}><td>{r.name}</td><td>{coursesOf(r.learnerId).join(', ') || '—'}</td>
+          <td>{r.lastEnd ? <>Until {formatDate(r.lastEnd)}<br /></> : null}{state(r)}</td><td>{formatDate(r.start)}</td>
+          <td><button className="small-btn" type="button" disabled={busy} aria-label={'Start next 3 months for ' + r.name} onClick={() => onStart(r)}>Start next 3 months</button>{' '}
+            <button className="text-btn" type="button" disabled={busy} aria-label={'Choose another date for ' + r.name} onClick={() => onOtherDate(r)}>Other date</button></td></tr>)}
+      </tbody></table></div>}
   </div>;
 }

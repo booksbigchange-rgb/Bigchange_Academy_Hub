@@ -123,6 +123,7 @@ async function install(page, db, role) {
         return json(out);
       }
       if (method === 'POST') {
+        if (db.delayMs && table === 'academy_learners') await new Promise(r => setTimeout(r, db.delayMs));
         const body = req.postDataJSON(); const list = Array.isArray(body) ? body : [body];
         const created = list.map(r => {
           if (table === 'academy_attendance') {
@@ -246,6 +247,16 @@ await session(browser, db, 'admin', 1366, async page => {
   await page.getByRole('button', { name: 'Save attendance' }).click();
   await page.getByText('Attendance saved.').waitFor();
   check('admin records attendance and sees the summary', await seen(page.getByText(/Attendance rate/)));
+  {
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download attendance (CSV)' }).click()]);
+    const text = await (await import('node:fs')).promises.readFile(await dl.path(), 'utf8');
+    check('admin downloads the class attendance as CSV', /^bigchange-attendance-class-test-\d{4}-\d{2}-\d{2}\.csv$/.test(dl.suggestedFilename())
+      && text.includes('"Date","Time","Class","Student","Status"') && text.includes('"2026-11-02","16:00","Class Test","Kid Test","Present"'), dl.suggestedFilename());
+    await page.getByLabel('From (optional)').fill('2026-12-01');
+    await page.getByRole('button', { name: 'Download attendance (CSV)' }).click();
+    check('an empty date range downloads nothing and says so', await seen(page.getByText('No attendance recorded for that choice. Nothing was downloaded.')));
+    await page.getByLabel('From (optional)').fill('');
+  }
   await page.getByLabel('Date').fill('2026-11-02');
   await page.getByRole('button', { name: '+ Add lesson' }).click();
   check('duplicate lesson on the same day is refused', await seen(page.getByText(/already has a lesson/)));
@@ -255,6 +266,7 @@ await session(browser, db, 'admin', 1366, async page => {
     await seen(page.getByRole('cell', { name: '+251911000000' })) && await seen(page.getByText('Verified', { exact: true })));
   await nav(page, 'Fees');
   await page.getByRole('combobox', { name: /^Child/ }).selectOption({ index: 1 });
+  check('a newly enrolled child is listed as needing their first 3 months', await seen(page.getByRole('region', { name: 'Children who need the next 3 months' }).getByRole('row', { name: /Kid Test.*Not started/ })));
   await page.getByRole('button', { name: 'Show fee' }).click();
   check('fee preview shows the child and USD 150', await seen(page.getByText(/Kid Test: 1 course.*USD 150/).first()));
   await page.getByRole('button', { name: 'Start 3 months' }).click();
@@ -320,6 +332,43 @@ await session(browser, db, 'admin', 1366, async page => {
   await nav(page, 'Students');
   await page.getByRole('row', { name: /Kid Test/ }).getByRole('button', { name: 'Attendance' }).click();
   check('student attendance history shows the saved mark', await seen(page.getByRole('cell', { name: 'Present' })) && await seen(page.getByText(/Attendance rate 100%/)));
+  // Import students from a spreadsheet (CSV): preview, then import; existing students are skipped.
+  await nav(page, 'Students');
+  await page.getByRole('button', { name: 'Import from a spreadsheet (CSV)' }).click();
+  const csv = ['Student name,Grade,Parent name,Parent phone,Parent email,WhatsApp OK,Email OK,Class',
+    'Import Kid One,5,Import Parent,0911 222 001,,yes,,english - level 3',
+    'Kid Test,,Someone,0911222002,,,,',
+    'X,,Parent,0911222003,,,,',
+    'Import Kid Two,,Import Parent Two,,two@example.com,,yes,'].join('\n');
+  await page.getByLabel('Spreadsheet file (.csv)').setInputFiles({ name: 'students.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  check('import preview counts ready, skipped and problem rows', await seen(page.getByText(/4 rows · 2 ready · 1 skipped · 1 with problems/)));
+  const preview = page.getByRole('region', { name: 'Import preview' });
+  check('preview explains the skipped and problem rows', await seen(preview.getByText('A student with this name is already in the app'))
+    && await seen(preview.getByText(/2 to 80 characters/)));
+  check('preview matches the class name and normalises the phone', await seen(preview.getByRole('cell', { name: 'English – Level 3' }))
+    && await seen(preview.getByRole('cell', { name: '+251911222001' })));
+  if (process.env.SCREENSHOTS) await preview.screenshot({ path: `${process.env.SCREENSHOTS}/admin-import-preview.png` });
+  if (process.env.AXE_PATH) {
+    await page.addScriptTag({ path: process.env.AXE_PATH });
+    const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+    check('axe import preview: no serious/critical issues', v.length === 0, v.join(' | '));
+  }
+  db.delayMs = 400;
+  await page.getByRole('button', { name: 'Import 2 students' }).click();
+  check('"Close import" cannot be pressed while the import is running', await page.getByRole('button', { name: 'Close import' }).isDisabled());
+  await page.getByText('Finished: 2 of 2 students added.').waitFor();
+  db.delayMs = 0;
+  check('"Close import" works again when the import has finished', await page.getByRole('button', { name: 'Close import' }).isEnabled());
+  const kidOne = db.academy_learners.find(l => l.display_name === 'Import Kid One');
+  check('imported students appear in the list', await seen(page.getByRole('cell', { name: 'Import Kid One' })) && await seen(page.getByRole('cell', { name: 'Import Kid Two' })));
+  check('imported student has grade, parent with WhatsApp consent, and class',
+    kidOne?.grade_level === 'Grade 5'
+    && db.academy_guardians.some(g => g.phone_e164 === '+251911222001' && g.whatsapp_opt_in === true && g.email_opt_in === false)
+    && db.academy_enrollments.some(e => e.learner_id === kidOne?.id));
+  check('the skipped and problem rows were not imported', db.academy_learners.filter(l => l.display_name === 'Kid Test').length === 1 && !db.academy_learners.some(l => l.display_name === 'X'));
+  await page.getByLabel('Spreadsheet file (.csv)').setInputFiles({ name: 'students.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  check('choosing the same file again shows the imported rows as skipped', await seen(page.getByText(/4 rows · 0 ready · 3 skipped · 1 with problems/)));
+  await page.getByRole('button', { name: 'Close import' }).click();
   // Staff screen (migration 0010): give a waiting login a role, then switch access off.
   await nav(page, 'Staff');
   const waitingTable = page.getByRole('region', { name: 'Logins waiting for a role' });
@@ -407,6 +456,15 @@ await session(browser, db, 'finance', 390, async page => {
   const csvText = await (await import('node:fs')).promises.readFile(await download.path(), 'utf8');
   check('finance downloads payments as CSV for Google Sheets', /^bigchange-payments-\d{4}-\d{2}-\d{2}\.csv$/.test(download.suggestedFilename())
     && csvText.includes('"Child","Parent","Parent phone"') && csvText.includes("'+251911000000"), download.suggestedFilename());
+  const nextList = page.getByRole('region', { name: 'Children who need the next 3 months' });
+  check('finance sees the imported child who needs their first 3 months, not children already covered',
+    await seen(nextList.getByRole('row', { name: /Import Kid One/ })) && (await nextList.getByRole('row', { name: /Kid Test/ }).count()) === 0);
+  if (process.env.SCREENSHOTS) await nextList.screenshot({ path: `${process.env.SCREENSHOTS}/finance-next-periods.png` });
+  await nextList.getByRole('button', { name: 'Start next 3 months for Import Kid One' }).click();
+  await page.getByText(/^Started for Import Kid One: 3 months from /).waitFor();
+  check('finance starts the next 3 months from the list; the child leaves the list',
+    (await page.getByRole('region', { name: 'Children who need the next 3 months' }).getByRole('row', { name: /Import Kid One/ }).count()) === 0
+    && db.academy_fee_period_status.some(p => p.learner_id === db.academy_learners.find(l => l.display_name === 'Import Kid One')?.id));
   check('finance sees the parents-to-remind list', await seen(page.getByRole('heading', { name: /Parents to remind \(\d+\)/ })));
   check('finance list shows the WhatsApp button and last reminder', await seen(page.getByLabel('Parents to remind').getByRole('link', { name: 'Send on WhatsApp' })) && await seen(page.getByLabel('Parents to remind').getByText(/^Reminded /)));
   check('finance can copy numbers for a broadcast list', await seen(page.getByRole('button', { name: /Copy WhatsApp numbers \(1\)/ })));

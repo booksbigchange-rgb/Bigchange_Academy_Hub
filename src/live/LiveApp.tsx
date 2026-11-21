@@ -13,17 +13,20 @@ import { TI } from './ti.mjs';
 import LiveNotices from './LiveNotices';
 import LiveStaff from './LiveStaff';
 import InstallBanner from './InstallBanner';
+import LiveMessages from './LiveMessages';
+import { useChatList } from './useChat';
+import { totalUnread } from './chat.mjs';
 import { addMonths, daysUntil, endingText, formatDate, nextLevelPlan, todayIso } from './fees.mjs';
 import LiveFamily, { LivePayments } from './LiveFamily';
 import { ATTENDANCE_STATUSES, GRADE_LEVELS, studentHistory, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
 
-type Section = 'Overview' | 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees' | 'My children' | 'My classes' | 'Payments' | 'Notices' | 'Staff';
+type Section = 'Overview' | 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees' | 'My children' | 'My classes' | 'Payments' | 'Notices' | 'Staff' | 'Messages';
 
 export default function LiveApp({ client, role, email, onSignOut }: { client: SupabaseClient; role: Role; email: string; onSignOut: () => void }) {
   const isAdmin = role === 'admin';
-  const sections: Section[] = isAdmin ? ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Notices', 'Staff']
-    : role === 'teacher' ? ['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']
-    : role === 'finance' ? ['Fees', 'Overview', 'Guardians', 'Students']
+  const sections: Section[] = isAdmin ? ['Overview', 'Messages', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Notices', 'Staff']
+    : role === 'teacher' ? ['Overview', 'Messages', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']
+    : role === 'finance' ? ['Fees', 'Messages', 'Overview', 'Guardians', 'Students']
     : role === 'guardian' ? ['My children', 'Payments'] : role === 'learner' ? ['My classes'] : [];
   const isFinance = role === 'finance';
   const [section, setSection] = useState<Section>(sections[0] ?? 'Overview');
@@ -31,6 +34,9 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
   const [data, setData] = useState<Data>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const isStaff = isAdmin || isFinance || role === 'teacher';
+  const chat = useChatList(client, isStaff);
+  const unread = totalUnread(chat.list);
 
   const reload = useCallback(async () => {
     setLoadError('');
@@ -57,7 +63,8 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
       <div className="side-label">WORKSPACE</div>
       <nav aria-label="Sections">
         {sections.map(item => <button key={item} className={section === item ? 'navitem active' : 'navitem'}
-          aria-current={section === item ? 'page' : undefined} onClick={() => setSection(item)}><NavIcon name={item} />{item}</button>)}
+          aria-current={section === item ? 'page' : undefined} onClick={() => setSection(item)}><NavIcon name={item} />{item}
+          {item === 'Messages' && unread > 0 && <span className="nav-badge"><span aria-hidden="true">{unread > 99 ? '99+' : unread}</span><span className="sr-only">, {unread} unread</span></span>}</button>)}
       </nav>
       <div className="sidebar-bottom"><div className="sidebar-user" title={email}>{email}</div><span className="role-chip">{role}</span></div>
     </aside>
@@ -68,7 +75,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
       </header>
       <main className="content live" id="main-content" tabIndex={-1}>
         <div role="note" className="notice"><strong>Live database</strong> — use test data only until the privacy and safeguarding checklist is complete. Changes are saved to the Academy database.</div>
-        {(isAdmin || isFinance || role === 'teacher') && <InstallBanner />}
+        {isStaff && <InstallBanner />}
         {!sections.length && <section className="panel"><h2>No screens yet for your role</h2>
           <p>Screens for the <strong>{role}</strong> role have not been built yet. Your account is verified, but nothing is available to you here for now.</p></section>}
         {sections.length > 0 && loading && <p role="status">Loading…</p>}
@@ -78,6 +85,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
             onWriteNotice={id => { setNoticeClassId(id); setSection('Notices'); }} />}
           {(section === 'My children' || section === 'My classes') && <LiveFamily data={data} role={role} />}
           {section === 'Payments' && <LivePayments data={data} />}
+          {section === 'Messages' && isStaff && <LiveMessages client={client} isAdmin={isAdmin} chat={chat} />}
           {section === 'Notices' && <LiveNotices key={noticeClassId} data={data} initialClassId={noticeClassId} />}
           {section === 'Students' && <Students data={data} client={client} isAdmin={isAdmin} reload={reload} />}
           {section === 'Courses' && isAdmin && <Courses data={data} client={client} reload={reload} />}

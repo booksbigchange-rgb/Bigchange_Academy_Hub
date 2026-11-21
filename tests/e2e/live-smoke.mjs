@@ -26,7 +26,10 @@ function freshDb() {
     academy_payment_methods: [{ code: 'israel', label: 'Israel', active: true, sort_order: 10 }, { code: 'ria_tsegay', label: 'Ria – Tsegay', active: true, sort_order: 30 },
       { code: 'habesha_shop', label: 'Habesha shop', active: true, sort_order: 60 }, { code: 'cash', label: 'Cash (old)', active: false, sort_order: 200 }],
     academy_learners_seed: [], academy_courses: [], academy_classes: [], academy_enrollments: [], academy_sessions: [],
-    academy_attendance: [], academy_guardian_links: [], academy_fee_period_status: []
+    academy_attendance: [], academy_guardian_links: [], academy_fee_period_status: [],
+    // Staff chat (migration 0011): the three school-wide groups; class groups are added when classes are created.
+    chat: { convs: [{ id: 'c-all', kind: 'group', group_key: 'all_staff' }, { id: 'c-teachers', kind: 'group', group_key: 'teachers' }, { id: 'c-finance', kind: 'group', group_key: 'finance' }],
+      members: [], academy_chat_messages: [], reads: {}, reports: [], access: [] }
   };
 }
 const USERS = { admin: uid(901), teacher: uid(902), finance: uid(903), guardian: uid(904), learner: uid(905) };
@@ -44,6 +47,7 @@ async function install(page, db, role) {
   const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
   const token = b64({ alg: 'HS256', typ: 'JWT' }) + '.' + b64({ sub: user.id, exp: Math.floor(Date.now() / 1000) + 3600, role: 'authenticated' }) + '.sig';
   const calls = [];
+  await page.routeWebSocket(/smoketest\.supabase\.co/, () => {});
   await page.route(API + '/**', async route => {
     const req = route.request(); const url = new URL(req.url()); const path = url.pathname; const method = req.method();
     const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -92,6 +96,55 @@ async function install(page, db, role) {
         if (a.p_channel === 'whatsapp' && !g.whatsapp_opt_in) return json({ message: 'This parent has not agreed to WhatsApp messages' }, 400);
         (db.academy_reminder_events ??= []).push({ id: uid(seq++), period_id: p.id, sent_at: new Date().toISOString() }); return json(new Date().toISOString());
       }
+      if (fn.startsWith('academy_chat_')) {
+        if (db.before0011) return json({ code: 'PGRST202', message: 'Could not find the function public.' + fn }, 404);
+        const ch = db.chat; const me = db.academy_staff.find(s => s.auth_user_id === user.id && s.active); const err = m => json({ code: 'P0001', message: m }, 400);
+        if (!me) return json({ code: '42501', message: 'Chat is for active staff only' }, 403);
+        for (const k of db.academy_classes) if (!ch.convs.some(c => c.class_id === k.id)) ch.convs.push({ id: 'c-class-' + k.id, kind: 'group', class_id: k.id });
+        const inConv = (c, s) => c.kind === 'direct' ? ch.members.some(m => m.conv === c.id && m.staff === s.id) : c.group_key === 'all_staff'
+          || (c.group_key === 'teachers' && ['teacher', 'admin'].includes(s.role)) || (c.group_key === 'finance' && ['finance', 'admin'].includes(s.role))
+          || (c.class_id && (s.role === 'admin' || db.academy_classes.find(k => k.id === c.class_id)?.teacher_staff_id === s.id));
+        const conv = id => ch.convs.find(c => c.id === id && inConv(c, me));
+        const name = id => db.academy_staff.find(s => s.id === id)?.display_name ?? 'Staff member';
+        const msgs = id => ch.academy_chat_messages.filter(m => m.conversation_id === id);
+        const title = c => c.kind === 'direct' ? name(ch.members.find(m => m.conv === c.id && m.staff !== me.id)?.staff)
+          : ({ all_staff: 'All staff', teachers: 'Teachers', finance: 'Finance' })[c.group_key] ?? db.academy_classes.find(k => k.id === c.class_id)?.title ?? 'Class';
+        const read = id => { ch.reads[id + me.id] = new Date().toISOString(); };
+        if (fn === 'academy_chat_conversation_list') return json(ch.convs.filter(c => inConv(c, me)).map(c => { const last = msgs(c.id).at(-1);
+          return { conversation_id: c.id, kind: c.kind, group_key: c.group_key ?? null, class_id: c.class_id ?? null, title: title(c),
+            other_staff_id: c.kind === 'direct' ? ch.members.find(m => m.conv === c.id && m.staff !== me.id)?.staff : null,
+            last_message_at: last?.created_at ?? null, last_sender_name: last ? name(last.sender_staff_id) : null,
+            last_preview: last ? (last.deleted_at ? 'Message deleted' : (last.body ?? last.link_url)) : null,
+            unread: msgs(c.id).filter(m => m.sender_staff_id !== me.id && !m.deleted_at && m.created_at > (ch.reads[c.id + me.id] ?? '')).length }; }));
+        if (fn === 'academy_chat_staff_directory') return json(db.academy_staff.filter(s => s.active && s.id !== me.id).map(s => ({ staff_id: s.id, display_name: s.display_name, role: s.role })));
+        if (fn === 'academy_chat_participants') { const c = conv(a.p_conv); if (!c) return json({ code: '42501', message: 'Not a member' }, 403);
+          return json(db.academy_staff.filter(s => s.active && inConv(c, s)).map(s => ({ staff_id: s.id, display_name: s.display_name, role: s.role }))); }
+        if (fn === 'academy_chat_start_direct') {
+          let c = ch.convs.find(x => x.kind === 'direct' && ch.members.some(m => m.conv === x.id && m.staff === me.id) && ch.members.some(m => m.conv === x.id && m.staff === a.p_other));
+          if (!c) { c = { id: 'c-dm-' + seq++, kind: 'direct' }; ch.convs.push(c); ch.members.push({ conv: c.id, staff: me.id }, { conv: c.id, staff: a.p_other }); }
+          return json(c.id);
+        }
+        if (fn === 'academy_chat_send') { if (!conv(a.p_conv)) return json({ code: '42501', message: 'Not a member' }, 403);
+          const m = { id: uid(seq++), conversation_id: a.p_conv, sender_staff_id: me.id, body: a.p_body, link_url: a.p_link, created_at: new Date(Date.now() + seq).toISOString(), deleted_at: null };
+          ch.academy_chat_messages.push(m); read(a.p_conv); return json(m.id); }
+        if (fn === 'academy_chat_mark_read') { if (conv(a.p_conv)) read(a.p_conv); return route.fulfill({ status: 204 }); }
+        if (fn === 'academy_chat_delete_message') { const m = ch.academy_chat_messages.find(x => x.id === a.p_message);
+          if (!m || m.sender_staff_id !== me.id) return err('You can delete only your own messages');
+          if (ch.reports.some(r => r.message_id === m.id)) return err('This message was reported and cannot be deleted');
+          Object.assign(m, { body: null, link_url: null, deleted_at: new Date().toISOString() }); return route.fulfill({ status: 204 }); }
+        if (fn === 'academy_chat_report') { const m = ch.academy_chat_messages.find(x => x.id === a.p_message);
+          if (!m || !conv(m.conversation_id)) return err('Message not found');
+          if ((a.p_reason ?? '').trim().length < 3) return err('Say briefly why (3 to 500 characters)');
+          const r = { report_id: uid(seq++), created_at: new Date().toISOString(), reason: a.p_reason, reporter_name: me.display_name, message_id: m.id, conversation_id: m.conversation_id, handled_at: null, handled_note: null };
+          ch.reports.push(r); return json(r.report_id); }
+        if (!['admin'].includes(me.role)) return json({ code: '42501', message: 'Only an administrator' }, 403);
+        if (fn === 'academy_chat_report_list') return json(ch.reports.map(r => { const m = ch.academy_chat_messages.find(x => x.id === r.message_id);
+          return { ...r, sender_name: name(m.sender_staff_id), message_preview: m.deleted_at ? 'Message deleted' : (m.body ?? m.link_url), times_opened: ch.access.filter(x => x.report_id === r.report_id).length }; }));
+        if (fn === 'academy_chat_open_report') { const r = ch.reports.find(x => x.report_id === a.p_report); ch.access.push({ report_id: r.report_id, admin: me.id });
+          return json(msgs(r.conversation_id).map(m => ({ message_id: m.id, sender_name: name(m.sender_staff_id), body: m.body, link_url: m.link_url, created_at: m.created_at, deleted: !!m.deleted_at, reported: ch.reports.some(x => x.message_id === m.id) }))); }
+        if (fn === 'academy_chat_handle_report') { const r = ch.reports.find(x => x.report_id === a.p_report && !x.handled_at); if (!r) return err('Report not found or already handled');
+          Object.assign(r, { handled_at: new Date().toISOString(), handled_note: a.p_note }); return route.fulfill({ status: 204 }); }
+      }
       if (db.before0010 && fn.startsWith('academy_s') && fn.includes('staff')) return json({ code: 'PGRST202', message: 'Could not find the function public.' + fn }, 404);
       if (fn === 'academy_staff_directory') return json(db.auth_users.map(u => { const st = db.academy_staff.find(x => x.auth_user_id === u.id);
         return { user_id: u.id, email: u.email, staff_id: st?.id ?? null, display_name: st?.display_name ?? null, role: st?.role ?? null, active: Boolean(st?.active),
@@ -111,6 +164,11 @@ async function install(page, db, role) {
       const store = table === 'academy_fee_periods' ? 'academy_fee_period_status' : table;
       const rows = db[store] ?? (db[store] = []);
       const single = (req.headers()['accept'] || '').includes('vnd.pgrst.object');
+      if (method === 'GET' && table === 'academy_chat_messages') {
+        if (db.before0011) return json({ code: '42P01', message: 'relation does not exist' }, 404);
+        const conv = url.searchParams.get('conversation_id')?.slice(3);
+        return json(db.chat.academy_chat_messages.filter(m => m.conversation_id === conv).slice().reverse());
+      }
       if (method === 'GET') {
         if (db.before0010 && table === 'academy_staff' && (url.searchParams.get('select') || '').includes('active'))
           return json({ code: '42703', message: 'column academy_staff.active does not exist' }, 400);
@@ -180,7 +238,8 @@ async function session(browser, db, role, width, fn, contextOptions = {}) {
 }
 /** Wait (up to 5 s) for something to appear; returns whether it did. */
 const seen = (locator, ms = 5000) => locator.first().waitFor({ state: 'visible', timeout: ms }).then(() => true, () => false);
-const nav = (page, name) => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name, exact: true }).click();
+// The Messages button may carry ", 3 unread" in its accessible name.
+const nav = (page, name) => page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: new RegExp('^' + name + '(,.*)?$') }).click();
 
 const browser = await chromium.launch(EXEC ? { executablePath: EXEC } : {});
 const db = freshDb();
@@ -366,7 +425,7 @@ db.academy_fee_period_status.push({ id: uid(seq++), guardian_id: parentOfKid?.id
 
 await session(browser, db, 'teacher', 390, async page => {
   const sections = await page.getByRole('navigation', { name: 'Sections' }).getByRole('button').allInnerTexts();
-  check('teacher sees teacher sections only', JSON.stringify(sections) === JSON.stringify(['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']), sections.join(','));
+  check('teacher sees teacher sections only', JSON.stringify(sections) === JSON.stringify(['Overview', 'Messages', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']), sections.join(','));
   const bar = await page.getByRole('navigation', { name: 'Sections' }).boundingBox();
   check('phone: the menu is a tab bar at the bottom of the screen', !!bar && bar.y + bar.height >= 890 && bar.y > 700, JSON.stringify(bar));
   check('phone: install banner is not shown when the browser cannot install', await page.getByRole('heading', { name: 'Put the Hub on your phone' }).count() === 0);
@@ -478,7 +537,7 @@ if (process.env.AXE_PATH) {
     check(`axe sign-in @${width}px: no serious/critical issues`, v.length === 0, v.join(' | '));
     await p.context().close();
   }
-  for (const [role, sections] of [['admin', ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Staff']], ['teacher', ['Overview', 'Classes', 'Fees', 'Notices']], ['finance', ['Fees', 'Overview', 'Guardians']]]) {
+  for (const [role, sections] of [['admin', ['Overview', 'Messages', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Staff']], ['teacher', ['Overview', 'Messages', 'Classes', 'Fees', 'Notices']], ['finance', ['Fees', 'Messages', 'Overview', 'Guardians']]]) {
     await session(browser, db, role, role === 'teacher' ? 390 : 1366, async page => {
       for (const name of sections) {
         await nav(page, name);
@@ -491,6 +550,83 @@ if (process.env.AXE_PATH) {
       }
     });
   }
+}
+
+// ---- Staff chat (M6 step 3) ----
+await session(browser, db, 'teacher', 390, async page => {
+  await nav(page, 'Messages');
+  const list = page.getByRole('list', { name: 'Conversations' });
+  check('chat: teacher sees All staff and Teachers groups', await seen(list.getByText('All staff')) && await seen(list.getByText('Teachers')));
+  check('chat: teacher does not see the Finance group', await list.getByRole('button', { name: /^FI Finance/ }).count() === 0);
+  check('chat: teacher sees their class group', await seen(list.getByRole('button', { name: /English/ })));
+  await list.getByRole('button', { name: /All staff/ }).click();
+  check('phone: the chat list is hidden while a chat is open', !(await list.isVisible()));
+  await page.getByLabel('Message', { exact: true }).fill('Hello staff');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  const log = page.getByRole('log');
+  check('chat: message appears after sending', await seen(log.getByText('Hello staff')));
+  await page.getByRole('button', { name: 'Add link' }).click();
+  await page.getByLabel('Google Drive or https link').fill('http://not-secure.example.com');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  check('chat: plain http links are refused', await seen(page.getByText('Links must start with https://')));
+  await page.getByLabel('Google Drive or https link').fill('https://docs.google.com/spreadsheets/d/abc/edit');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  check('chat: a shared sheet shows as a link card', await seen(log.getByRole('link', { name: /Google Sheet/ })));
+  await page.getByRole('button', { name: 'Members' }).click();
+  check('chat: members list shows staff', await seen(page.getByRole('list', { name: 'Members' }).getByText('Finance Test')));
+  await log.getByRole('button', { name: 'Delete' }).last().click();
+  check('chat: own message can be deleted', await seen(log.getByText('Message deleted')));
+  await page.getByRole('button', { name: /^Back/ }).first().click();
+  await page.getByRole('button', { name: '+ New chat' }).click();
+  await page.getByRole('list', { name: 'Staff' }).getByRole('button', { name: /Finance Test/ }).click();
+  await page.getByLabel('Message', { exact: true }).fill('Can you check the Habesha shop payment?');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  check('chat: teacher starts a one-to-one chat with finance', await seen(page.getByRole('log').getByText('Can you check the Habesha shop payment?')));
+  await page.addScriptTag({ path: process.env.AXE_PATH });
+  const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
+    .filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id + ': ' + x.nodes.slice(0, 2).map(n => n.target.join(' ')).join(', ')));
+  check('axe teacher open chat @390px: no serious/critical issues', v.length === 0, v.join(' | '));
+});
+await session(browser, db, 'finance', 1366, async page => {
+  const msgBtn = page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: /^Messages/ });
+  check('chat: unread badge on Messages for finance', await seen(page.getByRole('button', { name: /Messages, 1 unread/ })), await msgBtn.innerText());
+  await nav(page, 'Messages');
+  await page.getByRole('list', { name: 'Conversations' }).getByRole('button', { name: /Teacher Test/ }).click();
+  const log = page.getByRole('log');
+  check('chat: finance reads the teacher message', await seen(log.getByText('Can you check the Habesha shop payment?')));
+  check('chat: badge clears after reading', await page.getByRole('button', { name: /^Messages, \d+ unread/ }).waitFor({ state: 'detached', timeout: 3000 }).then(() => true, () => false));
+  check('chat: finance cannot delete the teacher message', await log.getByRole('button', { name: 'Delete' }).count() === 0);
+  await log.getByRole('button', { name: 'Report' }).click();
+  await page.getByLabel('Why are you reporting this message?').fill('Testing the report button');
+  await page.getByRole('button', { name: 'Send report' }).click();
+  check('chat: finance reports the message', await seen(page.getByText('Reported. An administrator will look at it.')));
+});
+await session(browser, db, 'admin', 1366, async page => {
+  await nav(page, 'Messages');
+  check('chat: admin does not see the teacher–finance one-to-one chat', await page.getByRole('list', { name: 'Conversations' }).getByRole('button', { name: /Teacher Test|Finance Test/ }).count() === 0);
+  check('chat: admin sees every group incl. Finance', await seen(page.getByRole('list', { name: 'Conversations' }).getByText('Finance', { exact: true })));
+  await page.getByRole('button', { name: 'Reported messages' }).click();
+  const reports = page.getByRole('list', { name: 'Reported messages' });
+  check('chat: admin sees the report with its reason', await seen(reports.getByText('Reason: Testing the report button')));
+  await reports.getByRole('button', { name: 'Open conversation' }).click();
+  check('chat: admin reads the reported conversation', await seen(page.getByText('Can you check the Habesha shop payment?')));
+  check('chat: admin is told the opening is recorded', await seen(page.getByText('this opening is recorded')));
+  await page.addScriptTag({ path: process.env.AXE_PATH });
+  const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
+    .filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id + ': ' + x.nodes.slice(0, 2).map(n => n.target.join(' ')).join(', ')));
+  check('axe admin reported conversation: no serious/critical issues', v.length === 0, v.join(' | '));
+  await page.getByLabel(/What did you do/).fill('Talked to both');
+  await page.getByRole('button', { name: 'Mark as handled' }).click();
+  check('chat: admin marks the report handled', await seen(page.getByText('Report marked as handled.')));
+  check('chat: the list shows it was opened once', await seen(page.getByText('Opened 1 time')));
+});
+// Before migration 0011 the Messages screen explains instead of failing.
+{
+  const old = { ...freshDb(), before0011: true };
+  await session(browser, old, 'teacher', 1366, async page => {
+    await nav(page, 'Messages');
+    check('chat: before update 0011 the screen explains', await seen(page.getByText('Chat is not switched on yet')));
+  });
 }
 
 // iPhone (Safari): the Add to Home Screen steps appear for staff, can be dismissed, and stay dismissed.

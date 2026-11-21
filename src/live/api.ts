@@ -306,3 +306,46 @@ export async function setStaffActive(c: SupabaseClient, staffId: string, active:
   const { error } = await c.rpc('academy_set_staff_active', { p_staff: staffId, p_active: active });
   if (error) workflowFail(error, active ? 'switch access on' : 'switch access off');
 }
+
+// ---- Staff chat (migration 0011) ----
+export type ChatConversation = { conversation_id: string; kind: 'direct' | 'group'; group_key: string | null; class_id: string | null; title: string;
+  other_staff_id: string | null; last_message_at: string | null; last_sender_name: string | null; last_preview: string | null; unread: number };
+export type ChatMessage = { id: string; conversation_id: string; sender_staff_id: string; body: string | null; link_url: string | null; created_at: string; deleted_at: string | null };
+export type ChatPerson = { staff_id: string; display_name: string; role: string };
+export type ChatReport = { report_id: string; created_at: string; reason: string; reporter_name: string; sender_name: string; message_preview: string | null;
+  conversation_id: string; handled_at: string | null; handled_note: string | null; times_opened: number };
+export type ChatOpenedMessage = { message_id: string; sender_name: string; body: string | null; link_url: string | null; created_at: string; deleted: boolean; reported: boolean };
+/** Thrown when migration 0011 has not been run yet, so the screen can say so instead of failing. */
+export class ChatNotReady extends Error {}
+
+type DbError = { message: string; code?: string } | null;
+/** Chat errors: the database's own rule messages (raised with code P0001) are safe and helpful, so show them. */
+function chatFail(error: DbError, action: string): never {
+  if (error?.code === 'PGRST202' || error?.code === '42883' || error?.code === '42P01' || error?.code === 'PGRST205') throw new ChatNotReady('Chat needs database update 0011');
+  if (error?.code === 'P0001' && error.message) throw Error(error.message);
+  fail(error, action);
+}
+async function chatRpc<T>(c: SupabaseClient, fn: string, args: Record<string, unknown> | undefined, action: string): Promise<T> {
+  const { data, error } = await c.rpc(fn, args);
+  if (error) chatFail(error, action);
+  return data as T;
+}
+export const chatConversations = (c: SupabaseClient) => chatRpc<ChatConversation[]>(c, 'academy_chat_conversation_list', undefined, 'load chats').then(r => r ?? []);
+export const chatStaffDirectory = (c: SupabaseClient) => chatRpc<ChatPerson[]>(c, 'academy_chat_staff_directory', undefined, 'load staff').then(r => r ?? []);
+export const chatParticipants = (c: SupabaseClient, conv: string) => chatRpc<ChatPerson[]>(c, 'academy_chat_participants', { p_conv: conv }, 'load members').then(r => r ?? []);
+export const chatStartDirect = (c: SupabaseClient, other: string) => chatRpc<string>(c, 'academy_chat_start_direct', { p_other: other }, 'start the chat');
+export const chatSend = (c: SupabaseClient, conv: string, args: { p_body: string | null; p_link: string | null }) =>
+  chatRpc<string>(c, 'academy_chat_send', { p_conv: conv, ...args }, 'send the message');
+export const chatMarkRead = (c: SupabaseClient, conv: string) => chatRpc<void>(c, 'academy_chat_mark_read', { p_conv: conv }, 'mark as read');
+export const chatDelete = (c: SupabaseClient, id: string) => chatRpc<void>(c, 'academy_chat_delete_message', { p_message: id }, 'delete the message');
+export const chatReport = (c: SupabaseClient, id: string, reason: string) => chatRpc<string>(c, 'academy_chat_report', { p_message: id, p_reason: reason }, 'report the message');
+export const chatReportList = (c: SupabaseClient) => chatRpc<ChatReport[]>(c, 'academy_chat_report_list', undefined, 'load reports').then(r => r ?? []);
+export const chatOpenReport = (c: SupabaseClient, id: string) => chatRpc<ChatOpenedMessage[]>(c, 'academy_chat_open_report', { p_report: id }, 'open the report').then(r => r ?? []);
+export const chatHandleReport = (c: SupabaseClient, id: string, note: string) => chatRpc<void>(c, 'academy_chat_handle_report', { p_report: id, p_note: note }, 'mark the report handled');
+/** The newest 200 messages of a conversation, oldest first. */
+export async function chatMessages(c: SupabaseClient, conv: string): Promise<ChatMessage[]> {
+  const { data, error } = await c.from('academy_chat_messages').select('id,conversation_id,sender_staff_id,body,link_url,created_at,deleted_at')
+    .eq('conversation_id', conv).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(200);
+  if (error) chatFail(error, 'load messages');
+  return ((data ?? []) as ChatMessage[]).reverse();
+}

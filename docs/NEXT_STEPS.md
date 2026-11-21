@@ -1,20 +1,17 @@
 # Next steps for the owner (in order)
 
-Updated 2026-11-17 (Staff screen added). The code for the internal staff version is finished and tested. What is left can only be done by the owner, in the Supabase and hosting dashboards. Files are on branch `main`: https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub
+Updated 2026-11-21 (Google sign-in working). The code for the internal staff version is finished and tested. What is left can only be done by the owner, in the Supabase and hosting dashboards. Files are on branch `main`: https://github.com/booksbigchange-rgb/Bigchange_Academy_Hub
 
 ## To do
 
 ### 1. Put it online (about 15 minutes, free)
-Follow `docs/HOSTING.md` (Netlify, deploying from `main`), then set the new address in Supabase **Authentication → URL Configuration**. After this, staff can use the app from their own phones and computers.
+Follow `docs/HOSTING.md` (Netlify, deploying from `main`), then set the new address in Supabase **Authentication → URL Configuration** (Site URL, and add it under Redirect URLs), so Google sign-in returns staff to the hosted app instead of `127.0.0.1`. After this, staff can use the app from their own phones and computers.
 
-### 2. Google sign-in for staff (about 20 minutes, free, recommended)
-Follow `docs/GOOGLE_SIGNIN.md`. Staff then need no password, and nobody needs a password reset. Do this after step 1 so the hosted address can be entered.
-
-### 3. Add the staff
+### 2. Add the staff
 For each person: Supabase → **Authentication → Users → Add user** (their email, tick **Auto Confirm User**), then give the role in the app: **Staff** → **Refresh list** → **Give a role** (teacher, finance or admin).  Use **Add user**, not **Invite user**: Supabase's built-in email does not deliver invitations to people outside your Supabase organization (see `docs/HOSTING.md`).
 As admin in the app: **Classes** → set each class's **Teacher**.
 
-### 4. Check the roles on the real project (your computer, test accounts)
+### 3. Check the roles on the real project (your computer, test accounts)
 In `D:\Codex\Academy_Hub_Live`: `git pull`, then
 ```
 set ADMIN_EMAIL=...&& set ADMIN_PASSWORD=...
@@ -23,18 +20,19 @@ node tests/live-project-check.mjs
 ```
 Every line should say PASS. Send any FAIL lines. Close the window afterwards.
 
-### 5. One run-through with fake names
+### 4. One run-through with fake names
 Admin: course → class with teacher → student **with parent** (or several at once: Students → **Import from a spreadsheet (CSV)**, using the downloadable template) → enroll → Fees: start the child's 3 months.
 Teacher (private window, and once on a phone): Fees → Report payment; Attendance → mark a lesson; Notices → write a notice.
 Finance: Check → Download payments (CSV). Admin: Approve → everyone sees **Paid**.
 
-### 6. Weekly backup and a second admin
+### 5. Weekly backup and a second admin
 Follow `docs/BACKUPS.md`. Choose who makes the weekly copy.
 
-### 7. Before real families' data goes in
+### 6. Before real families' data goes in
 Complete `docs/PRIVACY_LEGAL_RELEASE_CHECKLIST.md`. Until then, test data only. This is the owner's decision with legal advice; the app shows a reminder on every screen until then.
 
 ## Done
+- Google sign-in set up by the owner on 2026-11-21 (Google Cloud client + Supabase provider) and tested: the owner signed in with Google. Checked from this session: Google accepts the client and the Supabase callback address.
 - Sign-in settings: email sign-in ON, public sign-up OFF (verified 2026-11-08).
 - Migration 0010 (Staff screen) run by the owner on 2026-11-17; confirmed from this session the same day (the new staff functions exist and refuse anonymous access).
 - Migrations 0001–0009 run on the real project (0008 on 2026-11-10; 0009 confirmed present on 2026-11-17 by a signed-out check: the payment-methods table and the new payment-report function exist and refuse anonymous access).

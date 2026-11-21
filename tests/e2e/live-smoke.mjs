@@ -297,8 +297,23 @@ await session(browser, db, 'admin', 1366, async page => {
   await page.getByLabel('New payment method').fill('Telebirr');
   await page.getByRole('button', { name: '+ Add method' }).click();
   check('admin adds a payment method', await seen(page.getByLabel('Payment methods').getByRole('cell', { name: 'Telebirr' })));
-  await nav(page, 'Overview');
+  // A lesson today, so the attendance charts have data whatever date the test runs on.
+  {
+    const kid = db.academy_learners.find(l => l.display_name === 'Kid Test');
+    const when = new Date(); when.setHours(10, 0, 0, 0);
+    const sid = uid(seq++);
+    db.academy_sessions.push({ id: sid, class_id: db.academy_classes[0].id, starts_at: when.toISOString() });
+    db.academy_attendance.push({ session_id: sid, learner_id: kid.id, status: 'present', recorded_by_staff_id: uid(1) });
+    await page.reload();
+    await page.getByRole('heading', { name: 'Welcome back' }).waitFor();
+  }
   check('overview cards render', (await page.locator('.metric').count()) === 4);
+  check('overview: payments donut shows the paid period', await seen(page.getByRole('img', { name: /^Donut chart of current payment periods: 1 paid/ })));
+  check('overview: students-per-course bars', await seen(page.getByRole('region', { name: 'Students per course' }).getByText('Course Test')));
+  check('overview: attendance line chart', await seen(page.getByRole('img', { name: /^Line chart of attendance per week/ })));
+  check('overview: heat calendar shows today at 100%', await seen(page.getByRole('table', { name: 'Attendance per day, last 4 weeks' }).getByRole('cell', { name: '100%' })));
+  check('overview: attendance card shows the 4-week rate', await seen(page.locator('.metric', { hasText: 'Attendance (4 weeks)' }).getByText('100%')));
+  if (process.env.SCREENSHOTS) await page.screenshot({ path: `${process.env.SCREENSHOTS}/admin-overview-new.png`, fullPage: true });
   await nav(page, 'Courses');
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByLabel('New course title').fill('English Level 2');

@@ -45,6 +45,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - 2026-11-18, **Needs the next 3 months** (Fees, finance/admin): every enrolled child with a verified parent whose 3 months have ended or end within 14 days, or who never had a period, with **Start next 3 months** (from the day the last period ended; the database already treats that day as free) and **Other date**. Closes the gap where nobody was told to start the next period. **Download attendance (CSV)** on the Attendance screen: one class or all, optional from/to dates; teachers only get their own classes (database rules). No database change. 149 unit tests (6 new), 126/126 browser checks.
 
+- 2026-11-21, **new Overview dashboard** (owner chose draft A + the heat calendar from draft E): colour cards (paid share with a progress bar, 4-week attendance with the change on the 4 weeks before), a **payments donut** (current period of each child: paid / partly / unpaid / overdue, always with names and numbers), **students per course** bars, **attendance by week** line, an **attendance heat calendar** (last 4 weeks, darker blue = more present, the rate written in each square), and the **next 3 months to start** list. Each role sees only what the database lets it read: finance gets the payments charts, teachers their own classes' attendance. Numbers in `src/live/dashboard.mjs` (unit-tested). 158 unit tests (8 new), 134/134 browser checks.
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
 1. Hosting (`docs/HOSTING.md`), then Google sign-in (`docs/GOOGLE_SIGNIN.md`).

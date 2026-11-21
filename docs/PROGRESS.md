@@ -46,6 +46,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - 2026-11-21, **M6 step 3: Messages screen.** New **Messages** tab for admin, teacher and finance with an unread badge: chat list, chat view (phone: one pane at a time with Back), new one-to-one chat, members, Drive/https link cards, delete own message within 15 minutes, report a message; admin **Reported messages** list → open conversation (recorded) → mark handled. Live updates through Supabase Realtime plus a 60-second backstop. Before migration 0011 the screen explains instead of failing. Unit tests for the chat rules; browser checks for the whole teacher → finance → admin flow with accessibility scans.
 
+- 2026-11-22, **M6 step 4: photos and files in chat** (migration 0012). **Photo or file** button in every chat: PDF, Word, Excel, PowerPoint, CSV, text and photos up to 10 MB; photos are made smaller on the phone first; photos show as pictures, other files as cards; files open through one-hour signed links from a private bucket. Only the chat's members can open them, or an admin after opening a report (recorded). Deleting a message makes its file unreachable. 279/279 database checks (35 new), 147 unit tests, 166/166 browser checks incl. accessibility. **Owner must run migration 0012** (after 0011).
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
 0. Run migration 0010 (Staff screen).

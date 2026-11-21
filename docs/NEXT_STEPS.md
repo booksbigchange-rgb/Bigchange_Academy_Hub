@@ -10,6 +10,9 @@ Supabase → SQL Editor → paste `supabase/migrations/20261117_0010_staff_roles
 ### 0b. Run migration 0011 — staff chat (about 2 minutes, when chat is ready to try)
 Supabase → SQL Editor → paste `supabase/migrations/20261121_0011_staff_chat.sql` → **Run** → "Success". Then `supabase/checks/verify_academy_readonly.sql`: **23 tables, 52 policies**. Safe to run twice. It only adds chat tables; nothing existing changes. The chat screens come in the next update.
 
+### 0c. Run migration 0012 — photos and files in chat (about 2 minutes, after 0011)
+Supabase → SQL Editor → paste `supabase/migrations/20261122_0012_chat_files.sql` → **Run** → "Success". Then the verify script: **24 tables, 53 policies**. It also creates a private storage bucket **chat-files** (check under Storage: it must say *Private*). Safe to run twice.
+
 ### 1. Put it online (about 15 minutes, free)
 Follow `docs/HOSTING.md` (Netlify, deploying from `main`), then set the new address in Supabase **Authentication → URL Configuration**. After this, staff can use the app from their own phones and computers.
 

@@ -1263,3 +1263,16 @@ footer {
   .live-shell .sidebar nav .navitem { position: relative; }
   .live-shell .sidebar nav .nav-badge { position: absolute; top: 2px; right: 10px; margin: 0; }
 }
+
+/* M6 step 4: photos and files in chat */
+.live-shell .chat-photo { display: block; max-width: 280px; border-radius: 12px; overflow: hidden; border: 1px solid var(--lv-line); background: var(--lv-surface); }
+.live-shell .chat-photo img { display: block; width: 100%; height: auto; max-height: 320px; object-fit: cover; }
+.live-shell .chat-file { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: var(--lv-surface); border: 1px solid var(--lv-line); color: var(--lv-text); text-decoration: none; min-width: 0; }
+.live-shell a.chat-file:hover strong { text-decoration: underline; }
+.live-shell .chat-file-icon { font-size: 22px; }
+.live-shell .chat-file-main { display: grid; min-width: 0; }
+.live-shell .chat-file-main strong { overflow-wrap: anywhere; }
+.live-shell .chat-chosen { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin: 0; padding: 8px 10px; border-radius: 12px; background: var(--lv-surface); border: 1px dashed var(--lv-field); overflow-wrap: anywhere; }
+.live-shell .chat-attach { cursor: pointer; }
+.live-shell .chat-compose input[type=file]:focus-visible + .chat-compose-actions .chat-attach { outline: 2px solid var(--lv-gold-text); outline-offset: 2px; }
+@media (max-width: 790px) { .live-shell .chat-photo { max-width: 100%; } }

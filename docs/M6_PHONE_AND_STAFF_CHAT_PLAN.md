@@ -1,6 +1,6 @@
 # M6 plan: Hub on phones + staff chat
 
-Status: **steps 1–3 built (2026-11-21); steps 4–9 not started.** Agreed with the owner on 2026-11-21 through the planning interview.
+Status: **steps 1–4 built (2026-11-22); steps 5–9 not started.** Agreed with the owner on 2026-11-21 through the planning interview.
 
 ## Goal
 Make the Hub an **installable website** (PWA) that staff add to their phone's home screen, and add **staff chat** so the school no longer needs staff WhatsApp groups.
@@ -61,7 +61,10 @@ Planned:
 - Demo mode: fictional chats so the public preview still works.
 - Tests: unit tests for message formatting/validation, browser test with two staff in the fake database, axe.
 
-### Step 4. Photos and files
+### Step 4. Photos and files — ✅ built (migration 0012)
+Built: private bucket `chat-files`, `academy_chat_attachments`, storage rules, `academy_chat_send_file`, admin `academy_chat_report_files`; in the app a **Photo or file** button, photo shrinking on the phone (`src/live/shrink.ts`), photo previews and file cards with one-hour signed links, files in the admin's reported-conversation view. 279/279 DB checks, 147 unit tests, 166/166 browser checks. Removing stored copies of deleted or never-sent files is left to step 7 (Supabase does not allow deleting stored files from SQL).
+
+Planned:
 - Private Supabase Storage bucket `chat-files`; storage policies match conversation membership; files opened through short-lived signed links.
 - 10 MB limit and file-type allow list checked in the app **and** in the storage policy.
 - Photos shrunk on the phone before upload; Drive links shown as a card (no Drive API needed).

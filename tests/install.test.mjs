@@ -39,4 +39,5 @@ test('security headers allow the worker and the manifest', () => {
   const h = readFileSync(new URL('../public/_headers', import.meta.url), 'utf8');
   assert.match(h, /worker-src 'self'/);
   assert.match(h, /manifest-src 'self'/);
+  assert.match(h, /img-src 'self' data: blob: https:\/\/\*\.supabase\.co;/, 'chat photos load from Supabase signed links');
 });

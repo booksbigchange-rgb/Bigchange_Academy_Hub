@@ -289,4 +289,55 @@ OWNER "update academy_classes set teacher_staff_id='$TBS' where id='$CA'"
 chk "chat: a new class teacher joins the class group at once" $TB "select count(*) from academy_chat_conversation_list() where class_id='$CA'" 1
 chk "chat: the old teacher leaves it at once" $TA "select count(*) from academy_chat_conversations where class_id='$CA'" 0
 OWNER "update academy_classes set teacher_staff_id='$TAS' where id='$CA'"
+
+# ---- Chat files (migration 0012) ----
+ALLC=$($PSQL -c "select id from academy_chat_conversations where group_key='all_staff'")
+FINC=$($PSQL -c "select id from academy_chat_conversations where group_key='finance'")
+P1="$ALLC/11111111-1111-1111-1111-111111111111/timetable.pdf"
+P2="$FINC/22222222-2222-2222-2222-222222222222/fees.xlsx"
+PBIG="$ALLC/33333333-3333-3333-3333-333333333333/huge.pdf"
+PEXE="$ALLC/44444444-4444-4444-4444-444444444444/run.exe"
+UP(){ echo "insert into storage.objects(bucket_id,name,metadata) values ('chat-files','$1','{\"size\":$2,\"mimetype\":\"$3\"}')"; }
+chk "files: the chat-files bucket is private with a 10 MB limit" $A "select 1" 1
+chk "  (bucket settings)" anon "select 1" 1
+OWNER "select 1"
+BK=$($PSQL -c "select public::text||'/'||file_size_limit from storage.buckets where id='chat-files'")
+[ "$BK" = "false/10485760" ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL: bucket settings -> $BK"; }
+chk "files: teacher uploads into All staff" $TA "$(UP $P1 2048 application/pdf)" "INSERT 0 1"
+chk "files: teacher cannot upload into the Finance group folder" $TA "$(UP $P2 2048 application/vnd.openxmlformats-officedocument.spreadsheetml.sheet)" ERR
+chk "files: parent cannot upload" $G1 "$(UP $ALLC/55555555-5555-5555-5555-555555555555/x.pdf 10 application/pdf)" ERR
+chk "files: odd paths are refused" $TA "$(UP not-a-conversation/x.pdf 10 application/pdf)" ERR
+chk "files: nobody can open a file before it is sent" $TB "select count(*) from storage.objects where name='$P1'" 0
+chk "files: another member cannot send my upload" $TB "select academy_chat_send_file('$ALLC', null, '$P1', 'timetable.pdf')" ERR
+chk "files: a file cannot be sent to another conversation" $TA "select academy_chat_send_file('$FINC', null, '$P1', 'timetable.pdf')" ERR
+chk "files: teacher sends the file" $TA "select count(*) from (select academy_chat_send_file('$ALLC', 'This week', '$P1', 'timetable.pdf')) x" 1
+chk "files: it cannot be sent twice" $TA "select academy_chat_send_file('$ALLC', null, '$P1', 'timetable.pdf')" ERR
+chk "files: other members see the attachment" $F "select file_name||'/'||size_bytes from academy_chat_attachments where storage_path='$P1'" "timetable.pdf/2048"
+chk "files: other members can open the file" $F "select count(*) from storage.objects where name='$P1'" 1
+chk "files: parent cannot open the file" $G1 "select count(*) from storage.objects where name='$P1'" 0
+chk "files: the chat list shows the message" $F "select last_preview from academy_chat_conversation_list() where group_key='all_staff'" "This week"
+chk "files: too big is refused when sending" $TA "$(UP $PBIG 20000000 application/pdf)" "INSERT 0 1"
+chk "  (send refused)" $TA "select academy_chat_send_file('$ALLC', null, '$PBIG', 'huge.pdf')" ERR
+chk "files: wrong type is refused when sending" $TA "$(UP $PEXE 100 application/x-msdownload)" "INSERT 0 1"
+chk "  (send refused)" $TA "select academy_chat_send_file('$ALLC', null, '$PEXE', 'run.exe')" ERR
+chk "files: attachments cannot be added directly" $TA "insert into academy_chat_attachments(message_id,conversation_id,storage_path,file_name,mime_type,size_bytes) select id, conversation_id, 'x', 'x', 'application/pdf', 1 from academy_chat_messages limit 1" ERR
+# (On Supabase this returns DELETE 0: no delete rule. The local stand-in has no delete grant, so it errors.)
+chk "files: stored files cannot be deleted by staff" $TA "delete from storage.objects where name='$P1'" ERR
+chk "files: deleting the message hides the file" $TA "select academy_chat_delete_message((select message_id from academy_chat_attachments where storage_path='$P1'))" ""
+chk "  (no longer listed)" $F "select count(*) from academy_chat_attachments where storage_path='$P1'" 0
+chk "  (no longer opens)" $F "select count(*) from storage.objects where name='$P1'" 0
+# Admin and a reported file in a one-to-one chat.
+$PSQL -q -c "set role authenticated; select set_config('request.sub','$TB',false); select academy_chat_start_direct('$FS');" >/dev/null
+DMC=$($PSQL -c "select c.id from academy_chat_conversations c join academy_chat_members m on m.conversation_id=c.id where m.staff_id='$FS'")
+P3="$DMC/66666666-6666-6666-6666-666666666666/photo.jpg"
+chk "files: teacher B uploads a photo into the one-to-one chat" $TB "$(UP $P3 50000 image/jpeg)" "INSERT 0 1"
+chk "  (and sends it)" $TB "select count(*) from (select academy_chat_send_file('$DMC', null, '$P3', 'photo.jpg')) x" 1
+chk "files: a file-only message shows as File" $F "select last_preview from academy_chat_conversation_list() where kind='direct'" File
+chk "files: admin cannot open a one-to-one chat's photo" $A "select count(*) from storage.objects where name='$P3'" 0
+chk "  (finance reports it)" $F "select count(*) from (select academy_chat_report((select message_id from academy_chat_attachments where storage_path='$P3'), 'Not appropriate photo')) x" 1
+chk "files: admin cannot list a report's files before opening it" $A "select count(*) from academy_chat_report_files((select id from academy_chat_reports where reason='Not appropriate photo'))" ERR
+chk "  (admin opens the report: recorded)" $A "select count(*) > 0 from academy_chat_open_report((select id from academy_chat_reports where reason='Not appropriate photo'))" t
+chk "files: then the admin sees the file name" $A "select file_name from academy_chat_report_files((select id from academy_chat_reports where reason='Not appropriate photo'))" photo.jpg
+chk "files: and can open the photo" $A "select count(*) from storage.objects where name='$P3'" 1
+chk "files: teacher A (not in that chat) cannot open it" $TA "select count(*) from storage.objects where name='$P3'" 0
 echo "RLS tests: $pass passed, $fail failed"; [ $fail = 0 ]

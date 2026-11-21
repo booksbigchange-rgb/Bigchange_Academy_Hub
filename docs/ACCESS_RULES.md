@@ -53,5 +53,15 @@ File: `supabase/migrations/20261121_0011_staff_chat.sql`. Adds 6 tables and 6 po
 - **Writing:** only through functions — `academy_chat_send` (text up to 4,000 characters and/or an `https://` link), `academy_chat_mark_read`, `academy_chat_delete_message` (own message, within 15 minutes, not once reported; the text is removed), `academy_chat_report` (reason 3–500 characters, once per person per message).
 - **Reports (admin):** `academy_chat_report_list`, `academy_chat_open_report` (the only way to read a chat the admin is not in; every opening is written to `academy_chat_admin_access`), `academy_chat_handle_report`.
 - **Audit:** reports are audited; message text is never copied to the audit trail.
-- Not yet: files and photos (step 4), phone alerts (step 5), removal after one school year (step 7).
+- Not yet: phone alerts (step 5), removal after one school year (step 7).
 - Local DB checks: 244/244 (61 for chat).
+
+## Migration 0012 — chat photos and files
+File: `supabase/migrations/20261122_0012_chat_files.sql`. Adds 1 table and 1 policy (24 tables, 53 policies), a **private** storage bucket `chat-files` (10 MB limit, allowed types only) and storage rules.
+- **Allowed:** PDF, Word, Excel, PowerPoint, CSV, plain text, JPEG/PNG/WebP/HEIC photos, up to 10 MB. Refused by the bucket and again by the database.
+- **Where:** `chat-files/<conversation>/<random id>/<name>`. Only members of a conversation can upload into its folder. Staff can never overwrite or delete stored files.
+- **Sending:** `academy_chat_send_file()` checks that the file is in that conversation's folder and was uploaded by the sender, reads the real size and type from storage, and attaches it once.
+- **Opening:** members only, while the message is not deleted; an admin only after opening a report on that conversation (each opening is recorded). The app uses one-hour signed links; the bucket is never public.
+- **Deleting a message** (own, within 15 minutes, not reported) removes its attachment records, so the file can no longer be opened. Uploaded-but-unsent files and the stored copies of deleted files are removed by the clean-up job (step 7).
+- Photos are made smaller on the phone (long side 1600 px, JPEG) before upload; HEIC photos are sent as they are.
+- Local DB checks: 279/279 (35 for files).

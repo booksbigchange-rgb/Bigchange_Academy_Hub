@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type Keyboard
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   chatDelete, chatHandleReport, chatMarkRead, chatMessages, chatOpenReport, chatParticipants, chatReport, chatReportList, chatSend,
-  chatStaffDirectory, chatStartDirect, myStaffId, type ChatConversation, type ChatMessage, type ChatOpenedMessage, type ChatPerson, type ChatReport
+  chatStaffDirectory, chatStartDirect, myStaffId, chatUpload, chatSendFile, chatAttachments, chatReportFiles, chatSignedUrls, type ChatAttachment, type ChatConversation, type ChatMessage, type ChatOpenedMessage, type ChatPerson, type ChatReport
 } from './api';
-import { canDelete, chatTime, conversationKind, linkLabel, validateMessage } from './chat.mjs';
+import { canDelete, canShrink, chatTime, conversationKind, FILE_ACCEPT, FILE_TYPES, formatSize, isPhoto, linkLabel, storagePath, validateFile, validateMessage } from './chat.mjs';
+import { shrinkPhoto } from './shrink';
 import type { ChatList } from './useChat';
 import { formatDate } from './fees.mjs';
 
@@ -86,6 +87,18 @@ function MessageLink({ url }: { url: string }) {
   return <a className="chat-link" href={url} target="_blank" rel="noopener noreferrer"><span aria-hidden="true">🔗</span> {linkLabel(url)}<span className="sr-only"> (opens in a new tab)</span></a>;
 }
 
+type Signed = Record<string, string>;
+/** A sent file: photos show as a picture, other files as a card. Links last one hour; reopening the chat renews them. */
+function Attachment({ a, url }: { a: Omit<ChatAttachment, 'id'>; url?: string }) {
+  const label = FILE_TYPES[a.mime_type as keyof typeof FILE_TYPES] ?? 'File';
+  if (isPhoto(a.mime_type) && url && a.mime_type !== 'image/heic')
+    return <a className="chat-photo" href={url} target="_blank" rel="noopener noreferrer"><img src={url} alt={'Photo: ' + a.file_name} loading="lazy" /><span className="sr-only"> (opens in a new tab)</span></a>;
+  const inner = <><span className="chat-file-icon" aria-hidden="true">{label === 'Photo' ? '🖼' : '📄'}</span>
+    <span className="chat-file-main"><strong>{a.file_name}</strong><span className="chat-item-sub">{label} · {formatSize(a.size_bytes)}</span></span></>;
+  return url ? <a className="chat-file" href={url} target="_blank" rel="noopener noreferrer">{inner}<span className="sr-only"> (opens in a new tab)</span></a>
+    : <span className="chat-file">{inner}</span>;
+}
+
 function Conversation({ client, conv, me, onBack, onChanged }: { client: SupabaseClient; conv: ChatConversation; me: string | null; onBack: () => void; onChanged: () => Promise<void> }) {
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const [people, setPeople] = useState<ChatPerson[]>([]);
@@ -93,6 +106,11 @@ function Conversation({ client, conv, me, onBack, onChanged }: { client: Supabas
   const [body, setBody] = useState('');
   const [link, setLink] = useState('');
   const [showLink, setShowLink] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<ChatAttachment[]>([]);
+  const [signed, setSigned] = useState<Signed>({});
+  const [progress, setProgress] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
   const [reportFor, setReportFor] = useState('');
@@ -102,7 +120,10 @@ function Conversation({ client, conv, me, onBack, onChanged }: { client: Supabas
 
   const load = useCallback(async () => {
     try {
-      setMessages(await chatMessages(client, id));
+      const [list, attached] = await Promise.all([chatMessages(client, id), chatAttachments(client, id)]);
+      setMessages(list); setFiles(attached);
+      const missing = attached.map(a => a.storage_path);
+      if (missing.length) void chatSignedUrls(client, missing).then(setSigned);
       if (document.visibilityState === 'visible') { await chatMarkRead(client, id); void onChanged(); }
     } catch (e) { setFeedback(errorText(e)); setMessages(m => m ?? []); }
   }, [client, id, onChanged]);
@@ -127,9 +148,26 @@ function Conversation({ client, conv, me, onBack, onChanged }: { client: Supabas
   }
   async function send(event?: FormEvent) {
     event?.preventDefault();
+    if (file) { await sendFile(file); return; }
     let args: { p_body: string | null; p_link: string | null };
     try { args = validateMessage(body, link); } catch (e) { setFeedback(errorText(e)); return; }
     if (await act(() => chatSend(client, id, args))) { setBody(''); setLink(''); setShowLink(false); }
+  }
+  async function sendFile(chosen: File) {
+    let type: string;
+    try { type = validateFile(chosen); if (body.trim().length > 4000) throw Error('Message is too long (4,000 characters at most)'); }
+    catch (e) { setFeedback(errorText(e)); return; }
+    const ok = await act(async () => {
+      let blob: Blob = chosen, name = chosen.name;
+      if (canShrink(type)) { setProgress('Making the photo smaller…'); const s = await shrinkPhoto(chosen); blob = s.blob; type = s.type; name = s.name; }
+      setProgress('Uploading ' + name + '…');
+      const path = storagePath(id, crypto.randomUUID(), name);
+      await chatUpload(client, path, blob, type);
+      setProgress('Sending…');
+      await chatSendFile(client, id, body.trim() || null, path, name.slice(0, 200));
+    });
+    setProgress('');
+    if (ok) { setBody(''); setFile(null); if (fileRef.current) fileRef.current.value = ''; }
   }
   function onKey(e: KeyboardEvent<HTMLTextAreaElement>) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void send(); } }
   async function report(event: FormEvent) {
@@ -154,6 +192,7 @@ function Conversation({ client, conv, me, onBack, onChanged }: { client: Supabas
           {m.deleted_at ? <p className="chat-deleted">Message deleted</p> : <>
             {m.body && <p className="chat-body">{m.body}</p>}
             {m.link_url && <MessageLink url={m.link_url} />}
+            {files.filter(a => a.message_id === m.id).map(a => <Attachment key={a.id} a={a} url={signed[a.storage_path]} />)}
           </>}
           <span className="chat-meta">
             <time dateTime={m.created_at}>{chatTime(m.created_at)}</time>
@@ -174,7 +213,13 @@ function Conversation({ client, conv, me, onBack, onChanged }: { client: Supabas
       <label className="sr-only" htmlFor={'chat-body-' + id}>Message</label>
       <textarea id={'chat-body-' + id} value={body} onChange={e => setBody(e.target.value)} onKeyDown={onKey} rows={2} maxLength={4000} placeholder="Write a message" />
       {showLink && <label className="chat-link-field">Google Drive or https link<input type="url" inputMode="url" value={link} onChange={e => setLink(e.target.value)} placeholder="https://drive.google.com/…" /></label>}
+      {file && <p className="chat-chosen"><span>📎 <strong>{file.name}</strong> · {formatSize(file.size)}</span>
+        <button type="button" className="link-btn" onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = ''; }}>Remove<span className="sr-only"> file</span></button></p>}
+      {progress && <p role="status" className="chat-item-sub">{progress}</p>}
+      <input ref={fileRef} id={'chat-file-' + id} className="sr-only" type="file" accept={FILE_ACCEPT}
+        onChange={e => { const f = e.target.files?.[0] ?? null; setFeedback(''); if (f) { try { validateFile(f); setFile(f); setShowLink(false); setLink(''); } catch (err) { setFeedback(errorText(err)); e.target.value = ''; } } }} />
       <div className="chat-compose-actions">
+        <label htmlFor={'chat-file-' + id} className="small-btn chat-attach">Photo or file</label>
         <button type="button" className="small-btn" aria-expanded={showLink} onClick={() => setShowLink(v => !v)}>{showLink ? 'Remove link' : 'Add link'}</button>
         <button className="primary-btn" disabled={busy}>Send</button>
       </div>
@@ -185,14 +230,18 @@ function Conversation({ client, conv, me, onBack, onChanged }: { client: Supabas
 function Reports({ client }: { client: SupabaseClient }) {
   const [list, setList] = useState<ChatReport[] | null>(null);
   const [message, setMessage] = useState('');
-  const [opened, setOpened] = useState<{ report: ChatReport; messages: ChatOpenedMessage[] } | null>(null);
+  const [opened, setOpened] = useState<{ report: ChatReport; messages: ChatOpenedMessage[]; files: Omit<ChatAttachment, 'id'>[]; signed: Signed } | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const load = useCallback(async () => { try { setList(await chatReportList(client)); } catch (e) { setList([]); setMessage(errorText(e)); } }, [client]);
   useEffect(() => { void load(); }, [load]);
   async function open(r: ChatReport) {
     if (busy) return; setBusy(true); setMessage('');
-    try { setOpened({ report: r, messages: await chatOpenReport(client, r.report_id) }); setNote(''); await load(); } catch (e) { setMessage(errorText(e)); } finally { setBusy(false); }
+    try {
+      const messages = await chatOpenReport(client, r.report_id);
+      const files = await chatReportFiles(client, r.report_id);
+      setOpened({ report: r, messages, files, signed: await chatSignedUrls(client, files.map(f => f.storage_path)) }); setNote(''); await load();
+    } catch (e) { setMessage(errorText(e)); } finally { setBusy(false); }
   }
   async function handle(event: FormEvent) {
     event.preventDefault(); if (!opened || busy) return; setBusy(true); setMessage('');
@@ -205,7 +254,8 @@ function Reports({ client }: { client: SupabaseClient }) {
     <div className="chat-messages" aria-label="Reported conversation">
       {opened.messages.map(m => <div key={m.message_id} className={'chat-msg' + (m.reported ? ' reported' : '')}>
         <span className="chat-sender">{m.sender_name}{m.reported && <strong> · reported</strong>}</span>
-        {m.deleted ? <p className="chat-deleted">Message deleted</p> : <>{m.body && <p className="chat-body">{m.body}</p>}{m.link_url && <MessageLink url={m.link_url} />}</>}
+        {m.deleted ? <p className="chat-deleted">Message deleted</p> : <>{m.body && <p className="chat-body">{m.body}</p>}{m.link_url && <MessageLink url={m.link_url} />}
+          {opened.files.filter(a => a.message_id === m.message_id).map(a => <Attachment key={a.storage_path} a={a} url={opened.signed[a.storage_path]} />)}</>}
         <span className="chat-meta"><time dateTime={m.created_at}>{chatTime(m.created_at)}</time></span>
       </div>)}
     </div>

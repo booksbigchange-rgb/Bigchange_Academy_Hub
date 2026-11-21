@@ -10,6 +10,8 @@ import { chromium } from 'playwright';
 const BASE = process.argv[2] || 'http://127.0.0.1:5199';
 const EXEC = process.argv[3];
 const API = 'https://smoketest.supabase.co';
+// A 1x1 PNG used for fake photos.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==', 'base64');
 const uid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
 let seq = 100;
 
@@ -29,7 +31,7 @@ function freshDb() {
     academy_attendance: [], academy_guardian_links: [], academy_fee_period_status: [],
     // Staff chat (migration 0011): the three school-wide groups; class groups are added when classes are created.
     chat: { convs: [{ id: 'c-all', kind: 'group', group_key: 'all_staff' }, { id: 'c-teachers', kind: 'group', group_key: 'teachers' }, { id: 'c-finance', kind: 'group', group_key: 'finance' }],
-      members: [], academy_chat_messages: [], reads: {}, reports: [], access: [] }
+      members: [], academy_chat_messages: [], reads: {}, reports: [], access: [], objects: {}, attachments: [] }
   };
 }
 const USERS = { admin: uid(901), teacher: uid(902), finance: uid(903), guardian: uid(904), learner: uid(905) };
@@ -55,6 +57,21 @@ async function install(page, db, role) {
     if (path === '/auth/v1/token') return json({ access_token: token, token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'r', user });
     if (path === '/auth/v1/user') return json(user);
     if (path === '/auth/v1/logout') return route.fulfill({ status: 204 });
+    // Fake Supabase Storage for chat files (migration 0012).
+    if (path.startsWith('/storage/v1/object/sign/chat-files')) {
+      if (method === 'GET') return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
+      const b = req.postDataJSON() || {};
+      return json((b.paths ?? []).map(p => ({ path: p, signedURL: '/object/sign/chat-files/' + p + '?token=t', error: db.chat.objects[p] ? null : 'not found' })));
+    }
+    if (path.startsWith('/storage/v1/object/chat-files/') && method === 'POST') {
+      const p = decodeURIComponent(path.slice('/storage/v1/object/chat-files/'.length));
+      const raw = req.postDataBuffer() ?? Buffer.alloc(0); const size = raw.length;
+      // supabase-js sends a Blob as multipart form data; the file's own type is inside the form part.
+      const partType = /^multipart\//.test(req.headers()['content-type'] ?? '') ? (raw.toString('latin1').match(/Content-Type: ([^\r\n]+)/i)?.[1] ?? '') : '';
+      if (size > 10 * 1024 * 1024) return json({ statusCode: '413', error: 'Payload too large', message: 'The object exceeded the maximum allowed size' }, 413);
+      db.chat.objects[p] = { type: partType || req.headers()['content-type'], size, owner: user.id };
+      return json({ Key: 'chat-files/' + p, Id: uid(seq++) });
+    }
     if (path.startsWith('/rest/v1/rpc/')) {
       const fn = path.slice('/rest/v1/rpc/'.length); const a = req.postDataJSON() || {};
       if (fn === 'academy_add_guardian') {
@@ -127,6 +144,14 @@ async function install(page, db, role) {
         if (fn === 'academy_chat_send') { if (!conv(a.p_conv)) return json({ code: '42501', message: 'Not a member' }, 403);
           const m = { id: uid(seq++), conversation_id: a.p_conv, sender_staff_id: me.id, body: a.p_body, link_url: a.p_link, created_at: new Date(Date.now() + seq).toISOString(), deleted_at: null };
           ch.academy_chat_messages.push(m); read(a.p_conv); return json(m.id); }
+        if (fn === 'academy_chat_send_file') { if (!conv(a.p_conv)) return json({ code: '42501', message: 'Not a member' }, 403);
+          const o = ch.objects[a.p_path]; if (!o || !a.p_path.startsWith(a.p_conv + '/')) return err('The file did not finish uploading. Please try again.');
+          const m = { id: uid(seq++), conversation_id: a.p_conv, sender_staff_id: me.id, body: a.p_body, link_url: null, has_file: true, created_at: new Date(Date.now() + seq).toISOString(), deleted_at: null };
+          ch.academy_chat_messages.push(m);
+          ch.attachments.push({ id: uid(seq++), message_id: m.id, conversation_id: a.p_conv, storage_path: a.p_path, file_name: a.p_file_name, mime_type: String(o.type).split(';')[0], size_bytes: o.size, created_at: m.created_at });
+          read(a.p_conv); return json(m.id); }
+        if (fn === 'academy_chat_report_files') { const r = ch.reports.find(x => x.report_id === a.p_report);
+          return json(ch.attachments.filter(x => x.conversation_id === r.conversation_id)); }
         if (fn === 'academy_chat_mark_read') { if (conv(a.p_conv)) read(a.p_conv); return route.fulfill({ status: 204 }); }
         if (fn === 'academy_chat_delete_message') { const m = ch.academy_chat_messages.find(x => x.id === a.p_message);
           if (!m || m.sender_staff_id !== me.id) return err('You can delete only your own messages');
@@ -164,6 +189,10 @@ async function install(page, db, role) {
       const store = table === 'academy_fee_periods' ? 'academy_fee_period_status' : table;
       const rows = db[store] ?? (db[store] = []);
       const single = (req.headers()['accept'] || '').includes('vnd.pgrst.object');
+      if (method === 'GET' && table === 'academy_chat_attachments') {
+        const conv = url.searchParams.get('conversation_id')?.slice(3);
+        return json(db.chat.attachments.filter(x => x.conversation_id === conv && !db.chat.academy_chat_messages.find(m => m.id === x.message_id)?.deleted_at));
+      }
       if (method === 'GET' && table === 'academy_chat_messages') {
         if (db.before0011) return json({ code: '42P01', message: 'relation does not exist' }, 404);
         const conv = url.searchParams.get('conversation_id')?.slice(3);
@@ -575,6 +604,18 @@ await session(browser, db, 'teacher', 390, async page => {
   check('chat: members list shows staff', await seen(page.getByRole('list', { name: 'Members' }).getByText('Finance Test')));
   await log.getByRole('button', { name: 'Delete' }).last().click();
   check('chat: own message can be deleted', await seen(log.getByText('Message deleted')));
+  // Files: a PDF with a caption, a photo, and a refused file type.
+  await page.getByLabel('Photo or file').setInputFiles({ name: 'run.exe', mimeType: 'application/x-msdownload', buffer: Buffer.from('MZ') });
+  check('files: wrong file types are refused before upload', await seen(page.getByText(/This kind of file cannot be sent/)));
+  await page.getByLabel('Photo or file').setInputFiles({ name: 'Week 3 timetable.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 test') });
+  check('files: the chosen file is shown before sending', await seen(page.getByText('Week 3 timetable.pdf')));
+  await page.getByLabel('Message', { exact: true }).fill('Timetable for next week');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  check('files: a PDF is sent with its caption', await seen(log.getByRole('link', { name: /Week 3 timetable\.pdf.*PDF/ })) && await seen(log.getByText('Timetable for next week')));
+  await page.getByLabel('Photo or file').setInputFiles({ name: 'classroom.png', mimeType: 'image/png', buffer: PNG });
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  check('files: a photo shows as a picture', await seen(log.getByRole('img', { name: 'Photo: classroom.png' })));
+  check('files: uploads go into the conversation folder', Object.keys(db.chat.objects).every(p => /^c-all\/[0-9a-f-]{36}\/[\w.\-]+$/.test(p)), Object.keys(db.chat.objects).join(','));
   await page.getByRole('button', { name: /^Back/ }).first().click();
   await page.getByRole('button', { name: '+ New chat' }).click();
   await page.getByRole('list', { name: 'Staff' }).getByRole('button', { name: /Finance Test/ }).click();
@@ -588,12 +629,13 @@ await session(browser, db, 'teacher', 390, async page => {
 });
 await session(browser, db, 'finance', 1366, async page => {
   const msgBtn = page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: /^Messages/ });
-  check('chat: unread badge on Messages for finance', await seen(page.getByRole('button', { name: /^Messages\W+2 unread/ })), await msgBtn.innerText());
+  check('chat: unread badge on Messages for finance', await seen(page.getByRole('button', { name: /^Messages\W+\d+ unread/ })), await msgBtn.innerText());
+  const before = Number(((await msgBtn.textContent()) ?? '').match(/(\d+) unread/)?.[1] ?? 0);
   await nav(page, 'Messages');
   await page.getByRole('list', { name: 'Conversations' }).getByRole('button', { name: /^Teacher Test/ }).click();
   const log = page.getByRole('log');
   check('chat: finance reads the teacher message', await seen(log.getByText('Can you check the Habesha shop payment?')));
-  check('chat: badge goes down after reading (1 left in All staff)', await seen(page.getByRole('button', { name: /^Messages\W+1 unread/ })));
+  check('chat: badge goes down after reading', await page.waitForFunction(b => { const t = [...document.querySelectorAll('nav[aria-label=Sections] button')].find(x => x.textContent.startsWith('Messages'))?.textContent ?? ''; const n = Number((t.match(/(\d+) unread/) ?? [])[1] ?? 0); return n < b; }, before, { timeout: 5000 }).then(() => true, () => false));
   check('chat: finance cannot delete the teacher message', await log.getByRole('button', { name: 'Delete' }).count() === 0);
   await log.getByRole('button', { name: 'Report' }).click();
   await page.getByLabel('Why are you reporting this message?').fill('Testing the report button');

@@ -349,3 +349,37 @@ export async function chatMessages(c: SupabaseClient, conv: string): Promise<Cha
   if (error) chatFail(error, 'load messages');
   return ((data ?? []) as ChatMessage[]).reverse();
 }
+
+// ---- Chat files (migration 0012) ----
+export type ChatAttachment = { id: string; message_id: string; storage_path: string; file_name: string; mime_type: string; size_bytes: number };
+const BUCKET = 'chat-files';
+/** Upload into the conversation's folder. Storage refuses wrong types, files over 10 MB, and other conversations' folders. */
+export async function chatUpload(c: SupabaseClient, path: string, file: Blob, contentType: string): Promise<void> {
+  const { error } = await c.storage.from(BUCKET).upload(path, file, { contentType, upsert: false, cacheControl: '3600' });
+  if (error) {
+    const status = Number((error as { statusCode?: string | number }).statusCode);
+    if (status === 413) throw Error('Files can be at most 10 MB');
+    if (status === 415) throw Error('This kind of file cannot be sent');
+    if (status === 404 && /bucket/i.test(error.message)) throw new ChatNotReady('Files need database update 0012');
+    throw Error('Could not upload the file. Please try again.');
+  }
+}
+export const chatSendFile = (c: SupabaseClient, conv: string, body: string | null, path: string, fileName: string) =>
+  chatRpc<string>(c, 'academy_chat_send_file', { p_conv: conv, p_body: body, p_path: path, p_file_name: fileName }, 'send the file');
+/** Attachments in a conversation. Before migration 0012 there are none. */
+export async function chatAttachments(c: SupabaseClient, conv: string): Promise<ChatAttachment[]> {
+  const { data, error } = await c.from('academy_chat_attachments').select('id,message_id,storage_path,file_name,mime_type,size_bytes').eq('conversation_id', conv).order('created_at').order('id');
+  if (error) return [];
+  return (data ?? []) as ChatAttachment[];
+}
+export const chatReportFiles = (c: SupabaseClient, report: string) =>
+  chatRpc<Omit<ChatAttachment, 'id'>[]>(c, 'academy_chat_report_files', { p_report: report }, 'load files').then(r => r ?? []).catch(() => []);
+/** Short-lived links (1 hour) for files the signed-in user may open; files they may not open get no link. */
+export async function chatSignedUrls(c: SupabaseClient, paths: string[]): Promise<Record<string, string>> {
+  if (!paths.length) return {};
+  const { data, error } = await c.storage.from(BUCKET).createSignedUrls(paths, 3600);
+  if (error || !data) return {};
+  const out: Record<string, string> = {};
+  for (const item of data) if (item.path && item.signedUrl && !item.error) out[item.path] = item.signedUrl;
+  return out;
+}

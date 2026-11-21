@@ -43,3 +43,30 @@ test('unread total and kinds', () => {
   assert.equal(conversationKind({ kind: 'group', class_id: 'x' }), 'Class group');
   assert.equal(conversationKind({ kind: 'group', group_key: 'all_staff' }), 'Group');
 });
+
+import { validateFile, fileType, safeFileName, storagePath, canShrink, isPhoto, formatSize, MAX_FILE, FILE_ACCEPT } from '../src/live/chat.mjs';
+test('allowed files', () => {
+  assert.equal(validateFile({ name: 'a.pdf', type: 'application/pdf', size: 10 }), 'application/pdf');
+  assert.equal(validateFile({ name: 'Fees.xlsx', type: '', size: 10 }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  assert.equal(validateFile({ name: 'IMG_1.HEIC', type: 'application/octet-stream', size: 10 }), 'image/heic');
+  assert.throws(() => validateFile({ name: 'run.exe', type: 'application/x-msdownload', size: 10 }), /cannot be sent/);
+  assert.throws(() => validateFile({ name: 'big.pdf', type: 'application/pdf', size: MAX_FILE + 1 }), /10 MB/);
+  assert.throws(() => validateFile({ name: 'e.pdf', type: 'application/pdf', size: 0 }), /empty/);
+  assert.throws(() => validateFile(null), /Choose/);
+  assert.equal(fileType({ name: 'x.JPG', type: '' }), 'image/jpeg');
+  assert.match(FILE_ACCEPT, /\.xlsx/);
+});
+test('safe storage names and paths', () => {
+  assert.equal(safeFileName('Week 3 timetable (final).pdf'), 'Week_3_timetable_final.pdf');
+  assert.equal(safeFileName('../../etc/passwd'), 'etc_passwd');
+  assert.equal(safeFileName('ትምህርት.docx'), 'file.docx');
+  assert.ok(safeFileName('a'.repeat(300) + '.pdf').length <= 100);
+  assert.ok(!safeFileName('a/b\\c.pdf').includes('/'));
+  const conv = '11111111-1111-1111-1111-111111111111', id = '22222222-2222-2222-2222-222222222222';
+  assert.match(storagePath(conv, id, 'My file.pdf'), /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/My_file\.pdf$/);
+});
+test('photos and sizes', () => {
+  assert.equal(canShrink('image/jpeg'), true); assert.equal(canShrink('image/heic'), false);
+  assert.equal(isPhoto('image/png'), true); assert.equal(isPhoto('application/pdf'), false);
+  assert.equal(formatSize(512), '512 B'); assert.equal(formatSize(2048), '2 KB'); assert.equal(formatSize(3 * 1024 * 1024), '3 MB'); assert.equal(formatSize(1.5 * 1024 * 1024), '1.5 MB');
+});

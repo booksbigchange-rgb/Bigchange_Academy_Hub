@@ -1179,3 +1179,42 @@ footer {
 .live-shell .ti-help, .live-auth .ti-help { display: block; margin-top: 4px; font-size: 13px; font-weight: 400; color: var(--lv-text-2); line-height: 1.5; }
 .live-auth .google-btn { width: 100%; margin-top: 4px; }
 .live-auth .auth-or { text-align: center; color: var(--lv-text-2); font-size: 13px; margin: 14px 0; }
+
+/* Overview dashboard (design A + heat calendar). Chart colours: status green/yellow/orange/red for payments,
+   gold bars, blue line and a light-to-dark blue scale for the heat calendar. */
+.live-shell .dash-progress { height: 8px; background: rgba(31,27,22,.10); border-radius: 999px; margin: 8px 0 4px; overflow: hidden; }
+.live-shell .dash-progress span { display: block; height: 100%; background: #0ca30c; border-radius: 999px; }
+.live-shell .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
+.live-shell .dash-card { background: #ffffff; border: 1px solid var(--lv-line); border-radius: 20px; padding: 20px; min-width: 0; }
+.live-shell .dash-card > h3 { margin: 0 0 12px; font-size: 17px; }
+.live-shell .dash-donut { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.live-shell .dash-donut svg { flex: none; }
+.live-shell .dash-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.live-shell .dash-legend li { display: flex; align-items: center; gap: 8px; }
+.live-shell .dash-swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.live-shell .dash-bars { display: flex; flex-direction: column; gap: 10px; }
+.live-shell .dash-bar-row { display: grid; grid-template-columns: minmax(70px, 110px) 1fr 32px; gap: 10px; align-items: center; font-size: 14px; }
+.live-shell .dash-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-shell .dash-bar-track { display: block; height: 18px; }
+.live-shell .dash-bar { display: block; height: 18px; background: #a8741c; border-radius: 0 4px 4px 0; }
+.live-shell .dash-heat-card { margin-top: 16px; }
+.live-shell .dash-heat { display: flex; flex-direction: column; gap: 6px; max-width: 640px; }
+.live-shell .dash-heat-row { display: grid; grid-template-columns: 64px repeat(7, minmax(0, 1fr)); gap: 6px; align-items: center; }
+.live-shell .dash-heat-day, .live-shell .dash-heat-week { font-size: 12px; color: var(--lv-text-2); text-align: center; }
+.live-shell .dash-heat-week { text-align: left; }
+.live-shell .dash-heat-cell { border-radius: 10px; min-height: 38px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+.live-shell .heat-0 { background: #f3efe8; }
+.live-shell .heat-f { background: transparent; border: 1px dashed var(--lv-line); }
+.live-shell .heat-1 { background: #b7d3f6; color: #0d366b; }
+.live-shell .heat-2 { background: #86b6ef; color: #0d366b; }
+.live-shell .heat-3 { background: #2a78d6; color: #ffffff; }
+.live-shell .heat-4 { background: #1c5cab; color: #ffffff; }
+.live-shell .heat-5 { background: #104281; color: #ffffff; }
+.live-shell .dash-heat-key { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 12px; color: var(--lv-text-2); flex-wrap: wrap; }
+.live-shell .dash-heat-swatch { width: 18px; height: 14px; border-radius: 4px; }
+.live-shell .dash-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.live-shell .dash-list { list-style: none; margin: 0 0 8px; padding: 0; }
+.live-shell .dash-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--lv-line); }
+.live-shell .dash-list li:last-child { border-bottom: 0; }
+.live-shell .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 520px) { .live-shell .dash-heat-row { grid-template-columns: 48px repeat(7, minmax(0, 1fr)); gap: 4px; } .live-shell .dash-heat-cell { min-height: 32px; font-size: 10px; } }

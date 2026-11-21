@@ -7,6 +7,9 @@ Updated 2026-11-17 (Staff screen added). The code for the internal staff version
 ### 0. Run migration 0010 (about 2 minutes)
 Supabase → SQL Editor → paste `supabase/migrations/20261117_0010_staff_roles_in_app.sql` → **Run** → "Success". Then run `supabase/checks/verify_academy_readonly.sql`: still **17 tables, 46 policies**. It adds the admin's **Staff** screen. Safe to run twice. Until it is run, the Staff screen says that update 0010 is needed; everything else keeps working.
 
+### 0b. Run migration 0011 — staff chat (about 2 minutes, when chat is ready to try)
+Supabase → SQL Editor → paste `supabase/migrations/20261121_0011_staff_chat.sql` → **Run** → "Success". Then `supabase/checks/verify_academy_readonly.sql`: **23 tables, 52 policies**. Safe to run twice. It only adds chat tables; nothing existing changes. The chat screens come in the next update.
+
 ### 1. Put it online (about 15 minutes, free)
 Follow `docs/HOSTING.md` (Netlify, deploying from `main`), then set the new address in Supabase **Authentication → URL Configuration**. After this, staff can use the app from their own phones and computers.
 

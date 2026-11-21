@@ -44,3 +44,14 @@ File: `supabase/migrations/20261117_0010_staff_roles_in_app.sql`. No new tables 
 - `academy_set_staff_role(user, role, name)` (admin only): gives or changes teacher / finance / admin and switches access on. Refused for: your own account (no self-lockout), unconfirmed or unknown logins, student or parent logins, and a teacher who still has classes being moved to another role.
 - `academy_set_staff_active(staff, on/off)` (admin only, never yourself).
 - Roles and access still cannot be changed by editing the table (only `display_name` and `specialty` are writable). Every change to a staff row is audited.
+
+## Migration 0011 — staff chat
+File: `supabase/migrations/20261121_0011_staff_chat.sql`. Adds 6 tables and 6 policies (23 tables, 52 policies). Plan: `docs/M6_PHONE_AND_STAFF_CHAT_PLAN.md`.
+- **Who:** active staff only. Parents, students and switched-off staff have no access (every rule goes through `academy_staff_id()`).
+- **Conversations:** one-to-one (`academy_chat_start_direct`, one per pair) and groups made by the database: All staff, Teachers (teachers + admins), Finance (finance + admins), and one per class (its current teacher + admins; created automatically for new classes). Group membership is worked out live from roles, class teachers and access, so a new class teacher joins and the old one leaves at once.
+- **Reading:** `academy_chat_is_member()` decides; Realtime uses the same rule. Admins are in every group but **not** in other people's one-to-one chats.
+- **Writing:** only through functions — `academy_chat_send` (text up to 4,000 characters and/or an `https://` link), `academy_chat_mark_read`, `academy_chat_delete_message` (own message, within 15 minutes, not once reported; the text is removed), `academy_chat_report` (reason 3–500 characters, once per person per message).
+- **Reports (admin):** `academy_chat_report_list`, `academy_chat_open_report` (the only way to read a chat the admin is not in; every opening is written to `academy_chat_admin_access`), `academy_chat_handle_report`.
+- **Audit:** reports are audited; message text is never copied to the audit trail.
+- Not yet: files and photos (step 4), phone alerts (step 5), removal after one school year (step 7).
+- Local DB checks: 244/244 (61 for chat).

@@ -63,7 +63,8 @@ Use a **dedicated** Supabase project for the Academy. In the project: **SQL Edit
 9. [`supabase/migrations/20261112_0008_local_dates_and_parents.sql`](supabase/migrations/20261112_0008_local_dates_and_parents.sql) — dates follow Israel time (where the admin works), family-wide periods retired, both verified parents see their child's payments.
 10. [`supabase/migrations/20261113_0009_payment_methods_and_amounts.sql`](supabase/migrations/20261113_0009_payment_methods_and_amounts.sql) — the school's own payment methods (the admin can add, rename or switch them off) and an optional amount on each payment report.
 11. [`supabase/migrations/20261117_0010_staff_roles_in_app.sql`](supabase/migrations/20261117_0010_staff_roles_in_app.sql) — the admin gives staff their role and switches access off or on in the app (**Staff** screen), instead of SQL scripts.
-12. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 17 tables, 0 missing RLS, 0 missing force RLS, 46 policies, 0 tables without policy, 0 anon/public policies.
+12. [`supabase/migrations/20261121_0011_staff_chat.sql`](supabase/migrations/20261121_0011_staff_chat.sql) — staff chat: one-to-one chats and automatic groups (All staff, Teachers, Finance, one per class), private by default, reported messages open to the admin with every opening recorded.
+13. [`supabase/checks/verify_academy_readonly.sql`](supabase/checks/verify_academy_readonly.sql) — expect 23 tables, 0 missing RLS, 0 missing force RLS, 52 policies, 0 tables without policy, 0 anon/public policies.
 
 Each migration is safe to run again. Do **not** run `supabase/policies/academy_profile_access.sql` (superseded by 0002).
 

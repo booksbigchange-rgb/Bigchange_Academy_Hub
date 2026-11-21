@@ -42,6 +42,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - 2026-11-21, **M6 step 1: installable phone app** (`docs/M6_PHONE_AND_STAFF_CHAT_PLAN.md`). Staff can add the Hub to their home screen: Android/Chrome shows an Install button, iPhone Safari shows the three Add to Home Screen steps (staff only; parents never see it; "Not now" is remembered). On phones the menu is a tab bar at the bottom. The offline helper stores only the app's own files, never school data, so the sign-in page opens without internet. No database change. 138 unit tests, 126/126 browser checks incl. axe.
 
+- 2026-11-21, **M6 step 2: staff chat database** (migration 0011). One-to-one chats and automatic groups (All staff, Teachers, Finance, one per class) with membership worked out live from roles, class teachers and access; private by default; members can report a message, and the admin can then open that chat only through a function that records every opening; own messages can be deleted within 15 minutes unless reported; message text never goes to the audit trail; Realtime enabled for new messages. 244/244 database checks (61 new), safe to run twice. No screens yet. **Owner must run migration 0011.**
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
 0. Run migration 0010 (Staff screen).

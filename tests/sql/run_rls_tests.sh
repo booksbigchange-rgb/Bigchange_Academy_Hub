@@ -216,4 +216,77 @@ chk "  (teacher B cannot record attendance while off)" $TB "insert into academy_
 chk "teacher B switched on again" $A "select academy_set_staff_active('10000000-0000-0000-0000-0000000000b2', true)" ""
 chk "  (teacher B sees students again)" $TB "select count(*) > 0 from academy_learners" t
 chk "staff changes are in the audit trail" $A "select count(*) >= 3 from academy_audit_events where entity_type='academy_staff'" t
+
+# ---- Staff chat (migration 0011) ----
+AS=10000000-0000-0000-0000-0000000000a1; TAS=10000000-0000-0000-0000-0000000000b1; TBS=10000000-0000-0000-0000-0000000000b2; FS=10000000-0000-0000-0000-0000000000c1
+CA=50000000-0000-0000-0000-00000000000a; CB=50000000-0000-0000-0000-00000000000b
+DM="(select conversation_id from academy_chat_conversation_list() where kind='direct' limit 1)"
+GRP(){ echo "(select id from academy_chat_conversations where group_key='$1')"; }
+CLS(){ echo "(select id from academy_chat_conversations where class_id='$1')"; }
+OWNER(){ $PSQL -q -c "reset role; $1" >/dev/null; }
+chk "chat: anon cannot read conversations" anon "select count(*) from academy_chat_conversations" ERR
+chk "chat: parent sees no conversations" $G1 "select count(*) from academy_chat_conversations" 0
+chk "chat: parent cannot use chat" $G1 "select count(*) from academy_chat_conversation_list()" ERR
+chk "chat: student cannot use chat" $L1 "select count(*) from academy_chat_conversation_list()" ERR
+chk "chat: parent cannot start a chat" $G1 "select academy_chat_start_direct('$TAS')" ERR
+chk "chat: a group exists for every class (incl. new ones)" $A "select count(*) from academy_chat_conversations where class_id is not null" 4
+chk "chat: teacher A is in All staff, Teachers and own class only" $TA "select string_agg(coalesce(group_key, case when class_id='$CA' then 'class A' else 'other class' end), ',') from (select * from academy_chat_conversation_list() order by coalesce(group_key,'zz')) q" "all_staff,teachers,class A"
+chk "chat: finance is in All staff and Finance only" $F "select string_agg(title, ',' order by title) from academy_chat_conversation_list()" "All staff,Finance"
+chk "chat: admin is in every group" $A "select count(*) from academy_chat_conversation_list()" 7
+chk "chat: teacher B cannot see class A's group" $TB "select count(*) from academy_chat_conversations where class_id='$CA'" 0
+chk "chat: teacher B cannot post in class A's group" $TB "select academy_chat_send($(CLS $CA), 'hi', null)" ERR
+chk "chat: finance cannot post in the Teachers group" $F "select academy_chat_send($(GRP teachers), 'hi', null)" ERR
+chk "chat: finance posts in the Finance group" $F "select count(*) from (select academy_chat_send($(GRP finance), 'Fees list ready', null)) x" 1
+chk "chat: teacher cannot read the Finance group" $TA "select count(*) from academy_chat_messages" 0
+chk "chat: messages cannot be inserted directly" $TA "insert into academy_chat_messages(conversation_id,sender_staff_id,body) values ($(GRP all_staff),'$TAS','x')" ERR
+chk "chat: staff list for a new chat leaves out yourself" $TA "select count(*) from academy_chat_staff_directory() where staff_id='$TAS'" 0
+chk "chat: cannot chat with yourself" $TA "select academy_chat_start_direct('$TAS')" ERR
+chk "chat: teacher A starts a chat with teacher B" $TA "select count(*) from (select academy_chat_start_direct('$TBS')) x" 1
+chk "chat: starting again reuses the same chat" $TA "select count(*) from (select academy_chat_start_direct('$TBS')) x, academy_chat_conversations c where c.kind='direct'" 1
+chk "chat: the one-to-one chat is named after the other person" $TA "select count(*) from academy_chat_conversation_list() where kind='direct' and other_staff_id='$TBS'" 1
+chk "chat: teacher A sends a message" $TA "select count(*) from (select academy_chat_send($DM, 'Can you cover my class?', null)) x" 1
+chk "chat: empty messages are refused" $TA "select academy_chat_send($DM, '   ', null)" ERR
+chk "chat: links must be https" $TA "select academy_chat_send($DM, null, 'http://example.com/x')" ERR
+chk "chat: a Drive link can be sent" $TA "select count(*) from (select academy_chat_send($DM, null, 'https://drive.google.com/file/d/abc/view')) x" 1
+chk "chat: teacher B has 2 unread" $TB "select unread from academy_chat_conversation_list() where kind='direct'" 2
+chk "chat: teacher B reads them" $TB "select academy_chat_mark_read($DM)" ""
+chk "chat: then nothing is unread" $TB "select unread from academy_chat_conversation_list() where kind='direct'" 0
+chk "chat: teacher B replies" $TB "select count(*) from (select academy_chat_send($DM, 'Yes, no problem', null)) x" 1
+chk "chat: finance cannot read the one-to-one chat" $F "select count(*) from academy_chat_messages m join academy_chat_conversations c on c.id=m.conversation_id where c.kind='direct'" 0
+chk "chat: admin cannot read the one-to-one chat" $A "select count(*) from academy_chat_messages m join academy_chat_conversations c on c.id=m.conversation_id where c.kind='direct'" 0
+DMID=$($PSQL -c "select id from academy_chat_conversations where kind='direct'")
+chk "chat: admin cannot post in it" $A "select academy_chat_send('$DMID', 'x', null)" ERR
+chk "chat: admin cannot list its members" $A "select count(*) from academy_chat_participants('$DMID')" ERR
+chk "chat: messages cannot be edited directly" $TA "update academy_chat_messages set body='changed'" ERR
+chk "chat: teacher A cannot delete teacher B's message" $TA "select academy_chat_delete_message((select id from academy_chat_messages where body='Yes, no problem'))" ERR
+chk "chat: teacher A deletes own link within 15 minutes" $TA "select academy_chat_delete_message((select id from academy_chat_messages where link_url like 'https://drive%'))" ""
+chk "chat: the deleted message keeps no text" $TB "select count(*) from academy_chat_messages where deleted_at is not null and body is null and link_url is null" 1
+OWNER "update academy_chat_messages set created_at = now() - interval '20 minutes' where body='Can you cover my class?'"
+chk "chat: older than 15 minutes cannot be deleted" $TA "select academy_chat_delete_message((select id from academy_chat_messages where body='Can you cover my class?'))" ERR
+chk "chat: report needs a reason" $TB "select academy_chat_report((select id from academy_chat_messages where body='Can you cover my class?'), 'x')" ERR
+chk "chat: teacher B reports a message" $TB "select count(*) from (select academy_chat_report((select id from academy_chat_messages where body='Can you cover my class?'), 'Not appropriate')) x" 1
+chk "chat: the same person cannot report it twice" $TB "select academy_chat_report((select id from academy_chat_messages where body='Can you cover my class?'), 'Again please')" ERR
+chk "chat: finance reports a message in its own group" $F "select academy_chat_report((select id from academy_chat_messages where body='Fees list ready'), 'test report')" ""
+chk "chat: teacher cannot see the report list" $TA "select count(*) from academy_chat_report_list()" ERR
+chk "chat: admin sees the open reports" $A "select count(*) from academy_chat_report_list() where handled_at is null" 2
+chk "chat: admin opens the reported chat (all 3 messages)" $A "select count(*) from academy_chat_open_report((select report_id from academy_chat_report_list() where reason='Not appropriate'))" 3
+chk "chat: the opening is recorded" $A "select count(*) from academy_chat_admin_access" 1
+chk "chat: teachers cannot see who opened what" $TA "select count(*) from academy_chat_admin_access" 0
+chk "chat: teachers cannot open reports" $TB "select count(*) from academy_chat_open_report((select id from academy_chat_reports limit 1))" ERR
+chk "chat: still no direct reading by the admin" $A "select count(*) from academy_chat_messages m join academy_chat_conversations c on c.id=m.conversation_id where c.kind='direct'" 0
+chk "chat: admin marks the report handled" $A "select academy_chat_handle_report((select report_id from academy_chat_report_list() where reason='Not appropriate'), 'Spoke to both')" ""
+chk "chat: a report cannot be handled twice" $A "select academy_chat_handle_report((select report_id from academy_chat_report_list() where reason='Not appropriate'), 'x')" ERR
+chk "chat: reports are in the audit trail" $A "select count(*) >= 2 from academy_audit_events where entity_type='academy_chat_reports'" t
+chk "chat: message text is not in the audit trail" $A "select count(*) from academy_audit_events where detail::text like '%cover my class%'" 0
+chk "chat: class B's group has its teacher and the admin" $TB "select count(*) from academy_chat_participants($(CLS $CB))" 2
+chk "chat: finance cannot list class B's members" $F "select count(*) from academy_chat_participants($(CLS $CB))" ERR
+chk "chat: switched-off teacher B loses chat" $A "select academy_set_staff_active('$TBS', false)" ""
+chk "  (cannot list chats while off)" $TB "select count(*) from academy_chat_conversation_list()" ERR
+chk "  (cannot read messages while off)" $TB "select count(*) from academy_chat_messages" 0
+chk "  (left out of the Teachers group members)" $TA "select count(*) from academy_chat_participants($(GRP teachers)) where staff_id='$TBS'" 0
+chk "  (teacher B switched on again)" $A "select academy_set_staff_active('$TBS', true)" ""
+OWNER "update academy_classes set teacher_staff_id='$TBS' where id='$CA'"
+chk "chat: a new class teacher joins the class group at once" $TB "select count(*) from academy_chat_conversation_list() where class_id='$CA'" 1
+chk "chat: the old teacher leaves it at once" $TA "select count(*) from academy_chat_conversations where class_id='$CA'" 0
+OWNER "update academy_classes set teacher_staff_id='$TAS' where id='$CA'"
 echo "RLS tests: $pass passed, $fail failed"; [ $fail = 0 ]

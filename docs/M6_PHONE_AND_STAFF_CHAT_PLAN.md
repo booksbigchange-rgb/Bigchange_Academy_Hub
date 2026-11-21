@@ -1,6 +1,6 @@
 # M6 plan: Hub on phones + staff chat
 
-Status: **step 1 built (2026-11-21); steps 2–9 not started.** Agreed with the owner on 2026-11-21 through the planning interview.
+Status: **steps 1–2 built (2026-11-21); steps 3–9 not started.** Agreed with the owner on 2026-11-21 through the planning interview.
 
 ## Goal
 Make the Hub an **installable website** (PWA) that staff add to their phone's home screen, and add **staff chat** so the school no longer needs staff WhatsApp groups.
@@ -40,7 +40,10 @@ Planned:
 - Update `public/_headers` CSP (`worker-src 'self'`, `manifest-src 'self'`).
 - Tests: browser checks at phone width for every role, Lighthouse "installable", axe.
 
-### Step 2. Chat database (migration 0011)
+### Step 2. Chat database (migration 0011) — ✅ built
+Built: `supabase/migrations/20261121_0011_staff_chat.sql`, rules summarised in `docs/ACCESS_RULES.md`. Group membership is computed live from roles, class teachers and access (no syncing triggers needed; a trigger only creates the group for a new class). The attachments table moved to step 4 with storage. Checked: 244/244 database checks (61 new), safe to run twice. Owner must run it on the real project.
+
+Planned:
 Tables: `conversations`, `conversation_members`, `messages`, `message_attachments`, `message_reports`, `admin_access_log`.
 - RLS: a user sees a conversation and its messages only if they are a member **and** their staff access is on. Admin sees a non-member conversation only after it is reported, and only through a function that writes `admin_access_log`.
 - Parents and students: no access at all.

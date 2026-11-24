@@ -146,3 +146,32 @@ test('lessonsByTeacher: per current teacher for one month; held, complete, incom
   assert.deepEqual(r.lessons.map(l => [l.date, l.time, l.classTitle, l.marked, l.enrolled]).slice(0, 2), [['2026-11-03', '16:00', 'English – Level 2', 2, 2], ['2026-11-05', '09:30', 'Maths', 1, 1]]);
   assert.equal(r.lessons.length, 5);
 });
+
+import { monthlyReport } from '../src/live/dashboard.mjs';
+test('monthlyReport: payments started and reported in the month, open fees, attendance per class, levels ending next month', () => {
+  const data = {
+    learners: [{ id: 'a', active: true }, { id: 'b', active: true }],
+    courses: [{ id: 'en', title: 'English' }], staff: [{ id: 't1', display_name: 'Teacher One' }],
+    classes: [{ id: 'k1', title: 'English – Level 2', course_id: 'en', teacher_staff_id: 't1', level_end: '2026-12-10' },
+      { id: 'k2', title: 'Quiet class', course_id: 'en', teacher_staff_id: 't1', level_end: '2026-11-20' }],
+    enrollments: [{ class_id: 'k1', learner_id: 'a' }, { class_id: 'k1', learner_id: 'b' }],
+    sessions: [{ id: 's1', class_id: 'k1', starts_at: new Date(2026, 10, 3, 16).toISOString() }, { id: 's0', class_id: 'k1', starts_at: new Date(2026, 9, 3, 16).toISOString() }],
+    attendance: [{ session_id: 's1', status: 'present' }, { session_id: 's1', status: 'absent' }, { session_id: 's0', status: 'present' }],
+    periods: [
+      { learner_id: 'a', guardian_id: 'g', period_start: '2026-11-02', amount_due: 100, paid_on: '2026-11-05', reported_status: 'paid', paid_amount: 100, approved_status: 'paid', status: 'paid' },
+      { learner_id: 'b', guardian_id: 'g', period_start: '2026-11-02', amount_due: 100, paid_on: null, reported_status: 'unpaid', paid_amount: null, approved_status: 'unpaid', status: 'unpaid' },
+      { learner_id: 'c', guardian_id: 'h', period_start: '2026-08-01', amount_due: 150, paid_on: '2026-11-20', reported_status: 'partial', paid_amount: null, approved_status: 'unpaid', status: 'overdue' },
+    ],
+  };
+  const r = monthlyReport(data, '2026-11', new Date(2026, 11, 3));
+  assert.equal(r.asOf, '2026-11-30');
+  assert.deepEqual([r.payments.started, r.payments.startedFees, r.payments.reported, r.payments.reportedAmount, r.payments.reportedWithAmount, r.payments.approved],
+    [2, 200, 2, 100, 1, 1]);
+  assert.deepEqual(r.payments.status, { paid: 1, partial: 0, unpaid: 1, overdue: 1, total: 3 });
+  assert.deepEqual([r.payments.notPaid, r.payments.notPaidFees], [2, 250]);
+  assert.equal(r.attendance.rate, 50);
+  assert.deepEqual(r.attendance.perClass.map(c => [c.title, c.lessons, c.rate]), [['English – Level 2', 1, 50]]);
+  assert.deepEqual(r.levelsEnding.map(c => c.title), ['English – Level 2']);
+  assert.equal(r.lessons.total.held, 1);
+  assert.equal(r.students.active, 2);
+});

@@ -85,7 +85,7 @@ export default function LiveOverview({ data, role, go, onWriteNotice }: { data: 
   </section>;
 }
 
-function PaymentsDonut({ pay }: { pay: ReturnType<typeof paymentStatusCounts> }) {
+export function PaymentsDonut({ pay }: { pay: ReturnType<typeof paymentStatusCounts> }) {
   const C = 2 * Math.PI * 70;
   const slices: Slice[] = donutSlices(STATUS.map(s => pay[s.key]), C);
   const label = `Donut chart of current payment periods: ${STATUS.map(s => `${pay[s.key]} ${s.label.toLowerCase()}`).join(', ')}, of ${pay.total}`;
@@ -106,7 +106,7 @@ function PaymentsDonut({ pay }: { pay: ReturnType<typeof paymentStatusCounts> })
   </section>;
 }
 
-function CourseBars({ data }: { data: Data }) {
+export function CourseBars({ data }: { data: Data }) {
   const rows = studentsPerCourse(data);
   const max = Math.max(1, ...rows.map(r => r.count));
   return <section className="dash-card" aria-label="Students per course">

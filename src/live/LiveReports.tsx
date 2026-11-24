@@ -3,6 +3,7 @@ import { lessonsByTeacher } from './dashboard.mjs';
 import { formatDate, toCsv, todayIso } from './fees.mjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import LiveActivity from './LiveActivity';
+import LiveMonthlyReport from './LiveMonthlyReport';
 import type { Data } from './shared';
 
 type Row = { teacherId: string | null; teacher: string; classes: number; held: number; complete: number; incomplete: number; upcoming: number; rate: number | null };
@@ -19,14 +20,15 @@ function download(name: string, text: string) {
 
 /** Admin reports: lessons per teacher per month, and the activity log. */
 export default function LiveReports({ data, client }: { data: Data; client: SupabaseClient }) {
-  const [tab, setTab] = useState<'lessons' | 'activity'>('lessons');
+  const [tab, setTab] = useState<'lessons' | 'monthly' | 'activity'>('lessons');
   return <section className="panel operations" aria-label="Reports">
-    <span className="eyebrow">REPORTS</span><h2>{tab === 'lessons' ? 'Lessons per teacher' : 'Activity log'}</h2>
-    <div className="report-tabs" role="group" aria-label="Choose a report">
+    <span className="eyebrow">REPORTS</span><h2>{tab === 'lessons' ? 'Lessons per teacher' : tab === 'monthly' ? 'Monthly report' : 'Activity log'}</h2>
+    <div className="report-tabs no-print" role="group" aria-label="Choose a report">
       <button type="button" className={'small-btn' + (tab === 'lessons' ? ' report-tab-on' : '')} aria-pressed={tab === 'lessons'} onClick={() => setTab('lessons')}>Lessons per teacher</button>
+      <button type="button" className={'small-btn' + (tab === 'monthly' ? ' report-tab-on' : '')} aria-pressed={tab === 'monthly'} onClick={() => setTab('monthly')}>Monthly report</button>
       <button type="button" className={'small-btn' + (tab === 'activity' ? ' report-tab-on' : '')} aria-pressed={tab === 'activity'} onClick={() => setTab('activity')}>Activity log</button>
     </div>
-    {tab === 'lessons' ? <LessonsReport data={data} /> : <LiveActivity client={client} data={data} />}
+    {tab === 'lessons' ? <LessonsReport data={data} /> : tab === 'monthly' ? <LiveMonthlyReport data={data} /> : <LiveActivity client={client} data={data} />}
   </section>;
 }
 

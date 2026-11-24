@@ -221,3 +221,49 @@ export function lessonsByTeacher(data, month, now = new Date()) {
     { held: 0, complete: 0, incomplete: 0, upcoming: 0 });
   return { rows, lessons, total };
 }
+
+/**
+ * Monthly report for management (month = YYYY-MM). Payments: periods started that month (count, fees), reports
+ * dated that month (paid_on) and how many of those are approved, and the status of every child's current period at
+ * the end of the month (or today, if earlier) with what is not yet approved as paid. Attendance per class for the
+ * month. Lessons per teacher. Levels ending in the next month.
+ */
+export function monthlyReport(data, month, now = new Date()) {
+  const [y, m] = month.split('-').map(Number);
+  const monthEnd = dayOf(new Date(y, m, 0));
+  const asOf = dayOf(now) < monthEnd ? dayOf(now) : monthEnd;
+  const inMonth = iso => !!iso && iso.slice(0, 7) === month;
+  const started = data.periods.filter(p => inMonth(p.period_start));
+  const reported = data.periods.filter(p => inMonth(p.paid_on) && p.reported_status !== 'unpaid');
+  const status = paymentStatusCounts(data.periods, asOf);
+  const latest = new Map();
+  for (const p of data.periods) {
+    if (p.period_start > asOf) continue;
+    const key = p.learner_id ?? 'family:' + p.guardian_id;
+    if (!latest.has(key) || p.period_start > latest.get(key).period_start) latest.set(key, p);
+  }
+  const open = [...latest.values()].filter(p => p.status !== 'paid');
+  const sessions = data.sessions.filter(s => dayOf(s.starts_at).slice(0, 7) === month);
+  const perClass = data.classes.map(c => {
+    const ids = new Set(sessions.filter(s => s.class_id === c.id).map(s => s.id));
+    const marks = data.attendance.filter(a => ids.has(a.session_id)).map(a => a.status);
+    return { id: c.id, title: c.title, lessons: ids.size, rate: rateOf(marks) };
+  }).filter(c => c.lessons > 0).sort((a, b) => a.title.localeCompare(b.title));
+  const allIds = new Set(sessions.map(s => s.id));
+  const nextEnd = dayOf(new Date(y, m + 1, 0));
+  return {
+    month, asOf,
+    students: { active: data.learners.filter(l => l.active).length, perCourse: studentsPerCourse(data) },
+    payments: {
+      started: started.length, startedFees: started.reduce((n, p) => n + Number(p.amount_due), 0),
+      reported: reported.length, reportedAmount: reported.reduce((n, p) => n + Number(p.paid_amount ?? 0), 0),
+      reportedWithAmount: reported.filter(p => p.paid_amount).length,
+      approved: reported.filter(p => p.approved_status !== 'unpaid').length,
+      status, notPaid: open.length, notPaidFees: open.reduce((n, p) => n + Number(p.amount_due), 0),
+    },
+    attendance: { rate: rateOf(data.attendance.filter(a => allIds.has(a.session_id)).map(a => a.status)), perClass },
+    lessons: lessonsByTeacher(data, month, now),
+    levelsEnding: data.classes.filter(c => c.level_end && c.level_end > monthEnd && c.level_end <= nextEnd)
+      .map(c => ({ id: c.id, title: c.title, levelEnd: c.level_end })).sort((a, b) => a.levelEnd.localeCompare(b.levelEnd)),
+  };
+}

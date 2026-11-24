@@ -390,7 +390,7 @@ await session(browser, db, 'admin', 1366, async page => {
   check('a new login waits for a role', await seen(waitingTable.getByRole('cell', { name: 'new.teacher@example.com' })));
   const staffTable = page.getByRole('region', { name: 'Staff members' });
   check('the admin cannot change their own row', await seen(staffTable.getByRole('row', { name: /admin@example.com/ }).getByText('You'))
-    && (await staffTable.getByRole('row', { name: /admin@example.com/ }).getByRole('button').count()) === 0);
+    && (await staffTable.getByRole('row', { name: /admin@example.com/ }).getByRole('button', { name: /Change role|Switch/ }).count()) === 0);
   await waitingTable.getByRole('button', { name: 'Give a role' }).click();
   const roleForm = page.getByRole('form', { name: 'Staff role' });
   await roleForm.getByLabel('Name shown in the app').fill('New Teacher');
@@ -411,6 +411,26 @@ await session(browser, db, 'admin', 1366, async page => {
   await staffTable.getByRole('row', { name: /New Teacher/ }).getByRole('button', { name: 'Switch on' }).click();
   await page.getByText(/Access switched on for New Teacher/).waitFor();
   check('admin switches the teacher on again', await seen(staffTable.getByRole('row', { name: /New Teacher/ }).locator('.tag.green', { hasText: 'On' })));
+  // Teacher profile: give Teacher Test the class, then open the profile from the Staff screen.
+  await nav(page, 'Classes');
+  await page.getByLabel(/^Teacher for /).first().selectOption({ label: 'Teacher Test' });
+  await page.getByText('Teacher updated.').waitFor();
+  await nav(page, 'Staff');
+  await page.getByRole('button', { name: 'Profile of Teacher Test' }).click();
+  const profile = page.getByRole('region', { name: 'Profile of Teacher Test' });
+  check('teacher profile opens with name, role and email', await seen(profile.getByRole('heading', { name: 'Teacher Test' })) && await seen(profile.getByText('teacher@example.com')));
+  check('teacher profile lists their class and its students', await seen(profile.getByRole('region', { name: 'Classes of this teacher' }).getByRole('cell', { name: 'English – Level 3' })));
+  check('teacher profile shows lessons per month and incomplete attendance', await seen(profile.getByRole('img', { name: /^Bar chart of lessons per month/ }))
+    && await seen(profile.getByText('1 of 2 marked')));
+  check('teacher profile shows their attendance heat calendar', await seen(profile.getByRole('table', { name: 'Attendance per day, last 4 weeks' })));
+  if (process.env.SCREENSHOTS) await profile.screenshot({ path: `${process.env.SCREENSHOTS}/admin-teacher-profile.png` });
+  if (process.env.AXE_PATH) {
+    await page.addScriptTag({ path: process.env.AXE_PATH });
+    const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+    check('axe teacher profile: no serious/critical issues', v.length === 0, v.join(' | '));
+  }
+  await profile.getByRole('button', { name: 'Close profile' }).click();
+  check('profile closes', (await page.getByRole('region', { name: 'Profile of Teacher Test' }).count()) === 0);
 });
 
 // Before the owner runs migration 0010: the admin's app must still load; only the Staff screen explains what is missing.

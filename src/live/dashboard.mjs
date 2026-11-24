@@ -107,3 +107,46 @@ export function donutSlices(values, c, gap = 2) {
     return slice;
   });
 }
+
+/** The part of the data that belongs to one teacher's classes (for reusing the attendance charts). */
+export function dataForTeacher(data, staffId) {
+  const classIds = new Set(data.classes.filter(c => c.teacher_staff_id === staffId).map(c => c.id));
+  const sessions = data.sessions.filter(s => classIds.has(s.class_id));
+  const sessionIds = new Set(sessions.map(s => s.id));
+  return { ...data, classes: data.classes.filter(c => classIds.has(c.id)), sessions,
+    attendance: data.attendance.filter(a => sessionIds.has(a.session_id)), enrollments: data.enrollments.filter(e => classIds.has(e.class_id)) };
+}
+
+/**
+ * Teacher profile numbers: their classes (students, 4-week attendance, level end), distinct active students,
+ * lessons this month, lessons per month for the last `months` months, and recent lessons (last 30 days, already
+ * held) where fewer students were marked than are enrolled in the class now.
+ */
+export function teacherStats(data, staffId, now = new Date(), months = 6) {
+  const today = dayOf(now);
+  const mine = dataForTeacher(data, staffId);
+  const active = new Set(data.learners.filter(l => l.active).map(l => l.id));
+  const enrolled = id => mine.enrollments.filter(e => e.class_id === id && active.has(e.learner_id)).length;
+  const courseTitle = id => data.courses.find(c => c.id === id)?.title ?? '—';
+  const classes = mine.classes.map(c => {
+    const own = dataForTeacher({ ...data, classes: [c] }, staffId);
+    return { id: c.id, title: c.title, course: courseTitle(c.course_id), students: enrolled(c.id), rate: attendanceRecent(own, today).rate, levelEnd: c.level_end ?? null };
+  }).sort((a, b) => a.title.localeCompare(b.title));
+  const students = new Set(mine.enrollments.filter(e => active.has(e.learner_id)).map(e => e.learner_id)).size;
+  const monthKey = d => dayOf(d).slice(0, 7);
+  const thisMonth = monthKey(now);
+  const monthly = Array.from({ length: months }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
+    const key = monthKey(d);
+    return { month: key, label: d.toLocaleDateString('en-GB', { month: 'short' }), count: mine.sessions.filter(s => monthKey(s.starts_at) === key).length };
+  });
+  const since = addDays(today, -30);
+  const titleOf = id => mine.classes.find(c => c.id === id)?.title ?? 'Class';
+  const missing = mine.sessions
+    .filter(s => new Date(s.starts_at) <= now && dayOf(s.starts_at) >= since)
+    .map(s => ({ sessionId: s.id, date: dayOf(s.starts_at), classTitle: titleOf(s.class_id), marked: mine.attendance.filter(a => a.session_id === s.id).length, enrolled: enrolled(s.class_id) }))
+    .filter(x => x.enrolled > 0 && x.marked < x.enrolled)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  return { classes, students, lessonsThisMonth: mine.sessions.filter(s => monthKey(s.starts_at) === thisMonth).length,
+    rate: attendanceRecent(mine, today).rate, monthly, missing };
+}

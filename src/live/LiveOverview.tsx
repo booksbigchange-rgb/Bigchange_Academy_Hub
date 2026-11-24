@@ -147,7 +147,7 @@ function WeeklyLine({ data, today }: { data: Data; today: string }) {
   </section>;
 }
 
-function HeatCalendar({ data, today }: { data: Data; today: string }) {
+export function HeatCalendar({ data, today }: { data: Data; today: string }) {
   const cal = attendanceCalendar(data, today, 4);
   const any = cal.some(w => w.some(d => d.rate !== null));
   return <section className="dash-card dash-heat-card" aria-label="Attendance calendar">

@@ -65,3 +65,32 @@ test('donutSlices: proportional slices with a gap, starting where the previous e
   assert.deepEqual(donutSlices([0, 0], 100), []);
   assert.deepEqual(donutSlices([5, 0], 100).map(x => x.dash), [100, 0]); // a single slice has no gap
 });
+
+import { teacherStats, dataForTeacher } from '../src/live/dashboard.mjs';
+test('teacherStats: only the teacher\'s classes; lessons per month; incomplete attendance in the last 30 days', () => {
+  const T = 't1';
+  const data = {
+    learners: [{ id: 'a', active: true }, { id: 'b', active: true }, { id: 'c', active: false }, { id: 'd', active: true }],
+    courses: [{ id: 'en', title: 'English' }],
+    classes: [{ id: 'k1', title: 'English – Level 2', course_id: 'en', teacher_staff_id: T, level_end: '2026-12-01' },
+      { id: 'k2', title: 'Other class', course_id: 'en', teacher_staff_id: 't2', level_end: null }],
+    enrollments: [{ class_id: 'k1', learner_id: 'a' }, { class_id: 'k1', learner_id: 'b' }, { class_id: 'k1', learner_id: 'c' }, { class_id: 'k2', learner_id: 'd' }],
+    sessions: [
+      { id: 's1', class_id: 'k1', starts_at: new Date(2026, 10, 18, 16).toISOString() },  // this month, fully marked
+      { id: 's2', class_id: 'k1', starts_at: new Date(2026, 10, 20, 16).toISOString() },  // this month, 1 of 2 marked
+      { id: 's3', class_id: 'k1', starts_at: new Date(2026, 9, 5, 16).toISOString() },    // October (older than 30 days)
+      { id: 's4', class_id: 'k1', starts_at: new Date(2026, 10, 30, 16).toISOString() },  // future: not counted as missing
+      { id: 's9', class_id: 'k2', starts_at: new Date(2026, 10, 19, 16).toISOString() },  // another teacher
+    ],
+    attendance: [{ session_id: 's1', learner_id: 'a', status: 'present' }, { session_id: 's1', learner_id: 'b', status: 'late' },
+      { session_id: 's2', learner_id: 'a', status: 'absent' }, { session_id: 's9', learner_id: 'd', status: 'present' }],
+  };
+  const s = teacherStats(data, T, new Date(2026, 10, 24, 12), 3);
+  assert.deepEqual(s.classes.map(c => [c.title, c.course, c.students, c.rate, c.levelEnd]), [['English – Level 2', 'English', 2, 67, '2026-12-01']]);
+  assert.equal(s.students, 2);                    // inactive student c not counted; other teacher's student d not counted
+  assert.equal(s.lessonsThisMonth, 3);            // s1, s2, s4
+  assert.deepEqual(s.monthly.map(m => [m.month, m.count]), [['2026-09', 0], ['2026-10', 1], ['2026-11', 3]]);
+  assert.deepEqual(s.missing.map(m => [m.sessionId, m.marked, m.enrolled]), [['s2', 1, 2]]);
+  assert.equal(s.rate, 67);
+  assert.equal(dataForTeacher(data, T).attendance.length, 3);
+});

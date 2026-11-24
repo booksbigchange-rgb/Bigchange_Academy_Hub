@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { setStaffActive, setStaffRole, staffDirectory, type StaffMember } from './api';
-import { useAction } from './shared';
+import { useAction, type Data } from './shared';
+import LiveTeacherProfile from './LiveTeacherProfile';
 import { formatDate } from './fees.mjs';
 
 const ROLE_LABEL: Record<string, string> = { admin: 'Admin', teacher: 'Teacher', finance: 'Finance' };
 
 /** Admin only: give logins a staff role, change it, and switch access off or on. The database enforces every rule. */
-export default function LiveStaff({ client, email, reload }: { client: SupabaseClient; email: string; reload: () => Promise<void> }) {
+export default function LiveStaff({ client, email, reload, data }: { client: SupabaseClient; email: string; reload: () => Promise<void>; data: Data }) {
   const [list, setList] = useState<StaffMember[] | null>(null);
   const [loadError, setLoadError] = useState('');
   const load = useCallback(async () => {
@@ -19,6 +20,7 @@ export default function LiveStaff({ client, email, reload }: { client: SupabaseC
   const [editFor, setEditFor] = useState<StaffMember | null>(null);
   const [name, setName] = useState('');
   const [role, setRole] = useState('teacher');
+  const [profileId, setProfileId] = useState('');
 
   const isMe = (m: StaffMember) => m.email.toLowerCase() === email.toLowerCase();
   const waiting = (list ?? []).filter(m => !m.staff_id);
@@ -61,11 +63,13 @@ export default function LiveStaff({ client, email, reload }: { client: SupabaseC
       <div className="table-wrap" tabIndex={0} role="region" aria-label="Staff members"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Classes</th><th>Access</th><th>Action</th></tr></thead><tbody>
         {staff.map(m => <tr key={m.user_id}><td>{m.display_name ?? '—'}</td><td>{m.email}</td><td>{ROLE_LABEL[m.role ?? ''] ?? '—'}</td><td>{m.class_count}</td>
           <td><span className={'tag ' + (m.active ? 'green' : 'red')}>{m.active ? 'On' : 'Off'}</span></td>
-          <td>{isMe(m) ? <span className="quiet">You</span> : <>
+          <td><button className="small-btn" type="button" aria-label={'Profile of ' + (m.display_name ?? m.email)} onClick={() => setProfileId(profileId === m.user_id ? '' : m.user_id)}>{profileId === m.user_id ? 'Hide profile' : 'Profile'}</button>{' '}
+            {isMe(m) ? <span className="quiet">You</span> : <>
             <button className="small-btn" disabled={busy} onClick={() => open(m)}>Change role</button>{' '}
             <button className="small-btn" disabled={busy} onClick={() => toggle(m)}>{m.active ? 'Switch off' : 'Switch on'}</button></>}</td></tr>)}
       </tbody></table></div>
     </>}
+    {(() => { const m = staff.find(x => x.user_id === profileId); return m ? <LiveTeacherProfile key={m.user_id} member={m} data={data} onClose={() => setProfileId('')} /> : null; })()}
     {editFor && <form className="ops-form" aria-label="Staff role" onSubmit={save}>
       <h3>{editFor.staff_id ? 'Change role' : 'Give a role'} · {editFor.email}</h3>
       <label>Name shown in the app<input required minLength={2} maxLength={80} value={name} onChange={e => setName(e.target.value)} /></label>

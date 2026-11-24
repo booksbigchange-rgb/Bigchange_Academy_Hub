@@ -121,3 +121,28 @@ test('studentStats: classes with teacher and own attendance; payment periods new
   assert.deepEqual(s.guardians.map(g => [g.name, g.phone, g.whatsapp, g.verified]), [['Parent One', '+251911000000', true, true]]);
   assert.equal(dataForLearner(data, 'a').attendance.length, 2);
 });
+
+import { lessonsByTeacher } from '../src/live/dashboard.mjs';
+test('lessonsByTeacher: per current teacher for one month; held, complete, incomplete, upcoming; No teacher last', () => {
+  const data = {
+    learners: [{ id: 'a', active: true }, { id: 'b', active: true }, { id: 'c', active: false }],
+    staff: [{ id: 't1', display_name: 'Teacher One' }, { id: 't2', display_name: 'Teacher Two' }],
+    classes: [{ id: 'k1', title: 'English – Level 2', teacher_staff_id: 't1' }, { id: 'k2', title: 'Maths', teacher_staff_id: 't2' }, { id: 'k3', title: 'Orphan', teacher_staff_id: null }],
+    enrollments: [{ class_id: 'k1', learner_id: 'a' }, { class_id: 'k1', learner_id: 'b' }, { class_id: 'k1', learner_id: 'c' }, { class_id: 'k2', learner_id: 'a' }],
+    sessions: [
+      { id: 's1', class_id: 'k1', starts_at: new Date(2026, 10, 3, 16).toISOString() },   // complete (2 of 2 active)
+      { id: 's2', class_id: 'k1', starts_at: new Date(2026, 10, 10, 16).toISOString() },  // incomplete (1 of 2)
+      { id: 's3', class_id: 'k1', starts_at: new Date(2026, 10, 28, 16).toISOString() },  // upcoming
+      { id: 's4', class_id: 'k2', starts_at: new Date(2026, 10, 5, 9, 30).toISOString() },
+      { id: 's5', class_id: 'k3', starts_at: new Date(2026, 10, 6, 9).toISOString() },    // no students enrolled: counts as complete
+      { id: 's6', class_id: 'k1', starts_at: new Date(2026, 9, 30, 16).toISOString() },   // October: not this month
+    ],
+    attendance: [{ session_id: 's1', status: 'present' }, { session_id: 's1', status: 'absent' }, { session_id: 's2', status: 'late' }, { session_id: 's4', status: 'present' }],
+  };
+  const r = lessonsByTeacher(data, '2026-11', new Date(2026, 10, 24, 12));
+  assert.deepEqual(r.rows.map(x => [x.teacher, x.classes, x.held, x.complete, x.incomplete, x.upcoming, x.rate]),
+    [['Teacher One', 1, 2, 1, 1, 1, 67], ['Teacher Two', 1, 1, 1, 0, 0, 100], ['No teacher', 1, 1, 1, 0, 0, null]]);
+  assert.deepEqual(r.total, { held: 4, complete: 3, incomplete: 1, upcoming: 1 });
+  assert.deepEqual(r.lessons.map(l => [l.date, l.time, l.classTitle, l.marked, l.enrolled]).slice(0, 2), [['2026-11-03', '16:00', 'English – Level 2', 2, 2], ['2026-11-05', '09:30', 'Maths', 1, 1]]);
+  assert.equal(r.lessons.length, 5);
+});

@@ -11,6 +11,7 @@ const PATHS: Record<string, string> = {
   'My children': 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c0-3.3 3.6-6 8-6s8 2.7 8 6',
   'My classes': 'M3 5h18v11H3zM8 20h8M12 16v4',
   Staff: 'M5 4h14v16H5zM12 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM8.5 17c0-1.9 1.6-3.3 3.5-3.3s3.5 1.4 3.5 3.3',
+  Reports: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
   Payments: 'M3 7h18v10H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
 };
 export function NavIcon({ name }: { name: string }) {

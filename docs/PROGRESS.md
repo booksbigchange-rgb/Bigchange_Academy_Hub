@@ -51,6 +51,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - 2026-11-24, **student profile**: Students → **Profile** shows everything about one student: header (name, active, grade, note), cards (classes, 4-week attendance, current 3 months with status, parents on file), **parents** with phone, email and consent, **classes and teachers** with level end and the student's own attendance, **payment history** (newest first, current period marked), the student's **attendance heat calendar** and **recent lessons**. Each role sees only what the database allows: teachers their own students and verified parents' contacts (through the same check as the Guardians screen) and no payments; finance payments but no attendance. Numbers in `studentStats()` (`src/live/dashboard.mjs`). 160 unit tests, 149/149 browser checks incl. accessibility scan.
 
+- 2026-11-24, **Reports → Lessons per teacher** (admin): choose a month; cards (lessons held, fully marked, not fully marked, still to come), a bar per teacher (gold = fully marked, orange = not fully marked, grey = still to come), a table with classes, lessons, attendance and a total row, the list of lessons not fully marked, and two downloads (summary per teacher; every lesson). Lessons count for each class's current teacher. For paying teachers and spotting missing attendance. Admin only (it needs attendance). No database change. 161 unit tests, 155/155 browser checks incl. accessibility scan of Reports.
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
 1. Hosting (`docs/HOSTING.md`), then Google sign-in (`docs/GOOGLE_SIGNIN.md`).

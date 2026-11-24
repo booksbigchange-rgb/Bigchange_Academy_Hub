@@ -55,6 +55,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - 2026-11-24, **Reports → Activity log** (admin): who changed what and when, in plain sentences ("Teacher Two reported the payment of Abel: Paid via Ria – Tsegay, USD 150 on 20/11/2026", "Admin switched Teacher Two's access off"), grouped by Today / Yesterday / date, with filters by area (payments, attendance, classes, parents, staff) and person, search, "Show older activity" (200 at a time) and a CSV download. Read from the audit trail the database writes itself (admin-only by database rule; nobody can edit it). Sentences built in `src/live/activity.mjs` (4 unit tests). No database change. 165 unit tests, 161/161 browser checks incl. accessibility scan.
 
+- 2026-11-24, **Reports → Monthly report** (admin): a one-page summary of a chosen month for management: active students, lessons held (and not fully marked), attendance, fees not yet approved as paid; the payments donut (status at the end of the month or today); periods started, payments reported in the month (how many approved, amounts where entered), open fees; students per course; attendance per class; lessons per teacher; levels ending next month. **Print or save as PDF** prints only the report (A4, no menu or buttons). No parent contact details on it. Numbers in `monthlyReport()` (`src/live/dashboard.mjs`). No database change. 166 unit tests, 166/166 browser checks (incl. print view and accessibility scan).
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
 1. Hosting (`docs/HOSTING.md`), then Google sign-in (`docs/GOOGLE_SIGNIN.md`).

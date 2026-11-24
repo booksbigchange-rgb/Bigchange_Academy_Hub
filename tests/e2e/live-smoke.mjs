@@ -500,6 +500,28 @@ await session(browser, db, 'admin', 1366, async page => {
     const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
     check('axe activity log: no serious/critical issues', v.length === 0, v.join(' | '));
   }
+  // Monthly report (this month: the test added a lesson today).
+  await page.getByRole('button', { name: 'Monthly report' }).click();
+  const mr = page.getByRole('article', { name: /^Monthly report / });
+  check('monthly report: title, payments and lessons per teacher', await seen(mr.getByRole('heading', { name: /^Monthly report · / }))
+    && await seen(mr.getByRole('region', { name: 'Payments this month' }).getByRole('rowheader', { name: '3-month periods started' }))
+    && await seen(mr.getByRole('region', { name: 'Lessons per teacher this month' }).getByRole('cell', { name: 'Teacher Test' })));
+  check('monthly report: attendance per class and students per course', await seen(mr.getByRole('region', { name: 'Attendance per class' }).getByRole('cell', { name: 'English – Level 3' }))
+    && await seen(mr.getByRole('region', { name: 'Students per course' })));
+  check('monthly report has a print button', await seen(page.getByRole('button', { name: 'Print or save as PDF' })));
+  await page.emulateMedia({ media: 'print' });
+  const printView = await page.evaluate(() => ({
+    menu: getComputedStyle(document.querySelector('nav[aria-label="Sections"]')).visibility,
+    report: getComputedStyle(document.querySelector('.monthly-report h3')).visibility,
+    buttons: getComputedStyle(document.querySelector('.report-month')).display }));
+  check('printing shows only the report (no menu, no buttons)', printView.menu === 'hidden' && printView.report === 'visible' && printView.buttons === 'none', JSON.stringify(printView));
+  if (process.env.SCREENSHOTS) await page.pdf({ path: `${process.env.SCREENSHOTS}/monthly-report.pdf`, format: 'A4', printBackground: true });
+  await page.emulateMedia({ media: 'screen' });
+  if (process.env.AXE_PATH) {
+    await page.addScriptTag({ path: process.env.AXE_PATH });
+    const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+    check('axe monthly report: no serious/critical issues', v.length === 0, v.join(' | '));
+  }
 });
 
 // Before the owner runs migration 0010: the admin's app must still load; only the Staff screen explains what is missing.

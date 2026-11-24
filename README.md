@@ -17,7 +17,7 @@ It is an independent React + TypeScript + Vite app backed by Supabase (Postgres 
 
 | Role | Screens |
 |---|---|
-| Admin | Staff (give roles, switch access off/on, **profile** of each teacher: classes, lessons per month, attendance not completed) · Overview (colour cards, payments donut, students per course, attendance line and heat calendar) · Students (add, **import from a spreadsheet**, search, edit, deactivate, attendance history) · Guardians (parent directory, add, verify) · Courses (add, edit) · Classes (create, rename, assign teacher, roster, enroll/remove) · Attendance · Fees (start periods, report, check, **approve**) |
+| Admin | Staff (give roles, switch access off/on, **profile** of each teacher: classes, lessons per month, attendance not completed) · Overview (colour cards, payments donut, students per course, attendance line and heat calendar) · Students (add, **import from a spreadsheet**, search, edit, deactivate, attendance history, **profile**: parents, classes, payments, attendance calendar) · Guardians (parent directory, add, verify) · Courses (add, edit) · Classes (create, rename, assign teacher, roster, enroll/remove) · Attendance · Fees (start periods, report, check, **approve**) |
 | Teacher | Overview · their students and their attendance history · Guardians (add for their students) · their classes · Attendance (their classes) · Parent payments (**report** a payment) |
 | Finance | Fees (**needs the next 3 months** list, start periods, report, **check**, reminders, **download payments as CSV** for Google Sheets) · Overview · Guardians · Students |
 | Parent | Their verified children's classes and attendance · their payments |

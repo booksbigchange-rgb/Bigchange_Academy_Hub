@@ -13,6 +13,7 @@ import { TI } from './ti.mjs';
 import LiveNotices from './LiveNotices';
 import LiveStaff from './LiveStaff';
 import LiveImport from './LiveImport';
+import LiveStudentProfile from './LiveStudentProfile';
 import { addMonths, attendanceCsvRows, ATTENDANCE_CSV_HEADER, daysUntil, endingText, formatDate, nextLevelPlan, toCsv, todayIso } from './fees.mjs';
 import LiveFamily, { LivePayments } from './LiveFamily';
 import { ATTENDANCE_STATUSES, GRADE_LEVELS, studentHistory, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
@@ -78,7 +79,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
           {(section === 'My children' || section === 'My classes') && <LiveFamily data={data} role={role} />}
           {section === 'Payments' && <LivePayments data={data} />}
           {section === 'Notices' && <LiveNotices key={noticeClassId} data={data} initialClassId={noticeClassId} />}
-          {section === 'Students' && <Students data={data} client={client} isAdmin={isAdmin} reload={reload} />}
+          {section === 'Students' && <Students data={data} client={client} isAdmin={isAdmin} role={role} reload={reload} />}
           {section === 'Courses' && isAdmin && <Courses data={data} client={client} reload={reload} />}
           {section === 'Classes' && <Classes data={data} client={client} isAdmin={isAdmin} canEditLevels={isAdmin || role === 'teacher'} reload={reload} />}
           {section === 'Attendance' && <Attendance data={data} client={client} reload={reload} />}
@@ -91,7 +92,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
   </div>;
 }
 
-function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boolean }) {
+function Students({ data, client, isAdmin, role, reload }: PanelProps & { isAdmin: boolean; role: Role }) {
   const { message, busy, run } = useAction(reload);
   const [search, setSearch] = useState('');
   const [name, setName] = useState('');
@@ -108,6 +109,7 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
   const [editGrade, setEditGrade] = useState('');
   const [editNote, setEditNote] = useState('');
   const [historyId, setHistoryId] = useState('');
+  const [profileId, setProfileId] = useState('');
   const [importing, setImporting] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const shown = data.learners.filter(l => matchesSearch(l.display_name, search));
@@ -152,9 +154,11 @@ function Students({ data, client, isAdmin, reload }: PanelProps & { isAdmin: boo
       <div className="table-wrap" tabIndex={0} role="region" aria-label="Table (scrolls sideways on small screens)"><table><thead><tr><th>Name</th><th>Grade</th><th>Status</th><th>Classes</th><th>Action</th></tr></thead><tbody>
         {shown.map(l => <tr key={l.id}><td>{l.display_name}</td><td>{l.grade_level ?? '—'}</td>
           <td><span className={'tag ' + (l.active ? 'green' : 'amber')}>{l.active ? 'Active' : 'Inactive'}</span></td><td>{classCount(l.id)}</td>
-          <td><button className="small-btn" onClick={() => setHistoryId(historyId === l.id ? '' : l.id)}>{historyId === l.id ? 'Hide history' : 'Attendance'}</button>
+          <td><button className="small-btn" type="button" onClick={() => setProfileId(profileId === l.id ? '' : l.id)}>{profileId === l.id ? 'Hide profile' : 'Profile'}</button>{' '}
+            <button className="small-btn" onClick={() => setHistoryId(historyId === l.id ? '' : l.id)}>{historyId === l.id ? 'Hide history' : 'Attendance'}</button>
             {isAdmin && <> <button className="small-btn" onClick={() => startEdit(l)}>Edit</button></>}</td></tr>)}
       </tbody></table></div>}
+    {(() => { const l = data.learners.find(x => x.id === profileId); return l ? <LiveStudentProfile key={l.id} learner={l} data={data} role={role} client={client} onClose={() => setProfileId('')} /> : null; })()}
     {historyId && <History name={data.learners.find(l => l.id === historyId)?.display_name ?? ''} {...studentHistory(historyId, data)} />}
     {isAdmin && editing && <form className="ops-form" onSubmit={save}>
       <h3>Edit {editing.display_name}</h3>

@@ -49,6 +49,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - 2026-11-24, **staff profile** (inspired by a dashboard template the owner liked; our own code, no copying: that template has no licence): Staff → **Profile** on any staff member shows a gold header (name, role, access, email, last sign-in), cards (classes, students, lessons this month, 4-week attendance), **lessons per month** bars, **attendance not completed** (lessons in the last 30 days with fewer marks than enrolled students), their **classes** with students, attendance and level end, and their own **attendance heat calendar**. Admin only. Numbers in `teacherStats()` (`src/live/dashboard.mjs`). 159 unit tests, 140/140 browser checks incl. accessibility scan of the profile.
 
+- 2026-11-24, **student profile**: Students → **Profile** shows everything about one student: header (name, active, grade, note), cards (classes, 4-week attendance, current 3 months with status, parents on file), **parents** with phone, email and consent, **classes and teachers** with level end and the student's own attendance, **payment history** (newest first, current period marked), the student's **attendance heat calendar** and **recent lessons**. Each role sees only what the database allows: teachers their own students and verified parents' contacts (through the same check as the Guardians screen) and no payments; finance payments but no attendance. Numbers in `studentStats()` (`src/live/dashboard.mjs`). 160 unit tests, 149/149 browser checks incl. accessibility scan.
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
 1. Hosting (`docs/HOSTING.md`), then Google sign-in (`docs/GOOGLE_SIGNIN.md`).

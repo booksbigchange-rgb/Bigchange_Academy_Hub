@@ -147,12 +147,12 @@ function WeeklyLine({ data, today }: { data: Data; today: string }) {
   </section>;
 }
 
-export function HeatCalendar({ data, today }: { data: Data; today: string }) {
+export function HeatCalendar({ data, today, title = 'Attendance, last 4 weeks', note = 'Each square is a day; darker blue means more students were present. Empty squares had no lesson.' }: { data: Data; today: string; title?: string; note?: string }) {
   const cal = attendanceCalendar(data, today, 4);
   const any = cal.some(w => w.some(d => d.rate !== null));
   return <section className="dash-card dash-heat-card" aria-label="Attendance calendar">
-    <h3>Attendance, last 4 weeks</h3>
-    <p className="quiet">Each square is a day; darker blue means more students were present. Empty squares had no lesson.</p>
+    <h3>{title}</h3>
+    <p className="quiet">{note}</p>
     {!any ? <p className="quiet">No attendance recorded in the last 4 weeks.</p> : <>
       <div className="dash-heat" role="table" aria-label="Attendance per day, last 4 weeks">
         <div role="row" className="dash-heat-row"><span role="columnheader" className="dash-heat-week">Week of</span>{DAYS.map(d => <span role="columnheader" key={d} className="dash-heat-day">{d}</span>)}</div>

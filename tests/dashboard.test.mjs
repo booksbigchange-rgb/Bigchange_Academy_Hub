@@ -94,3 +94,30 @@ test('teacherStats: only the teacher\'s classes; lessons per month; incomplete a
   assert.equal(s.rate, 67);
   assert.equal(dataForTeacher(data, T).attendance.length, 3);
 });
+
+import { studentStats, dataForLearner } from '../src/live/dashboard.mjs';
+test('studentStats: classes with teacher and own attendance; payment periods newest first; current period; parents', () => {
+  const data = {
+    learners: [{ id: 'a', active: true }],
+    courses: [{ id: 'en', title: 'English' }],
+    staff: [{ id: 't1', display_name: 'Teacher One' }],
+    classes: [{ id: 'k1', title: 'English – Level 2', course_id: 'en', teacher_staff_id: 't1', level_start: '2026-09-01', level_end: '2026-12-01' },
+      { id: 'k2', title: 'Not hers', course_id: 'en', teacher_staff_id: null }],
+    enrollments: [{ class_id: 'k1', learner_id: 'a' }, { class_id: 'k2', learner_id: 'z' }],
+    sessions: [{ id: 's1', class_id: 'k1', starts_at: new Date(2026, 10, 18, 16).toISOString() }, { id: 's2', class_id: 'k1', starts_at: new Date(2026, 10, 20, 16).toISOString() }],
+    attendance: [{ session_id: 's1', learner_id: 'a', status: 'present' }, { session_id: 's2', learner_id: 'a', status: 'absent' }, { session_id: 's2', learner_id: 'z', status: 'present' }],
+    periods: [{ id: 'p1', learner_id: 'a', period_start: '2026-08-01', period_end: '2026-11-01', status: 'paid' },
+      { id: 'p2', learner_id: 'a', period_start: '2026-11-01', period_end: '2027-02-01', status: 'unpaid' },
+      { id: 'p3', learner_id: 'a', period_start: '2027-02-01', period_end: '2027-05-01', status: 'unpaid' },
+      { id: 'px', learner_id: 'z', period_start: '2026-11-01', period_end: '2027-02-01', status: 'paid' }],
+    guardians: [{ id: 'g1', display_name: 'Parent One', phone_e164: '+251911000000', email: null, whatsapp_opt_in: true, email_opt_in: false }],
+    links: [{ learner_id: 'a', guardian_id: 'g1', verified: true }, { learner_id: 'z', guardian_id: 'g1', verified: true }],
+  };
+  const s = studentStats(data, 'a', '2026-11-24');
+  assert.deepEqual(s.classes.map(c => [c.title, c.course, c.teacher, c.rate, c.lessons]), [['English – Level 2', 'English', 'Teacher One', 50, 2]]);
+  assert.deepEqual(s.periods.map(p => p.id), ['p3', 'p2', 'p1']);
+  assert.equal(s.current.id, 'p2');               // p3 has not started yet
+  assert.equal(s.recent.rate, 50); assert.equal(s.marks, 2);
+  assert.deepEqual(s.guardians.map(g => [g.name, g.phone, g.whatsapp, g.verified]), [['Parent One', '+251911000000', true, true]]);
+  assert.equal(dataForLearner(data, 'a').attendance.length, 2);
+});

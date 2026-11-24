@@ -182,3 +182,42 @@ export function studentStats(data, learnerId, today) {
   }).filter(Boolean);
   return { classes, recent: attendanceRecent(mine, today), overall: attendanceRecent(mine, today, 3650).rate, marks: mine.attendance.length, periods, current, guardians };
 }
+
+/**
+ * Lessons in one month (YYYY-MM, by the lesson's local day), one row per teacher (the class's CURRENT teacher;
+ * classes with none are grouped as "No teacher"): classes taught, lessons held, lessons fully marked, lessons held
+ * but not fully marked (fewer marks than students enrolled now), lessons still to come, and the attendance rate.
+ * Also returns every lesson of the month for the detailed download. Admin data only (it needs attendance).
+ */
+export function lessonsByTeacher(data, month, now = new Date()) {
+  const active = new Set(data.learners.filter(l => l.active).map(l => l.id));
+  const enrolled = id => data.enrollments.filter(e => e.class_id === id && active.has(e.learner_id)).length;
+  const classById = new Map(data.classes.map(c => [c.id, c]));
+  const nameOf = id => (id ? data.staff.find(s => s.id === id)?.display_name ?? 'Teacher' : 'No teacher');
+  const lessons = data.sessions.filter(s => dayOf(s.starts_at).slice(0, 7) === month && classById.has(s.class_id)).map(s => {
+    const cls = classById.get(s.class_id);
+    const marks = data.attendance.filter(a => a.session_id === s.id);
+    const held = new Date(s.starts_at) <= now;
+    const time = new Date(s.starts_at);
+    return { sessionId: s.id, date: dayOf(s.starts_at), time: String(time.getHours()).padStart(2, '0') + ':' + String(time.getMinutes()).padStart(2, '0'),
+      classId: cls.id, classTitle: cls.title, teacherId: cls.teacher_staff_id ?? null, teacher: nameOf(cls.teacher_staff_id),
+      held, marked: marks.length, enrolled: enrolled(cls.id), statuses: marks.map(m => m.status) };
+  }).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time) || a.classTitle.localeCompare(b.classTitle));
+  const groups = new Map();
+  for (const l of lessons) {
+    const key = l.teacherId ?? '';
+    if (!groups.has(key)) groups.set(key, { teacherId: l.teacherId, teacher: l.teacher, classes: new Set(), held: 0, complete: 0, incomplete: 0, upcoming: 0, statuses: [] });
+    const g = groups.get(key);
+    g.classes.add(l.classId);
+    if (!l.held) { g.upcoming++; continue; }
+    g.held++;
+    if (l.enrolled > 0 && l.marked < l.enrolled) g.incomplete++; else g.complete++;
+    g.statuses.push(...l.statuses);
+  }
+  const rows = [...groups.values()].map(g => ({ teacherId: g.teacherId, teacher: g.teacher, classes: g.classes.size, held: g.held,
+    complete: g.complete, incomplete: g.incomplete, upcoming: g.upcoming, rate: rateOf(g.statuses) }))
+    .sort((a, b) => (a.teacherId === null) - (b.teacherId === null) || b.held - a.held || a.teacher.localeCompare(b.teacher));
+  const total = rows.reduce((t, r) => ({ held: t.held + r.held, complete: t.complete + r.complete, incomplete: t.incomplete + r.incomplete, upcoming: t.upcoming + r.upcoming }),
+    { held: 0, complete: 0, incomplete: 0, upcoming: 0 });
+  return { rows, lessons, total };
+}

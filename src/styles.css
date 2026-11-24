@@ -1235,3 +1235,16 @@ footer {
 .live-shell .profile-col-label { position: absolute; bottom: -22px; font-size: 12px; color: var(--lv-text-2); }
 .live-shell .profile-cols { margin-bottom: 26px; }
 .live-shell .profile-classes { margin-top: 16px; }
+
+/* Reports */
+.live-shell .report-month { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin: 8px 0 18px; }
+.live-shell .report-month label { margin: 0; }
+.live-shell .report-month input { width: auto; }
+.live-shell .report-stack { display: flex; gap: 2px; }
+.live-shell .report-seg { display: block; height: 18px; }
+.live-shell .report-seg:last-child { border-radius: 0 4px 4px 0; }
+.live-shell .report-seg-ok { background: #a8741c; }
+.live-shell .report-seg-missing { background: #ec835a; }
+.live-shell .report-seg-upcoming { background: #e7e0d4; }
+.live-shell .report-total td { font-weight: 700; background: var(--lv-muted); }
+.live-shell .report-downloads { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }

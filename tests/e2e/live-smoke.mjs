@@ -449,6 +449,25 @@ await session(browser, db, 'admin', 1366, async page => {
     check('axe student profile: no serious/critical issues', v.length === 0, v.join(' | '));
   }
   await sp.getByRole('button', { name: 'Close profile' }).click();
+  // Reports: lessons per teacher this month (the test added a lesson today, so this month has at least one).
+  await nav(page, 'Reports');
+  const rt = page.getByRole('region', { name: 'Lessons per teacher table' });
+  check('reports: lessons per teacher lists the class teacher for this month', await seen(rt.getByRole('row', { name: /^Teacher Test/ })));
+  check('reports: chart and totals render', await seen(page.getByRole('img', { name: /^Bar chart of lessons per teacher: Teacher Test/ })) && await seen(rt.getByRole('row', { name: /^Total/ })));
+  {
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download summary (CSV)' }).click()]);
+    const text = await (await import('node:fs')).promises.readFile(await dl.path(), 'utf8');
+    check('reports: summary downloads as CSV', /^bigchange-lessons-per-teacher-\d{4}-\d{2}\.csv$/.test(dl.suggestedFilename())
+      && text.includes('"Month","Teacher","Classes","Lessons held"') && text.includes('"Teacher Test"'), dl.suggestedFilename());
+    const [dl2] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download every lesson (CSV)' }).click()]);
+    const text2 = await (await import('node:fs')).promises.readFile(await dl2.path(), 'utf8');
+    check('reports: every lesson downloads as CSV', text2.includes('"Date","Time","Class","Teacher","Held","Marked","Enrolled"') && text2.includes('"English – Level 3"'));
+  }
+  if (process.env.SCREENSHOTS) await page.screenshot({ path: `${process.env.SCREENSHOTS}/admin-reports.png`, fullPage: true });
+  await page.getByRole('button', { name: 'Previous month' }).click();
+  await page.getByRole('button', { name: 'Previous month' }).click();
+  await page.getByRole('button', { name: 'Previous month' }).click();
+  check('reports: another month without lessons says so', await seen(page.getByText(/^No lessons in /)));
 });
 
 // Before the owner runs migration 0010: the admin's app must still load; only the Staff screen explains what is missing.
@@ -596,7 +615,7 @@ if (process.env.AXE_PATH) {
     check(`axe sign-in @${width}px: no serious/critical issues`, v.length === 0, v.join(' | '));
     await p.context().close();
   }
-  for (const [role, sections] of [['admin', ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Staff']], ['teacher', ['Overview', 'Classes', 'Fees', 'Notices']], ['finance', ['Fees', 'Overview', 'Guardians']]]) {
+  for (const [role, sections] of [['admin', ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Staff', 'Reports']], ['teacher', ['Overview', 'Classes', 'Fees', 'Notices']], ['finance', ['Fees', 'Overview', 'Guardians']]]) {
     await session(browser, db, role, role === 'teacher' ? 390 : 1366, async page => {
       for (const name of sections) {
         await nav(page, name);

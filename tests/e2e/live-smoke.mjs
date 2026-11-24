@@ -431,6 +431,24 @@ await session(browser, db, 'admin', 1366, async page => {
   }
   await profile.getByRole('button', { name: 'Close profile' }).click();
   check('profile closes', (await page.getByRole('region', { name: 'Profile of Teacher Test' }).count()) === 0);
+  // Student profile (admin sees everything).
+  await nav(page, 'Students');
+  await page.getByRole('row', { name: /^Kid Test/ }).getByRole('button', { name: 'Profile', exact: true }).click();
+  const sp = page.getByRole('region', { name: 'Profile of Kid Test' });
+  check('student profile opens with name and grade', await seen(sp.getByRole('heading', { name: 'Kid Test' })));
+  check('student profile shows the parent and phone', await seen(sp.getByRole('region', { name: 'Parents' }).getByText('+251911000000')));
+  check('student profile shows the class with its teacher', await seen(sp.getByRole('region', { name: 'Classes and teachers' }).getByText(/Teacher Test/)));
+  check('student profile shows the payment history with the current period paid', await seen(sp.getByRole('region', { name: 'Payment periods of this student' }).getByText('Current'))
+    && await seen(sp.getByRole('region', { name: 'Payment periods of this student' }).locator('.tag.green', { hasText: 'Paid' })));
+  check('student profile shows attendance calendar and recent lessons', await seen(sp.getByRole('table', { name: 'Attendance per day, last 4 weeks' }))
+    && await seen(sp.getByRole('region', { name: 'Recent lessons of this student' }).getByRole('cell', { name: 'Present' })));
+  if (process.env.SCREENSHOTS) await sp.screenshot({ path: `${process.env.SCREENSHOTS}/admin-student-profile.png` });
+  if (process.env.AXE_PATH) {
+    await page.addScriptTag({ path: process.env.AXE_PATH });
+    const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+    check('axe student profile: no serious/critical issues', v.length === 0, v.join(' | '));
+  }
+  await sp.getByRole('button', { name: 'Close profile' }).click();
 });
 
 // Before the owner runs migration 0010: the admin's app must still load; only the Staff screen explains what is missing.
@@ -452,6 +470,11 @@ await session(browser, db, 'teacher', 390, async page => {
   const sections = await page.getByRole('navigation', { name: 'Sections' }).getByRole('button').allInnerTexts();
   check('teacher sees teacher sections only', JSON.stringify(sections) === JSON.stringify(['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']), sections.join(','));
   check('teacher cannot add students', (await nav(page, 'Students'), await page.getByRole('button', { name: '+ Add student' }).count()) === 0);
+  await page.getByRole('row', { name: /^Kid Test/ }).getByRole('button', { name: 'Profile', exact: true }).click();
+  const tsp = page.getByRole('region', { name: 'Profile of Kid Test' });
+  check('teacher opens a student profile and sees the parent (verified contacts only)', await seen(tsp.getByRole('region', { name: 'Parents' }).getByText('Parent Test')));
+  check('teacher sees no payment history in the student profile', (await tsp.getByRole('region', { name: 'Payment history' }).count()) === 0);
+  await tsp.getByRole('button', { name: 'Close profile' }).click();
   await nav(page, 'Fees');
   check('teacher sees the parent payment with phone', await seen(page.getByText('+251911000000').first()));
   check('teacher has a Report payment button', await seen(page.getByRole('button', { name: 'Report payment' }).first()));
@@ -491,6 +514,13 @@ await session(browser, db, 'finance', 390, async page => {
   const csvText = await (await import('node:fs')).promises.readFile(await download.path(), 'utf8');
   check('finance downloads payments as CSV for Google Sheets', /^bigchange-payments-\d{4}-\d{2}-\d{2}\.csv$/.test(download.suggestedFilename())
     && csvText.includes('"Child","Parent","Parent phone"') && csvText.includes("'+251911000000"), download.suggestedFilename());
+  await nav(page, 'Students');
+  await page.getByRole('row', { name: /^Kid Test/ }).getByRole('button', { name: 'Profile', exact: true }).click();
+  const fsp = page.getByRole('region', { name: 'Profile of Kid Test' });
+  check('finance sees payment history but no attendance in the student profile', await seen(fsp.getByRole('region', { name: 'Payment history' }))
+    && (await fsp.getByRole('region', { name: 'Attendance calendar' }).count()) === 0);
+  await fsp.getByRole('button', { name: 'Close profile' }).click();
+  await nav(page, 'Fees');
   const nextList = page.getByRole('region', { name: 'Children who need the next 3 months' });
   check('finance sees the imported child who needs their first 3 months, not children already covered',
     await seen(nextList.getByRole('row', { name: /Import Kid One/ })) && (await nextList.getByRole('row', { name: /Kid Test/ }).count()) === 0);

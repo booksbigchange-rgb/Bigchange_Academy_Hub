@@ -150,3 +150,35 @@ export function teacherStats(data, staffId, now = new Date(), months = 6) {
   return { classes, students, lessonsThisMonth: mine.sessions.filter(s => monthKey(s.starts_at) === thisMonth).length,
     rate: attendanceRecent(mine, today).rate, monthly, missing };
 }
+
+/** The part of the data that belongs to one student (their own attendance marks, for reusing the attendance charts). */
+export function dataForLearner(data, learnerId) {
+  const attendance = data.attendance.filter(a => a.learner_id === learnerId);
+  const ids = new Set(attendance.map(a => a.session_id));
+  return { ...data, attendance, sessions: data.sessions.filter(s => ids.has(s.id)) };
+}
+
+/**
+ * Student profile numbers: their classes (course, teacher, level dates, their own attendance in that class),
+ * their 4-week and overall attendance, their payment periods (newest first, with the current one), and the
+ * parents linked to them in the data this role can read.
+ */
+export function studentStats(data, learnerId, today) {
+  const mine = dataForLearner(data, learnerId);
+  const classIds = data.enrollments.filter(e => e.learner_id === learnerId).map(e => e.class_id);
+  const courseTitle = id => data.courses.find(c => c.id === id)?.title ?? '—';
+  const teacherName = id => (id ? data.staff.find(s => s.id === id)?.display_name ?? null : null);
+  const classes = data.classes.filter(c => classIds.includes(c.id)).map(c => {
+    const own = { ...mine, sessions: mine.sessions.filter(s => s.class_id === c.id) };
+    own.attendance = mine.attendance.filter(a => own.sessions.some(s => s.id === a.session_id));
+    return { id: c.id, title: c.title, course: courseTitle(c.course_id), teacherId: c.teacher_staff_id, teacher: teacherName(c.teacher_staff_id),
+      levelStart: c.level_start ?? null, levelEnd: c.level_end ?? null, rate: attendanceRecent(own, today, 3650).rate, lessons: own.attendance.length };
+  }).sort((a, b) => a.title.localeCompare(b.title));
+  const periods = data.periods.filter(p => p.learner_id === learnerId).slice().sort((a, b) => b.period_start.localeCompare(a.period_start));
+  const current = periods.find(p => p.period_start <= today) ?? null;
+  const guardians = data.links.filter(l => l.learner_id === learnerId).map(l => {
+    const g = data.guardians.find(x => x.id === l.guardian_id);
+    return g ? { id: g.id, name: g.display_name, phone: g.phone_e164, email: g.email, whatsapp: g.whatsapp_opt_in, emailOk: g.email_opt_in, verified: l.verified } : null;
+  }).filter(Boolean);
+  return { classes, recent: attendanceRecent(mine, today), overall: attendanceRecent(mine, today, 3650).rate, marks: mine.attendance.length, periods, current, guardians };
+}

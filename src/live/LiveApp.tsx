@@ -85,7 +85,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
           {section === 'Classes' && <Classes data={data} client={client} isAdmin={isAdmin} canEditLevels={isAdmin || role === 'teacher'} reload={reload} />}
           {section === 'Attendance' && <Attendance data={data} client={client} reload={reload} />}
           {section === 'Guardians' && <LiveGuardians data={data} client={client} role={role} reload={reload} />}
-          {section === 'Reports' && isAdmin && <LiveReports data={data} />}
+          {section === 'Reports' && isAdmin && <LiveReports data={data} client={client} />}
           {section === 'Staff' && isAdmin && <LiveStaff client={client} email={email} reload={reload} data={data} />}
           {section === 'Fees' && <LiveFees data={data} client={client} role={role} reload={reload} />}
         </>}

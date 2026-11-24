@@ -53,6 +53,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - 2026-11-24, **Reports → Lessons per teacher** (admin): choose a month; cards (lessons held, fully marked, not fully marked, still to come), a bar per teacher (gold = fully marked, orange = not fully marked, grey = still to come), a table with classes, lessons, attendance and a total row, the list of lessons not fully marked, and two downloads (summary per teacher; every lesson). Lessons count for each class's current teacher. For paying teachers and spotting missing attendance. Admin only (it needs attendance). No database change. 161 unit tests, 155/155 browser checks incl. accessibility scan of Reports.
 
+- 2026-11-24, **Reports → Activity log** (admin): who changed what and when, in plain sentences ("Teacher Two reported the payment of Abel: Paid via Ria – Tsegay, USD 150 on 20/11/2026", "Admin switched Teacher Two's access off"), grouped by Today / Yesterday / date, with filters by area (payments, attendance, classes, parents, staff) and person, search, "Show older activity" (200 at a time) and a CSV download. Read from the audit trail the database writes itself (admin-only by database rule; nobody can edit it). Sentences built in `src/live/activity.mjs` (4 unit tests). No database change. 165 unit tests, 161/161 browser checks incl. accessibility scan.
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
 1. Hosting (`docs/HOSTING.md`), then Google sign-in (`docs/GOOGLE_SIGNIN.md`).

@@ -468,6 +468,38 @@ await session(browser, db, 'admin', 1366, async page => {
   await page.getByRole('button', { name: 'Previous month' }).click();
   await page.getByRole('button', { name: 'Previous month' }).click();
   check('reports: another month without lessons says so', await seen(page.getByText(/^No lessons in /)));
+  // Activity log: a few audit rows as the database triggers would write them.
+  {
+    const kid = db.academy_learners.find(l => l.display_name === 'Kid Test');
+    const base = { learner_id: kid.id, guardian_id: db.academy_guardians[0].id, reported_status: 'paid', checked_status: 'paid', paid_on: null, paid_method: null, paid_amount: null };
+    const now = new Date(); const yesterday = new Date(Date.now() - 86400000);
+    db.academy_audit_events = [
+      { id: 3, actor_id: uid(901), action: 'UPDATE', entity_type: 'academy_fee_periods', entity_id: null, created_at: now.toISOString(), detail: { before: { ...base, approved_status: 'unpaid' }, after: { ...base, approved_status: 'paid' } } },
+      { id: 2, actor_id: uid(901), action: 'UPDATE', entity_type: 'academy_staff', entity_id: uid(2), created_at: now.toISOString(), detail: { before: { id: uid(2), display_name: 'Teacher Test', role: 'teacher', active: true }, after: { id: uid(2), display_name: 'Teacher Test', role: 'teacher', active: false } } },
+      { id: 1, actor_id: uid(902), action: 'INSERT', entity_type: 'academy_enrollments', entity_id: null, created_at: yesterday.toISOString(), detail: { class_id: db.academy_classes[0].id, learner_id: kid.id } },
+    ];
+  }
+  await page.getByRole('button', { name: 'Activity log' }).click();
+  check('activity log: payment approval in plain words, with who', await seen(page.locator('.activity-list li', { hasText: 'approved the payment of Kid Test as Paid' }).filter({ hasText: 'Admin Test' })));
+  check('activity log: grouped by Today and Yesterday', await seen(page.getByRole('heading', { name: 'Today' })) && await seen(page.getByRole('heading', { name: 'Yesterday' }))
+    && await seen(page.locator('.activity-list li', { hasText: /Teacher Test.*enrolled Kid Test in/ })));
+  await page.getByLabel('Area').selectOption('Staff');
+  check('activity log: filter by area', (await page.locator('.activity-list li').count()) === 1 && await seen(page.getByText(/switched Teacher Test's access off/)));
+  await page.getByLabel('Area').selectOption('');
+  await page.getByLabel('Who').selectOption('Teacher Test');
+  check('activity log: filter by person', (await page.locator('.activity-list li').count()) === 1);
+  await page.getByLabel('Who').selectOption('');
+  {
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download (CSV)' }).click()]);
+    const text = await (await import('node:fs')).promises.readFile(await dl.path(), 'utf8');
+    check('activity log downloads as CSV', text.includes('"Date","Time","Who","Area","What happened"') && text.includes('Approved the payment of Kid Test as Paid'));
+  }
+  if (process.env.SCREENSHOTS) await page.screenshot({ path: `${process.env.SCREENSHOTS}/admin-activity.png`, fullPage: true });
+  if (process.env.AXE_PATH) {
+    await page.addScriptTag({ path: process.env.AXE_PATH });
+    const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+    check('axe activity log: no serious/critical issues', v.length === 0, v.join(' | '));
+  }
 });
 
 // Before the owner runs migration 0010: the admin's app must still load; only the Staff screen explains what is missing.

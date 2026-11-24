@@ -4,7 +4,7 @@ import { validateClass, validateCourse, validateGuardian, validateLearner, valid
 
 export type Learner = { id: string; display_name: string; active: boolean; grade_level: string | null; note: string | null };
 export type Course = { id: string; title: string; description: string | null };
-export type Staff = { id: string; role: 'admin' | 'teacher' | 'finance'; display_name: string | null; active: boolean };
+export type Staff = { id: string; role: 'admin' | 'teacher' | 'finance'; display_name: string | null; active: boolean; auth_user_id?: string };
 export type ClassRow = { id: string; title: string; course_id: string; teacher_staff_id: string | null; level_start: string | null; level_end: string | null };
 export type Enrollment = { class_id: string; learner_id: string };
 
@@ -35,9 +35,9 @@ export const listCourses = (c: SupabaseClient) =>
   pages<Course>(() => c.from('academy_courses').select('id,title,description').order('title').order('id'), 'load courses');
 /** Before migration 0010 the `active` column does not exist; then everyone counts as active, so the rest of the app keeps working. */
 export async function listStaff(c: SupabaseClient): Promise<Staff[]> {
-  try { return await pages<Staff>(() => c.from('academy_staff').select('id,role,display_name,active').order('display_name').order('id'), 'load staff'); }
+  try { return await pages<Staff>(() => c.from('academy_staff').select('id,role,display_name,active,auth_user_id').order('display_name').order('id'), 'load staff'); }
   catch {
-    const rows = await pages<Omit<Staff, 'active'>>(() => c.from('academy_staff').select('id,role,display_name').order('display_name').order('id'), 'load staff');
+    const rows = await pages<Omit<Staff, 'active'>>(() => c.from('academy_staff').select('id,role,display_name,auth_user_id').order('display_name').order('id'), 'load staff');
     return rows.map(r => ({ ...r, active: true }));
   }
 }
@@ -305,4 +305,13 @@ export async function setStaffRole(c: SupabaseClient, userId: string, role: stri
 export async function setStaffActive(c: SupabaseClient, staffId: string, active: boolean) {
   const { error } = await c.rpc('academy_set_staff_active', { p_staff: staffId, p_active: active });
   if (error) workflowFail(error, active ? 'switch access on' : 'switch access off');
+}
+
+export type AuditEvent = { id: number; actor_id: string | null; action: string; entity_type: string; entity_id: string | null; detail: Record<string, unknown> | null; created_at: string };
+/** Admin only (database rule): the newest audit events, `limit` at a time, starting `offset` rows back. */
+export async function listAuditEvents(c: SupabaseClient, offset = 0, limit = 200): Promise<AuditEvent[]> {
+  const { data, error } = await c.from('academy_audit_events').select('id,actor_id,action,entity_type,entity_id,detail,created_at')
+    .order('created_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + limit - 1);
+  if (error) fail(error, 'load the activity log');
+  return (data as AuditEvent[] | null) ?? [];
 }

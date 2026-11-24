@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { lessonsByTeacher } from './dashboard.mjs';
 import { formatDate, toCsv, todayIso } from './fees.mjs';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import LiveActivity from './LiveActivity';
 import type { Data } from './shared';
 
 type Row = { teacherId: string | null; teacher: string; classes: number; held: number; complete: number; incomplete: number; upcoming: number; rate: number | null };
@@ -15,8 +17,21 @@ function download(name: string, text: string) {
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/** Admin reports. First: lessons per teacher per month (for paying teachers and spotting missing attendance). */
-export default function LiveReports({ data }: { data: Data }) {
+/** Admin reports: lessons per teacher per month, and the activity log. */
+export default function LiveReports({ data, client }: { data: Data; client: SupabaseClient }) {
+  const [tab, setTab] = useState<'lessons' | 'activity'>('lessons');
+  return <section className="panel operations" aria-label="Reports">
+    <span className="eyebrow">REPORTS</span><h2>{tab === 'lessons' ? 'Lessons per teacher' : 'Activity log'}</h2>
+    <div className="report-tabs" role="group" aria-label="Choose a report">
+      <button type="button" className={'small-btn' + (tab === 'lessons' ? ' report-tab-on' : '')} aria-pressed={tab === 'lessons'} onClick={() => setTab('lessons')}>Lessons per teacher</button>
+      <button type="button" className={'small-btn' + (tab === 'activity' ? ' report-tab-on' : '')} aria-pressed={tab === 'activity'} onClick={() => setTab('activity')}>Activity log</button>
+    </div>
+    {tab === 'lessons' ? <LessonsReport data={data} /> : <LiveActivity client={client} data={data} />}
+  </section>;
+}
+
+/** Lessons per teacher per month (for paying teachers and spotting missing attendance). */
+function LessonsReport({ data }: { data: Data }) {
   const [month, setMonth] = useState(todayIso().slice(0, 7));
   const r: Report = lessonsByTeacher(data, month);
   const max = Math.max(1, ...r.rows.map(x => x.held + x.upcoming));
@@ -28,8 +43,7 @@ export default function LiveReports({ data }: { data: Data }) {
     download(`bigchange-lessons-${month}.csv`, toCsv(['Date', 'Time', 'Class', 'Teacher', 'Held', 'Marked', 'Enrolled'],
       r.lessons.map(l => [l.date, l.time, l.classTitle, l.teacher, l.held ? 'yes' : 'not yet', l.marked, l.enrolled])));
   }
-  return <section className="panel operations" aria-label="Reports">
-    <span className="eyebrow">REPORTS</span><h2>Lessons per teacher</h2>
+  return <div>
     <p className="quiet">Lessons added on the Attendance screen, counted for each class's current teacher. "Not fully marked" means fewer students were marked than are enrolled in the class now. Use it to pay teachers and to see where attendance is missing.</p>
     <div className="report-month">
       <button className="small-btn" type="button" onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Previous month">‹ Previous</button>
@@ -80,5 +94,5 @@ export default function LiveReports({ data }: { data: Data }) {
         <span className="quiet">Opens in Google Sheets or Excel.</span>
       </p>
     </>}
-  </section>;
+  </div>;
 }

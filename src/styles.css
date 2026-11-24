@@ -1248,3 +1248,17 @@ footer {
 .live-shell .report-seg-upcoming { background: #e7e0d4; }
 .live-shell .report-total td { font-weight: 700; background: var(--lv-muted); }
 .live-shell .report-downloads { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+
+/* Report tabs and activity log */
+.live-shell .report-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 16px; }
+.live-shell .report-tabs .report-tab-on { background: #1f1b16; color: #ffffff; border-color: #1f1b16; }
+.live-shell .tag.cat { background: #efeae1; color: #3d362e; }
+.live-shell .activity-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
+.live-shell .activity-filters label { margin: 0; flex: 1 1 180px; }
+.live-shell .activity-day h3 { font-size: 15px; margin: 18px 0 6px; color: var(--lv-text-2); }
+.live-shell .activity-list { list-style: none; margin: 0; padding: 0; background: #ffffff; border: 1px solid var(--lv-line); border-radius: 14px; }
+.live-shell .activity-list li { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: start; padding: 12px 14px; border-bottom: 1px solid var(--lv-line); font-size: 14px; }
+.live-shell .activity-list li:last-child { border-bottom: 0; }
+.live-shell .activity-list time { color: var(--lv-text-2); font-variant-numeric: tabular-nums; }
+.live-shell .activity-text { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 520px) { .live-shell .activity-list li { grid-template-columns: 44px 1fr; } .live-shell .activity-list li .tag { grid-column: 2; justify-self: start; } }

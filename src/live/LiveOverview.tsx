@@ -158,9 +158,9 @@ export function HeatCalendar({ data, today, title = 'Attendance, last 4 weeks', 
         <div role="row" className="dash-heat-row"><span role="columnheader" className="dash-heat-week">Week of</span>{DAYS.map(d => <span role="columnheader" key={d} className="dash-heat-day">{d}</span>)}</div>
         {cal.map(week => <div role="row" className="dash-heat-row" key={week[0].date}>
           <span role="rowheader" className="dash-heat-week">{shortDate(week[0].date)}</span>
-          {week.map(d => <span role="cell" key={d.date} className={'dash-heat-cell heat-' + (d.future ? 'f' : heatStep(d.rate))}
+          {week.map(d => <span role="cell" key={d.date} aria-label={d.rate === null ? undefined : `${d.rate}% present`} className={'dash-heat-cell heat-' + (d.future ? 'f' : heatStep(d.rate))}
             title={d.future ? '' : d.rate === null ? `${shortDate(d.date)}: no lesson` : `${shortDate(d.date)}: ${d.rate}% present (${d.marked} marks)`}>
-            {d.rate === null ? <span className="sr-only">{d.future ? 'Not yet' : 'No lesson'}</span> : d.rate + '%'}</span>)}
+            {d.rate === null ? <span className="sr-only">{d.future ? 'Not yet' : 'No lesson'}</span> : <>{d.rate}<span className="heat-pct">%</span></>}</span>)}
         </div>)}
       </div>
       <div className="dash-heat-key" aria-hidden="true"><span>Fewer present</span>{[1, 2, 3, 4, 5].map(s => <span key={s} className={'dash-heat-swatch heat-' + s} />)}<span>More present</span></div>

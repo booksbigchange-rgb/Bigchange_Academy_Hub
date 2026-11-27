@@ -15,16 +15,17 @@ import LiveStaff from './LiveStaff';
 import LiveImport from './LiveImport';
 import LiveStudentProfile from './LiveStudentProfile';
 import LiveReports from './LiveReports';
+import LiveMyProfile from './LiveMyProfile';
 import { addMonths, attendanceCsvRows, ATTENDANCE_CSV_HEADER, daysUntil, endingText, formatDate, nextLevelPlan, toCsv, todayIso } from './fees.mjs';
 import LiveFamily, { LivePayments } from './LiveFamily';
 import { ATTENDANCE_STATUSES, GRADE_LEVELS, studentHistory, attendanceSummary, duplicateSession, enrollmentProblem, localDay, matchesSearch } from './validation.mjs';
 
-type Section = 'Overview' | 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees' | 'My children' | 'My classes' | 'Payments' | 'Notices' | 'Staff' | 'Reports';
+type Section = 'Overview' | 'Students' | 'Courses' | 'Classes' | 'Attendance' | 'Guardians' | 'Fees' | 'My children' | 'My classes' | 'Payments' | 'Notices' | 'Staff' | 'Reports' | 'My profile';
 
 export default function LiveApp({ client, role, email, onSignOut }: { client: SupabaseClient; role: Role; email: string; onSignOut: () => void }) {
   const isAdmin = role === 'admin';
   const sections: Section[] = isAdmin ? ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Notices', 'Staff', 'Reports']
-    : role === 'teacher' ? ['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']
+    : role === 'teacher' ? ['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices', 'My profile']
     : role === 'finance' ? ['Fees', 'Overview', 'Guardians', 'Students']
     : role === 'guardian' ? ['My children', 'Payments'] : role === 'learner' ? ['My classes'] : [];
   const isFinance = role === 'finance';
@@ -85,6 +86,7 @@ export default function LiveApp({ client, role, email, onSignOut }: { client: Su
           {section === 'Classes' && <Classes data={data} client={client} isAdmin={isAdmin} canEditLevels={isAdmin || role === 'teacher'} reload={reload} />}
           {section === 'Attendance' && <Attendance data={data} client={client} reload={reload} />}
           {section === 'Guardians' && <LiveGuardians data={data} client={client} role={role} reload={reload} />}
+          {section === 'My profile' && role === 'teacher' && <LiveMyProfile client={client} email={email} data={data} />}
           {section === 'Reports' && isAdmin && <LiveReports data={data} client={client} />}
           {section === 'Staff' && isAdmin && <LiveStaff client={client} email={email} reload={reload} data={data} />}
           {section === 'Fees' && <LiveFees data={data} client={client} role={role} reload={reload} />}

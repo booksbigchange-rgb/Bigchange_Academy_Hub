@@ -315,3 +315,14 @@ export async function listAuditEvents(c: SupabaseClient, offset = 0, limit = 200
   if (error) fail(error, 'load the activity log');
   return (data as AuditEvent[] | null) ?? [];
 }
+
+/** The signed-in staff member's own row (a teacher can read only their own). Works before migration 0010 too. */
+export async function myStaffRow(c: SupabaseClient): Promise<{ id: string; role: 'admin' | 'teacher' | 'finance'; display_name: string | null; active: boolean }> {
+  const { data: auth } = await c.auth.getUser();
+  if (!auth.user) throw Error('Please sign in again');
+  let res = await c.from('academy_staff').select('id,role,display_name,active').eq('auth_user_id', auth.user.id).maybeSingle();
+  if (res.error) res = await c.from('academy_staff').select('id,role,display_name').eq('auth_user_id', auth.user.id).maybeSingle();
+  if (res.error || !res.data) throw Error('Your staff profile could not be found');
+  const row = res.data as { id: string; role: 'admin' | 'teacher' | 'finance'; display_name: string | null; active?: boolean };
+  return { ...row, active: row.active ?? true };
+}

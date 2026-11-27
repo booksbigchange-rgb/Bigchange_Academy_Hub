@@ -13,7 +13,7 @@ type Stats = {
 };
 
 /** Admin: one staff member at a glance: classes, students, lessons per month, attendance, and lessons with attendance not completed. */
-export default function LiveTeacherProfile({ member, data, onClose }: { member: StaffMember; data: Data; onClose: () => void }) {
+export default function LiveTeacherProfile({ member, data, onClose, self = false }: { member: StaffMember; data: Data; onClose?: () => void; self?: boolean }) {
   const today = todayIso();
   const s: Stats = teacherStats(data, member.staff_id as string);
   const max = Math.max(1, ...s.monthly.map(m => m.count));
@@ -28,10 +28,10 @@ export default function LiveTeacherProfile({ member, data, onClose }: { member: 
           <span className="tag amber">{ROLE_LABEL[member.role ?? ''] ?? 'No role'}</span>
           <span className={'tag ' + (member.active ? 'green' : 'red')}>{member.active ? 'Access on' : 'Access off'}</span>
           <span>{member.email}</span>
-          <span>Last signed in: {member.last_sign_in_at ? formatDate(member.last_sign_in_at) : 'never'}</span>
+          {!self && <span>Last signed in: {member.last_sign_in_at ? formatDate(member.last_sign_in_at) : 'never'}</span>}
         </div>
       </div>
-      <button className="small-btn" type="button" onClick={onClose}>Close profile</button>
+      {onClose && <button className="small-btn" type="button" onClick={onClose}>Close profile</button>}
     </div>
 
     <div className="metric-grid profile-cards">

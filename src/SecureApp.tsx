@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { googleSignInMessage } from './lib/googleSignIn.mjs';
 import { createClient } from '@supabase/supabase-js';
 import LiveApp from './live/LiveApp';
 
@@ -13,11 +14,7 @@ export default function SecureApp({ url, publishableKey }: { url: string; publis
   // Read a Google sign-in error from the URL before the SDK clears it (e.g. the account was not added by an admin).
   const [oauthError] = useState(() => {
     const params = new URLSearchParams(window.location.hash.slice(1) || window.location.search);
-    const err = params.get('error_description') ?? params.get('error');
-    if (!err) return '';
-    return /signup|not allowed|user not found/i.test(err)
-      ? 'This Google account has not been added to the Academy. Ask the administrator to add your email first.'
-      : 'Google sign-in did not complete. Please try again.';
+    return googleSignInMessage(params.get('error') ?? '', params.get('error_description') ?? '');
   });
   const client = useMemo(() => createClient(url, publishableKey, {
     auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }

@@ -1,3 +1,5 @@
+> **Quick copy from the app:** as admin, **Reports → Backup download → Download backup (ZIP)** saves all the Academy's data as spreadsheet files (students, parents, classes, attendance, payments, staff). Do it weekly and keep the file private (school computer or the school's Google Drive). It does not include login accounts; the steps below make a full database copy.
+
 # Weekly backup and a second admin
 
 ## Weekly backup (free, about 2 minutes)

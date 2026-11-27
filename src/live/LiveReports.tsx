@@ -4,6 +4,7 @@ import { formatDate, toCsv, todayIso } from './fees.mjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import LiveActivity from './LiveActivity';
 import LiveMonthlyReport from './LiveMonthlyReport';
+import LiveBackup from './LiveBackup';
 import type { Data } from './shared';
 
 type Row = { teacherId: string | null; teacher: string; classes: number; held: number; complete: number; incomplete: number; upcoming: number; rate: number | null };
@@ -20,15 +21,16 @@ function download(name: string, text: string) {
 
 /** Admin reports: lessons per teacher per month, and the activity log. */
 export default function LiveReports({ data, client }: { data: Data; client: SupabaseClient }) {
-  const [tab, setTab] = useState<'lessons' | 'monthly' | 'activity'>('lessons');
+  const [tab, setTab] = useState<'lessons' | 'monthly' | 'activity' | 'backup'>('lessons');
   return <section className="panel operations" aria-label="Reports">
-    <span className="eyebrow">REPORTS</span><h2>{tab === 'lessons' ? 'Lessons per teacher' : tab === 'monthly' ? 'Monthly report' : 'Activity log'}</h2>
+    <span className="eyebrow">REPORTS</span><h2>{tab === 'lessons' ? 'Lessons per teacher' : tab === 'monthly' ? 'Monthly report' : tab === 'backup' ? 'Backup download' : 'Activity log'}</h2>
     <div className="report-tabs no-print" role="group" aria-label="Choose a report">
       <button type="button" className={'small-btn' + (tab === 'lessons' ? ' report-tab-on' : '')} aria-pressed={tab === 'lessons'} onClick={() => setTab('lessons')}>Lessons per teacher</button>
       <button type="button" className={'small-btn' + (tab === 'monthly' ? ' report-tab-on' : '')} aria-pressed={tab === 'monthly'} onClick={() => setTab('monthly')}>Monthly report</button>
       <button type="button" className={'small-btn' + (tab === 'activity' ? ' report-tab-on' : '')} aria-pressed={tab === 'activity'} onClick={() => setTab('activity')}>Activity log</button>
+      <button type="button" className={'small-btn' + (tab === 'backup' ? ' report-tab-on' : '')} aria-pressed={tab === 'backup'} onClick={() => setTab('backup')}>Backup download</button>
     </div>
-    {tab === 'lessons' ? <LessonsReport data={data} /> : tab === 'monthly' ? <LiveMonthlyReport data={data} /> : <LiveActivity client={client} data={data} />}
+    {tab === 'lessons' ? <LessonsReport data={data} /> : tab === 'monthly' ? <LiveMonthlyReport data={data} /> : tab === 'backup' ? <LiveBackup data={data} /> : <LiveActivity client={client} data={data} />}
   </section>;
 }
 

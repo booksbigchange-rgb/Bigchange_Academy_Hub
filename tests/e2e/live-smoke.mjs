@@ -198,6 +198,9 @@ const db = freshDb();
   await p.goto('about:blank');
   await p.goto(BASE + '/?error=access_denied&error_description=Signups+not+allowed+for+this+instance');
   check('a Google account that was not added gets a clear message', await seen(p.getByText(/has not been added to the Academy/)));
+  await p.goto('about:blank');
+  await p.goto(BASE + '/?error=server_error&error_code=unexpected_failure&error_description=Unable+to+exchange+external+code%3A+4%2F0Ab');
+  check('a Google set-up problem says what to fix (Client ID and Secret)', await seen(p.getByText(/copy the Client ID and Client Secret again/)));
   await p.context().close();
 }
 
@@ -521,6 +524,24 @@ await session(browser, db, 'admin', 1366, async page => {
     await page.addScriptTag({ path: process.env.AXE_PATH });
     const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
     check('axe monthly report: no serious/critical issues', v.length === 0, v.join(' | '));
+  }
+  // Backup download: one ZIP with a read-me and a CSV per table.
+  await page.getByRole('button', { name: 'Backup download' }).click();
+  {
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download backup (ZIP)' }).click()]);
+    const { readZip } = await import('../../src/live/zip.mjs');
+    const files = readZip(new Uint8Array(await (await import('node:fs')).promises.readFile(await dl.path())));
+    const names = files.map(f => f.name);
+    check('backup downloads as one ZIP with a read-me and every table', /^bigchange-backup-\d{4}-\d{2}-\d{2}\.zip$/.test(dl.suggestedFilename())
+      && names[0] === 'README.txt' && ['students.csv', 'parents.csv', 'attendance.csv', 'payment_periods.csv', 'staff.csv'].every(n => names.includes(n))
+      && files.every(f => f.crcOk), names.join(','));
+    check('backup contains the real rows', files.find(f => f.name === 'students.csv').text.includes('"Kid Test"') && files.find(f => f.name === 'parents.csv').text.includes("'+251911000000"));
+    check('backup screen remembers the last download on this computer', await seen(page.getByText(/^Last downloaded on this computer: /)));
+  }
+  if (process.env.AXE_PATH) {
+    await page.addScriptTag({ path: process.env.AXE_PATH });
+    const v = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(x => x.impact === 'serious' || x.impact === 'critical').map(x => x.id));
+    check('axe backup download: no serious/critical issues', v.length === 0, v.join(' | '));
   }
 });
 

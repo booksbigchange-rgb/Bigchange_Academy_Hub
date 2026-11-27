@@ -57,6 +57,9 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 
 - 2026-11-24, **Reports → Monthly report** (admin): a one-page summary of a chosen month for management: active students, lessons held (and not fully marked), attendance, fees not yet approved as paid; the payments donut (status at the end of the month or today); periods started, payments reported in the month (how many approved, amounts where entered), open fees; students per course; attendance per class; lessons per teacher; levels ending next month. **Print or save as PDF** prints only the report (A4, no menu or buttons). No parent contact details on it. Numbers in `monthlyReport()` (`src/live/dashboard.mjs`). No database change. 166 unit tests, 166/166 browser checks (incl. print view and accessibility scan).
 
+- 2026-11-25, **Reports → Backup download** (admin): one ZIP with a read-me and a CSV per table (students, parents, parent links, courses, classes, enrollments, lessons, attendance, payment periods, reminders, payment methods, staff), ids kept so records can be matched. Made in the browser with a small built-in ZIP writer (`src/live/zip.mjs`, checked with Python's zipfile). Remembers the last download date on that computer. Not included: login accounts and the activity log. An extra copy the school controls; `docs/BACKUPS.md` stays the full database copy.
+- 2026-11-25, **clearer Google sign-in errors** (`src/lib/googleSignIn.mjs`): account not added, set-up problem (copy the Client ID and Secret again, where in Supabase), Google switched off, cancelled; the raw error text from the link is never shown. 172 unit tests, 171/171 browser checks.
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
 1. Hosting (`docs/HOSTING.md`), then Google sign-in (`docs/GOOGLE_SIGNIN.md`).

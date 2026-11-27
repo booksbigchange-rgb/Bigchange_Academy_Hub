@@ -60,6 +60,8 @@ Baseline (branch tip M5.15, `60ebf49`): typecheck OK, 97/97 tests, build OK.
 - 2026-11-25, **Reports → Backup download** (admin): one ZIP with a read-me and a CSV per table (students, parents, parent links, courses, classes, enrollments, lessons, attendance, payment periods, reminders, payment methods, staff), ids kept so records can be matched. Made in the browser with a small built-in ZIP writer (`src/live/zip.mjs`, checked with Python's zipfile). Remembers the last download date on that computer. Not included: login accounts and the activity log. An extra copy the school controls; `docs/BACKUPS.md` stays the full database copy.
 - 2026-11-25, **clearer Google sign-in errors** (`src/lib/googleSignIn.mjs`): account not added, set-up problem (copy the Client ID and Secret again, where in Supabase), Google switched off, cancelled; the raw error text from the link is never shown. 172 unit tests, 171/171 browser checks.
 
+- 2026-11-27, **My profile for teachers**: a "My profile" menu item shows the teacher's own profile (classes, students, lessons this month, lessons per month, attendance not completed, classes table, heat calendar), using the same page admins see under Staff, without the close button or sign-in date. Only their own data is readable (database rules). Heat calendar squares show the number only on phones (the % is still read out). 172 unit tests, 174/174 browser checks.
+
 ## Remaining
 The code for the internal staff version is finished. Needs the owner, in order (`docs/NEXT_STEPS.md`):
 1. Hosting (`docs/HOSTING.md`), then Google sign-in (`docs/GOOGLE_SIGNIN.md`).

@@ -1217,7 +1217,7 @@ footer {
 .live-shell .dash-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--lv-line); }
 .live-shell .dash-list li:last-child { border-bottom: 0; }
 .live-shell .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-@media (max-width: 520px) { .live-shell .dash-heat-row { grid-template-columns: 48px repeat(7, minmax(0, 1fr)); gap: 4px; } .live-shell .dash-heat-cell { min-height: 32px; font-size: 10px; } }
+@media (max-width: 520px) { .live-shell .dash-heat-row { grid-template-columns: 48px repeat(7, minmax(0, 1fr)); gap: 4px; } .live-shell .dash-heat-cell { min-height: 32px; font-size: 11px; } .live-shell .heat-pct { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); } }
 
 /* Staff profile (opened from the Staff screen) */
 .live-shell .profile { margin-top: 20px; background: var(--lv-muted); border: 1px solid var(--lv-line); border-radius: 20px; padding: 20px; min-width: 0; }

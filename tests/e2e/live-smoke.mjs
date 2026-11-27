@@ -314,7 +314,7 @@ await session(browser, db, 'admin', 1366, async page => {
   check('overview: payments donut shows the paid period', await seen(page.getByRole('img', { name: /^Donut chart of current payment periods: 1 paid/ })));
   check('overview: students-per-course bars', await seen(page.getByRole('region', { name: 'Students per course' }).getByText('Course Test')));
   check('overview: attendance line chart', await seen(page.getByRole('img', { name: /^Line chart of attendance per week/ })));
-  check('overview: heat calendar shows today at 100%', await seen(page.getByRole('table', { name: 'Attendance per day, last 4 weeks' }).getByRole('cell', { name: '100%' })));
+  check('overview: heat calendar shows today at 100%', await seen(page.getByRole('table', { name: 'Attendance per day, last 4 weeks' }).getByRole('cell', { name: '100% present' })));
   check('overview: attendance card shows the 4-week rate', await seen(page.locator('.metric', { hasText: 'Attendance (4 weeks)' }).getByText('100%')));
   if (process.env.SCREENSHOTS) await page.screenshot({ path: `${process.env.SCREENSHOTS}/admin-overview-new.png`, fullPage: true });
   await nav(page, 'Courses');
@@ -562,7 +562,15 @@ db.academy_fee_period_status.push({ id: uid(seq++), guardian_id: parentOfKid?.id
 
 await session(browser, db, 'teacher', 390, async page => {
   const sections = await page.getByRole('navigation', { name: 'Sections' }).getByRole('button').allInnerTexts();
-  check('teacher sees teacher sections only', JSON.stringify(sections) === JSON.stringify(['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices']), sections.join(','));
+  check('teacher sees teacher sections only', JSON.stringify(sections) === JSON.stringify(['Overview', 'Students', 'Guardians', 'Classes', 'Attendance', 'Fees', 'Notices', 'My profile']), sections.join(','));
+  await nav(page, 'My profile');
+  const myp = page.getByRole('region', { name: 'Profile of Teacher Test' });
+  check('teacher opens My profile with their own class and lessons', await seen(myp.getByRole('heading', { name: 'Teacher Test' }))
+    && await seen(myp.getByRole('region', { name: 'Classes of this teacher' }).getByRole('cell', { name: 'English – Level 3' }))
+    && await seen(myp.getByRole('img', { name: /^Bar chart of lessons per month/ })));
+  check('My profile shows attendance still to finish, and no close button or sign-in date', await seen(myp.getByText(/of \d+ marked/).first())
+    && (await myp.getByRole('button', { name: 'Close profile' }).count()) === 0 && (await myp.getByText(/^Last signed in/).count()) === 0);
+  if (process.env.SCREENSHOTS) await page.screenshot({ path: `${process.env.SCREENSHOTS}/teacher-my-profile.png`, fullPage: true });
   check('teacher cannot add students', (await nav(page, 'Students'), await page.getByRole('button', { name: '+ Add student' }).count()) === 0);
   await page.getByRole('row', { name: /^Kid Test/ }).getByRole('button', { name: 'Profile', exact: true }).click();
   const tsp = page.getByRole('region', { name: 'Profile of Kid Test' });
@@ -690,7 +698,7 @@ if (process.env.AXE_PATH) {
     check(`axe sign-in @${width}px: no serious/critical issues`, v.length === 0, v.join(' | '));
     await p.context().close();
   }
-  for (const [role, sections] of [['admin', ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Staff', 'Reports']], ['teacher', ['Overview', 'Classes', 'Fees', 'Notices']], ['finance', ['Fees', 'Overview', 'Guardians']]]) {
+  for (const [role, sections] of [['admin', ['Overview', 'Students', 'Guardians', 'Courses', 'Classes', 'Attendance', 'Fees', 'Staff', 'Reports']], ['teacher', ['Overview', 'Classes', 'Fees', 'Notices', 'My profile']], ['finance', ['Fees', 'Overview', 'Guardians']]]) {
     await session(browser, db, role, role === 'teacher' ? 390 : 1366, async page => {
       for (const name of sections) {
         await nav(page, name);
